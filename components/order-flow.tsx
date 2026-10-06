@@ -401,6 +401,11 @@ function DemoStrip({ v }: { v: OrderView }) {
         <button type="button" disabled={demo.pending} onClick={() => void act("recheck")}>
           Re-check now
         </button>
+        {v.vendorPhoneLink ? (
+          <a href={v.vendorPhoneLink} target="_blank" rel="noopener" style={{ font: "500 12px/1 var(--font-body)", padding: "8px 12px" }}>
+            Open vendor&apos;s phone
+          </a>
+        ) : null}
         <a href="/admin" style={{ font: "500 12px/1 var(--font-body)", padding: "8px 12px" }}>
           Admin
         </a>

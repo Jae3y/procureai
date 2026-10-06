@@ -36,7 +36,7 @@ async function main() {
   const unused = await db().vendorContact.findMany({ where: { phone: { notIn: DEMO_VENDORS.map((v) => v.phone) }, vendors: { none: {} } } });
   if (unused.length) await db().vendorContact.deleteMany({ where: { id: { in: unused.map((u) => u.id) } } });
 
-  const buyer = (await db().buyer.findFirst({ where: { email: DEMO_BUYER.email } })) ?? (await db().buyer.create({ data: { ...DEMO_BUYER } }));
+  const buyer = (await db().buyer.findFirst({ where: { email: DEMO_BUYER.email }, orderBy: { createdAt: "asc" } })) ?? (await db().buyer.create({ data: { ...DEMO_BUYER } }));
   const cancelled = await db().request.updateMany({
     where: { buyerId: buyer.id, status: { in: ["DRAFT", "COLLECTING", "VERIFYING", "RECOMMENDED"] } },
     data: { status: "CANCELLED" },
