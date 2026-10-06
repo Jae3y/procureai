@@ -71,6 +71,8 @@ type CallSpec<S extends z.ZodType> = {
   retry: RetryPolicy;
   /** Identity calls: log only reference/id_type, never the payload. */
   sensitive?: boolean;
+  /** Kora authenticates a few utility endpoints with the PUBLIC key (real sandbox, Oct 2026). */
+  auth?: "public";
 };
 
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
@@ -78,6 +80,8 @@ export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 export type KoraClientOptions = {
   baseUrl: string;
   secretKey: string;
+  /** Needed only for the endpoints Kora authenticates with the public key (GET /misc/banks). */
+  publicKey?: string;
   simulateIdentity: boolean;
   timeoutMs?: number;
   fetchImpl?: FetchLike;
@@ -116,6 +120,7 @@ const ACCESS_HINT =/not (been )?(enabled|activated|available|permitted|allowed)|
 export class KoraClient {
   private readonly baseUrl: string;
   private readonly secretKey: string;
+  private readonly publicKey: string | undefined;
   private readonly simulateIdentity: boolean;
   private readonly timeoutMs: number;
   private readonly fetchImpl: FetchLike;
@@ -125,6 +130,7 @@ export class KoraClient {
   constructor(opts: KoraClientOptions) {
     this.baseUrl = opts.baseUrl.replace(/\/+$/, "");
     this.secretKey = opts.secretKey;
+    this.publicKey = opts.publicKey;
     this.simulateIdentity = opts.simulateIdentity;
     this.timeoutMs = opts.timeoutMs ?? 10_000;
     this.fetchImpl = opts.fetchImpl ?? ((input, init) => fetch(input, init));
@@ -172,7 +178,7 @@ export class KoraClient {
         response = await this.fetchImpl(url.toString(), {
           method: spec.method,
           headers: {
-            Authorization: `Bearer ${this.secretKey}`,
+            Authorization: `Bearer ${spec.auth === "public" ? (this.publicKey ?? this.secretKey) : this.secretKey}`,
             Accept: "application/json",
             ...(bodyText !== undefined ? { "Content-Type": "application/json" } : {}),
           },
@@ -305,14 +311,28 @@ export class KoraClient {
     return this.call({ ...spec, method: "GET", path: "/identities/ng/banks", query: { type }, retry: "safe" });
   }
 
-  /** Cached basic list (1h). Populates the vendor bank picker and pre-validates bank codes. */
+  /**
+   * Cached basic list (1h). Pre-validates bank codes. Kora's sandbox answers with an empty list
+   * (6 Oct 2026); an empty answer is not cached, so a fixed list is picked up on the next call.
+   */
   async basicIdentityBanks(): Promise<IdentityBank[]> {
     const fresh = this.basicBanksCache && Date.now() - this.basicBanksCache.at < 3_600_000;
-    if (!fresh) {
-      const res = await this.listIdentityBanks("basic");
-      this.basicBanksCache = { at: Date.now(), banks: res.data };
-    }
-    return this.basicBanksCache?.banks ?? [];
+    if (fresh) return this.basicBanksCache?.banks ?? [];
+    const res = await this.listIdentityBanks("basic");
+    if (res.data.length > 0) this.basicBanksCache = { at: Date.now(), banks: res.data };
+    return res.data;
+  }
+
+  /**
+   * Banks for the vendor's payout-account picker: Kora's basic identity list, or — when Kora returns
+   * that list empty — Kora's payout bank list, which uses the same CBN codes. The caller labels it.
+   */
+  async bankPickerList(): Promise<{ banks: IdentityBank[]; source: "identity" | "payout" }> {
+    const identity = await this.basicIdentityBanks();
+    if (identity.length > 0) return { banks: identity, source: "identity" };
+    log.warn({ kora: { endpoint: "GET /identities/ng/banks?type=basic" } }, "Kora's basic identity bank list is empty; using the payout bank list");
+    const payout = await this.listPayoutBanks();
+    return { banks: payout.data.map((b) => ({ name: b.name, code: b.code })), source: "payout" };
   }
 
   async verifyBankAccountBasic(input: {
@@ -332,7 +352,10 @@ export class KoraClient {
     if (this.simulateIdentity) return this.simulated(spec, "bank-account-basic", `${input.bankCode}-${input.accountNumber}`);
 
     const banks = await this.basicIdentityBanks();
-    if (!banks.some((b) => b.code === input.bankCode)) {
+    if (banks.length === 0) {
+      // Nothing to check against (Kora's sandbox returns []); Kora's own lookup below still rejects a bad code.
+      log.warn({ kora: { endpoint, bankCode: input.bankCode } }, "Kora's basic identity bank list is empty; skipping the bank-code pre-check");
+    } else if (!banks.some((b) => b.code === input.bankCode)) {
       // Premium and basic code lists differ (e.g. GTB is 058 basic / 000013 premium). Never mix.
       throw new KoraValidationError(`bank code ${input.bankCode} is not on Kora's basic identity bank list`, {
         endpoint,
@@ -516,6 +539,7 @@ export class KoraClient {
       query: { countryCode: "NG" },
       schema: PayoutBanks,
       retry: "safe",
+      auth: "public",
     });
   }
 
@@ -624,6 +648,7 @@ export function kora(): KoraClient {
     defaultClient = new KoraClient({
       baseUrl: e.KORA_BASE_URL,
       secretKey: e.KORA_SECRET_KEY,
+      publicKey: e.KORA_PUBLIC_KEY,
       simulateIdentity: e.SIMULATE_IDENTITY,
     });
   }

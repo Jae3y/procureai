@@ -12,6 +12,7 @@ export function useKoraDouble(opts: { timeoutMs?: number; simulateIdentity?: boo
       new KoraClient({
         baseUrl,
         secretKey: double.secretKey,
+        publicKey: double.publicKey,
         simulateIdentity: opts.simulateIdentity ?? false,
         timeoutMs: opts.timeoutMs ?? 2_000,
         sleep: async () => undefined,

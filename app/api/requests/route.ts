@@ -27,7 +27,12 @@ export const POST = route({ name: "requests.create", input: Body, idempotent: tr
     if (!name || !email) {
       return { status: 400, body: { error: { code: "buyer_details", message: "Add your name and email so Kora can send your receipt." } } };
     }
-    const buyer = (await db().buyer.findFirst({ where: { email } })) ?? (await db().buyer.create({ data: { name, email } }));
+    // On a shared demo (DEMO_MODE with an ADMIN_TOKEN) every visitor gets their own buyer, so one
+    // visitor can't open another's orders; a local demo keeps the single presenter buyer.
+    const shared = env().DEMO_MODE && Boolean(env().ADMIN_TOKEN) && input.buyerEmail === undefined;
+    const buyer = shared
+      ? await db().buyer.create({ data: { name, email } })
+      : ((await db().buyer.findFirst({ where: { email } })) ?? (await db().buyer.create({ data: { name, email } })));
     buyerId = buyer.id;
     cookies.push(buyerSessionCookie(buyer.id));
   }

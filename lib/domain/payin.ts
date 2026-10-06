@@ -270,10 +270,24 @@ export async function applyChargeSnapshot(reference: string, snap: ChargeSnapsho
 
     // Still processing. With Kora's default "Return all" preference an underpayment is reversed to
     // the payer and the charge stays processing — nothing is held, so say so once.
-    if (snap.paidKobo !== null && snap.paidKobo > 0n && snap.paidKobo < payIn.amountExpectedKobo) {
+    // Polled every few seconds, so each reversed amount is reported once, not once per poll.
+    const reported = (title: string, amountKobo: Kobo) =>
+      tx.orderEvent.count({ where: { orderId: order.id, koraReference: reference, title, amountKobo } }).then((n) => n > 0);
+    if (snap.paidKobo !== null && snap.paidKobo > 0n && snap.paidKobo < payIn.amountExpectedKobo && !(await reported("charge.underpaid", snap.paidKobo))) {
       await orderEvent(tx, order.id, {
         kind: "kora",
         title: "charge.underpaid",
+        detail: snap.message ?? `${formatNaira(snap.paidKobo)} arrived but ${formatNaira(payIn.amountExpectedKobo)} was expected; Kora returned it to the payer.`,
+        amountKobo: snap.paidKobo,
+        koraReference: reference,
+        signature,
+      });
+    }
+    // The same preference reverses an overpayment in full, too.
+    if (snap.paymentEvent === "overpayment" && snap.paidKobo !== null && snap.paidKobo > payIn.amountExpectedKobo && !(await reported("charge.overpaid", snap.paidKobo))) {
+      await orderEvent(tx, order.id, {
+        kind: "kora",
+        title: "charge.overpaid",
         detail: snap.message ?? `${formatNaira(snap.paidKobo)} arrived but ${formatNaira(payIn.amountExpectedKobo)} was expected; Kora returned it to the payer.`,
         amountKobo: snap.paidKobo,
         koraReference: reference,
@@ -303,6 +317,16 @@ async function afterCredit(tx: Tx, order: Order, cause: Cause, accountFullyPaid:
       amountKobo: shortfallKobo,
     });
     return { changed: true, followUp: { kind: "NEXT_INSTALMENT", remainingKobo: shortfallKobo }, orderId: order.id };
+  }
+  if (accountFullyPaid && order.status === "UNDERPAID") {
+    // The top-up account was paid in full but Kora's cap kept it below the whole shortfall.
+    await orderEvent(tx, order.id, {
+      kind: "info",
+      title: "Transfer received",
+      detail: `${formatNaira(order.amountAcceptedKobo)} of ${formatNaira(order.amountKobo)} received. Kora takes up to ₦1,000,000 per account, so the next account is for ${formatNaira(shortfallKobo)}.`,
+      amountKobo: shortfallKobo,
+    });
+    return { changed: true, followUp: { kind: "TOP_UP", shortfallKobo }, orderId: order.id };
   }
   if (order.status === "AWAITING_PAYMENT") await transition(tx, order, "UNDERPAID", { ...cause, note: `short ${formatNaira(shortfallKobo)}` });
   await orderEvent(tx, order.id, {

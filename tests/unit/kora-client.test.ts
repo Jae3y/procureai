@@ -39,24 +39,59 @@ describe("Kora client — parsing documented responses", () => {
     expect(acct.data.account_details.name).toBe("MICHAEL JOHN DOE");
   });
 
+  const chargeInput = (reference: string, amountKobo: bigint) => ({
+    reference,
+    amountKobo,
+    customer: { name: "T", email: "t@procureai.test" },
+    accountName: "ProcureAI / PA-0001",
+    narration: "n",
+    notificationUrl: "https://procureai.test/api/webhooks/kora",
+    metadata: { orderId: "o1" },
+  });
+
   it("converts Kora's string and number money fields to kobo", async () => {
-    const created = await kora().createBankTransferCharge({
-      reference: "PA-test-0001",
-      amountKobo: 126_000_000n,
-      customer: { name: "T", email: "t@procureai.test" },
-      accountName: "ProcureAI / PA-0001",
-      narration: "n",
-      notificationUrl: "https://procureai.test/api/webhooks/kora",
-      metadata: { orderId: "o1" },
-    });
-    expect(created.data.amount).toBe(126_000_000n); // number 1260000 → kobo
+    const created = await kora().createBankTransferCharge(chargeInput("PA-test-0001", 100_000_000n));
+    expect(created.data.amount).toBe(100_000_000n); // number 1000000 → kobo
     expect(created.data.fee).toBe(2_250n); // 22.5
     const sentBody = double.calls.find((c) => c.path === "/charges/bank-transfer")?.body as { amount: number };
-    expect(sentBody.amount).toBe(1260000); // exact decimal on the wire
+    expect(sentBody.amount).toBe(1000000); // exact decimal on the wire
 
     const q = await kora().queryCharge("PA-test-0001");
-    expect(q.data.amount).toBe(126_000_000n); // string "1260000.00" → kobo
+    expect(q.data.amount).toBe(100_000_000n); // string "1000000.00" → kobo
     expect(q.data.amount_paid).toBe(0n);
+  });
+
+  it("refuses a bank-transfer charge above Kora's ₦1,000,000 per-account ceiling without calling Kora", async () => {
+    const err = await kora().createBankTransferCharge(chargeInput("PA-test-0002", 100_000_001n)).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(RangeError);
+    expect(double.callsTo("POST /charges/bank-transfer")).toBe(0);
+  });
+});
+
+describe("Kora client — empty basic bank list (Kora's sandbox returns [])", () => {
+  const fresh = () => new KoraClient({ baseUrl: double.baseUrl, secretKey: double.secretKey, publicKey: double.publicKey, simulateIdentity: false, sleep: async () => undefined });
+  const emptyList = () => double.next("GET /identities/ng/banks", { status: 200, body: { status: true, message: "Banks fetched successfully", data: [] } });
+
+  it("still verifies the account: the pre-check is skipped, Kora's own lookup decides", async () => {
+    emptyList();
+    const acct = await fresh().verifyBankAccountBasic({ accountNumber: "0123456789", bankCode: "058", consent: true });
+    expect(acct.data.account_details.name).toBe("MICHAEL JOHN DOE");
+    expect(double.callsTo("POST /identities/ng/bank-account-basic")).toBe(1);
+  });
+
+  it("the picker falls back to Kora's payout bank list and says so", async () => {
+    emptyList();
+    const list = await fresh().bankPickerList();
+    expect(list.source).toBe("payout");
+    expect(list.banks).toContainEqual({ name: "Guaranty Trust Bank", code: "058" });
+  });
+
+  it("an empty list isn't cached: a filled list is used on the next call", async () => {
+    const client = fresh();
+    emptyList();
+    expect((await client.bankPickerList()).source).toBe("payout");
+    expect((await client.bankPickerList()).source).toBe("identity");
+    await expect(client.verifyBankAccountBasic({ accountNumber: "0123456789", bankCode: "999", consent: true })).rejects.toBeInstanceOf(KoraValidationError);
   });
 });
 

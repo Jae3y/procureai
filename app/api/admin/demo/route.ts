@@ -3,7 +3,7 @@ import { corruptSignature, payAccount, recheckNow, replayWebhook, retryStage, se
 import { DomainError } from "@/lib/domain/errors";
 import { env } from "@/lib/env";
 import { route } from "@/lib/http/route";
-import { requireAdmin } from "@/lib/http/session";
+import { requireAdmin, requireBuyerOfOrder } from "@/lib/http/session";
 import { formatNaira } from "@/lib/money";
 import { tick } from "@/lib/worker/tick";
 
@@ -22,9 +22,13 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("tick") }),
 ]);
 
+/** The sandbox buttons on an order page; its buyer may press them. Everything else is admin-only. */
+const BUYER_ACTIONS = new Set(["pay", "underpay", "recheck"]);
+
 /** POST /api/admin/demo — demo controls (DEMO_MODE only). Every one goes through real code paths. */
-export const POST = route<z.output<typeof Body>>({ name: "admin.demo", input: Body }, async ({ req, input }) => {
-  requireAdmin(req);
+export const POST = route<z.output<typeof Body>>({ name: "admin.demo", input: Body, limits: ({ ip }) => [{ key: `demo:${ip}`, limit: 30, windowSeconds: 60 }] }, async ({ req, input }) => {
+  if ("orderId" in input && BUYER_ACTIONS.has(input.action)) await requireBuyerOfOrder(req, input.orderId);
+  else requireAdmin(req);
   if (!env().DEMO_MODE) throw new DomainError("demo_off", "Demo controls are off (DEMO_MODE=false).", 403);
   switch (input.action) {
     case "pay": {

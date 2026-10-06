@@ -4,6 +4,7 @@ import type { AddressInfo } from "node:net";
 import bankAccountBasic058 from "@/lib/kora/fixtures/documented/bank-account-basic-058-0123456789.json";
 import banksBasic from "@/lib/kora/fixtures/documented/banks-basic-basic.json";
 import cacValid from "@/lib/kora/fixtures/documented/cac-RC00000011.json";
+import { KORA_MAX_CHARGE_KOBO } from "@/lib/kora/limits";
 import { decimalToKobo, koboToNairaDecimal } from "@/lib/money";
 import { signLikeKora } from "@/lib/kora/signature";
 
@@ -31,6 +32,7 @@ export type Preference = "accept_all" | "return_excess" | "return_all";
 
 export class KoraDouble {
   readonly secretKey: string;
+  readonly publicKey: string;
   private server: Server | undefined;
   baseUrl = "";
   calls: Array<{ method: string; path: string; body: unknown }> = [];
@@ -47,8 +49,9 @@ export class KoraDouble {
   webhookTarget: string | null = null;
   private overrides = new Map<string, Override[]>();
 
-  constructor(secretKey = process.env.KORA_SECRET_KEY ?? "sk_test_procureai_unit_tests_only") {
+  constructor(secretKey = process.env.KORA_SECRET_KEY ?? "sk_test_procureai_unit_tests_only", publicKey = "pk_test_procureai_unit_tests_only") {
     this.secretKey = secretKey;
+    this.publicKey = publicKey;
   }
 
   async start(listenPort = 0): Promise<string> {
@@ -88,7 +91,14 @@ export class KoraDouble {
 
   // ── helpers tests use to play the role of the payer / Kora's webhook sender ──
 
-  /** Sandbox credit, as Kora would apply it given the merchant's preference. */
+  /**
+   * Sandbox credit, as Kora would apply it given the merchant's preference
+   * (docs/kora-snapshots/handling-underpayments-and-overpayments.md):
+   *  • Accept All    — any amount is processed; amount_accepted = amount_paid.
+   *  • Return Excess — overpayments only: the excess is reversed, amount_accepted = amount expected.
+   *                    (Underpayments fall back to Kora's default for them, Return All.)
+   *  • Return All    — the whole mismatched payment is reversed; the charge stays processing.
+   */
   pay(reference: string, kobo: bigint): ChargeState {
     const c = this.charges.get(reference);
     if (!c) throw new Error(`no charge ${reference}`);
@@ -105,6 +115,7 @@ export class KoraDouble {
       }
     } else {
       c.paymentEvent = "overpayment";
+      if (this.preference === "return_all") return c; // reversed in full; still processing
       c.status = "success";
       c.acceptedKobo = this.preference === "accept_all" ? c.paidKobo : c.expectedKobo;
     }
@@ -175,7 +186,9 @@ export class KoraDouble {
       res.end(JSON.stringify(payload));
     };
 
-    if (req.headers.authorization !== `Bearer ${this.secretKey}`) {
+    // Like Kora: GET /misc/banks takes the public key; everything else the secret key.
+    const key = path === "/misc/banks" ? this.publicKey : this.secretKey;
+    if (req.headers.authorization !== `Bearer ${key}`) {
       return send(401, { status: false, error: "not_authenticated", message: "no authorization token found", data: null });
     }
 
@@ -218,6 +231,10 @@ export class KoraDouble {
       const reference = str(body.reference);
       if (this.charges.has(reference)) return send(409, { status: false, code: "AA021", message: "duplicate payment reference", data: null });
       const expectedKobo = decimalToKobo(String(body.amount));
+      // Real sandbox answer above the per-account ceiling (6 Oct 2026).
+      if (expectedKobo > KORA_MAX_CHARGE_KOBO) {
+        return send(422, { status: false, message: "Invalid request data", data: { amount: { message: "amount must be less than or equal to 1000000" } } });
+      }
       const accountNumber = `90${randomInt(10_000_000, 99_999_999)}`;
       this.charges.set(reference, { reference, expectedKobo, paidKobo: 0n, acceptedKobo: 0n, status: "processing", accountNumber, paymentEvent: null });
       return send(200, {
@@ -316,6 +333,16 @@ export class KoraDouble {
       });
     }
 
+    if (method === "GET" && path === "/misc/banks") {
+      return send(200, {
+        status: true,
+        message: "successful",
+        data: [
+          { name: "Guaranty Trust Bank", slug: "gtb", code: "058", nibss_bank_code: "000013", country: "NG" },
+          { name: "Access Bank", slug: "access", code: "044", nibss_bank_code: "000014", country: "NG" },
+        ],
+      });
+    }
     if (method === "GET" && path === "/balances") {
       return send(200, { status: true, message: "success", data: { NGN: { pending_balance: 0, available_balance: Number(koboToNairaDecimal(this.availableKobo)) } } });
     }
