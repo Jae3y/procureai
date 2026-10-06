@@ -33,7 +33,7 @@ describe("Kora client — parsing documented responses", () => {
     expect(cac.data.name).toBe("John Doe Inc");
     expect(cac.data.key_personnel.some((p) => p.name === "MICHAEL DOE" && p.designation === "DIRECTOR")).toBe(true);
     const sent = double.calls.find((c) => c.path === "/identities/ng/cac");
-    expect(sent?.body).toEqual({ id: "RC00000011", registration_type: "RC", verification_consent: true });
+    expect(sent?.body).toEqual({ id: "00000011", registration_type: "RC", verification_consent: true });
 
     const acct = await kora().verifyBankAccountBasic({ accountNumber: "0123456789", bankCode: "058", consent: true });
     expect(acct.data.account_details.name).toBe("MICHAEL JOHN DOE");

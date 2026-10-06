@@ -1,0 +1,29 @@
+{
+  "httpStatus": 200,
+  "recordedAt": "2026-10-06T15:14:02.653Z",
+  "source": "npm run preflight",
+  "body": {
+    "status": true,
+    "message": "Transaction retrieved successfully",
+    "data": {
+      "reference": "PF-20261006fad98a-PO035",
+      "batch_reference": null,
+      "status": "failed",
+      "amount": "1000.00",
+      "fee": 32.25,
+      "currency": "NGN",
+      "narration": "ProcureAI preflight",
+      "channel": "api",
+      "completion_date": "2026-10-06T15:13:58.000Z",
+      "message": "Payout failed",
+      "customer": {
+        "email": "preflight@procureai.com",
+        "name": "ProcureAI Preflight",
+        "phone": null
+      },
+      "metadata": {
+        "preflight": "20261006fad98a"
+      }
+    }
+  }
+}

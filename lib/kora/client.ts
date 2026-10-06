@@ -282,11 +282,12 @@ export class KoraClient {
     const spec = { endpoint, schema: CacData };
     if (this.simulateIdentity) return this.simulated(spec, "cac", rc);
     const registrationType = /^(RC|BN|IT|LP|LLP)/.exec(rc)?.[1] ?? "RC";
+    const numericId = rc.replace(/^(RC|BN|IT|LP|LLP)/i, "");
     return this.call({
       ...spec,
       method: "POST",
       path: "/identities/ng/cac",
-      body: { id: rc, registration_type: registrationType, verification_consent: true },
+      body: { id: numericId, registration_type: registrationType, verification_consent: true },
       retry: "safe",
       sensitive: true,
     });
@@ -478,7 +479,6 @@ export class KoraClient {
           bank_account: { bank: input.bankCode, account: input.accountNumber },
           customer: input.customer,
         },
-        notification_url: input.notificationUrl,
         metadata: input.metadata,
       },
       schema: DisburseData,

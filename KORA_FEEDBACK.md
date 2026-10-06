@@ -49,3 +49,11 @@ and payouts (`/misc/banks`). The docs warn about basic vs premium; a mapping bet
 - Sandbox bank transfers auto-complete after 2 minutes unless `auto_complete: false` — great for demos, worth surfacing higher.
 - Payout `reference` is "Optional" in the Postman table and "Required, ≥ 5 chars" in the guide.
 - "Do not treat 5xx as failed payout — verify first" (payout guide) is exactly right; making it a callout on the endpoint page would prevent double payouts.
+
+## 11. Discoveries from Live Sandbox Preflight (October 2026)
+- **CAC `id` strictly validates against `/^\d+$/`**: Sending `"RC00000011"` (as documented in the guide) throws HTTP 400 validation error: `"id" with value "RC00000011" fails to match the required pattern: /^\d+$/`. Integrators must strip the `"RC"` prefix and send `"00000011"`.
+- **Payout disburse rejects `notification_url`**: Sending `notification_url` on `POST /transactions/disburse` causes HTTP 400 with `"notification_url is not allowed"`. Webhooks are configured globally in merchant dashboard settings.
+- **Minimum payout amount**: Disburse fails if amount is below ₦1,000 (`"Amount cannot be less than 1000"`). Test payloads must disburse at least 100,000 kobo.
+- **Customer email domain validation**: Emails using mock TLDs like `.test` fail validation with `"customer.email must be a valid email"`.
+- **`/misc/banks` requires Public Key**: `GET /misc/banks?countryCode=NG` must be authenticated with `Authorization: Bearer <PUBLIC_KEY>`, while transactional endpoints use the Secret Key.
+- **Basic identity bank list returns empty in sandbox**: `GET /identities/ng/banks?type=basic` returns `data: []` in sandbox mode for new merchant accounts.

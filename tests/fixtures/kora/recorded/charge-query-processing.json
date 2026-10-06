@@ -1,0 +1,25 @@
+{
+  "httpStatus": 200,
+  "recordedAt": "2026-10-06T15:14:03.346Z",
+  "source": "npm run preflight",
+  "body": {
+    "status": true,
+    "message": "Charge retrieved successfully",
+    "data": {
+      "reference": "PF-20261006fad98a-PA",
+      "status": "processing",
+      "amount": "100.00",
+      "amount_paid": "0.00",
+      "fee": 0,
+      "currency": "NGN",
+      "description": "Payment on Trex Media",
+      "customer": {
+        "name": "ProcureAI Preflight",
+        "email": "preflight@procureai.com"
+      },
+      "metadata": {
+        "preflight": "20261006fad98a"
+      }
+    }
+  }
+}

@@ -22,6 +22,7 @@
     "preflight": "tsx scripts/preflight.ts",
     "demo:reset": "tsx scripts/demo-reset.ts",
     "worker": "tsx scripts/worker.ts",
+    "tunnel": "tsx scripts/tunnel.ts",
     "capture:webhook-fixture": "tsx scripts/capture-webhook-fixture.ts",
     "test": "vitest run --project unit --project integration",
     "test:unit": "vitest run --project unit",
@@ -44,6 +45,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@ngrok/ngrok": "^1.7.0",
     "@playwright/test": "1.63.0",
     "@types/node": "^22.10.0",
     "@types/pg": "^8.11.10",

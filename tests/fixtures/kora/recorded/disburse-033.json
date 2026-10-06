@@ -1,0 +1,21 @@
+{
+  "httpStatus": 200,
+  "recordedAt": "2026-10-06T15:13:20.558Z",
+  "source": "npm run preflight",
+  "body": {
+    "status": true,
+    "message": "Transfer initiated successfully.",
+    "data": {
+      "amount": "1000.00",
+      "fee": "30.00",
+      "currency": "NGN",
+      "status": "processing",
+      "reference": "PF-20261006fad98a-PO033",
+      "message": "Payout processing",
+      "customer": {
+        "name": "ProcureAI Preflight",
+        "email": "preflight@procureai.com"
+      }
+    }
+  }
+}
