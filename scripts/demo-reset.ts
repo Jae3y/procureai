@@ -42,7 +42,7 @@ async function main() {
     data: { status: "CANCELLED" },
   });
 
-  await setSetting("payoutRoute", "VERIFIED_ACCOUNT");
+  await setSetting("payoutRoute", "SANDBOX_SUCCESS_033");
   await setSetting("suppressNextWebhook", "false");
 
   const request = await createRequest({ rawText: DEMO_REQUEST_TEXT, buyerId: buyer.id });
