@@ -1,0 +1,1141 @@
+
+################ /Pay-ins/Bank Transfer/Bank Transfer
+DESC: <p>This API allows you to create a virtual account for your customers to perform a one-time payment.</p>
+
+HEADERS: []
+BODY: {
+    "account_name": "Demo account",
+    "amount": 1500,
+    "currency": "NGN",
+    "reference": "your-transaction-reference-001",
+    "customer": {
+        "name": "John Doe",
+        "email": "johndoe@gmail.com"
+    }
+}
+--- EXAMPLE: Bank Transfer - Success 200
+{
+    "status": true,
+    "message": "Bank transfer initiated successfully",
+    "data": {
+        "currency": "NGN",
+        "amount": 1500,
+        "amount_expected": 1500,
+        "fee": 22.5,
+        "vat": 1.69,
+        "reference": "your-transaction-reference-001",
+        "payment_reference": "your-transaction-reference-001",
+        "status": "processing",
+        "narration": "Payment on Demo Merchant",
+        "merchant_bears_cost": true,
+        "bank_account": {
+            "account_name": "Demo account",
+            "account_number": "7590031627",
+            "bank_name": "wema",
+            "bank_code": "035",
+            "expiry_date_in_utc": "2023-06-05T16:58:09.193Z"
+        },
+        "customer": {
+            "name": "John Doe",
+            "email": "johndoe@gmail.com"
+        }
+    }
+}
+--- EXAMPLE: Bank Transfer - Request Validation Error 400
+{
+    "status": false,
+    "error": "bad_request",
+    "message": "invalid request data",
+    "data": {
+        "amount": {
+            "message": "amount is required",
+            "customErrorMessage": "amount is required"
+        }
+    }
+}
+--- EXAMPLE: Bank Transfer - Duplicate Reference 409
+{
+    "status": false,
+    "code": "AA021",
+    "message": "duplicate payment reference",
+    "data": null
+}
+
+################ /Pay-ins/Virtual Bank Account/Credit Sandbox Virtual Bank Account
+DESC: <p>This endpoint allows you to test your virtual account by funding it. This API is only available in the sandbox environment.</p>
+
+HEADERS: []
+BODY: {
+    "account_number": "1110000395",
+    "amount": 100,
+    "currency": "NGN"
+}
+--- EXAMPLE: Credit Sandbox Virtual Bank Account - Success 200
+{
+    "status": true,
+    "message": "Virtual bank account credited successfully",
+    "data": null
+}
+--- EXAMPLE: Credit Sandbox Virtual Bank Account: USD - Success 200
+{
+    "status": true,
+    "message": "Virtual bank account credited successfully",
+    "data": null
+}
+--- EXAMPLE: Credit Sandbox Virtual Bank Account: USD - Success 200
+{
+    "status": true,
+    "message": "Virtual bank account credited successfully",
+    "data": null
+}
+--- EXAMPLE: Credit Sandbox Virtual Bank Account - Request Validation Error 400
+{
+    "status": false,
+    "error": "bad_request",
+    "message": "invalid request data",
+    "data": {
+        "amount": {
+            "message": "account_number is required",
+            "customErrorMessage": "account_number is required"
+        }
+    }
+}
+
+################ /Pay-ins/Checkout Redirect/Initialize Charge
+DESC: <p>The Charge API allows you to configure payment channel of your choice when initiating a payment.</p>
+<p>This endpoint also supports split payments using the description provided in the request body below.</p>
+<h2 id="request-body">Request Body</h2>
+<div class="click-to-expand-wrapper is-table-wrapper"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Data Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>amount</td>
+<td>number</td>
+<td><code>Required</code> The amount to charge the customer</td>
+</tr>
+<tr>
+<td>redirect_url</td>
+<td>string</td>
+<td><code>Optional</code> The URL to redirect your customer when the transaction is complete.</td>
+</tr>
+<tr>
+<td>currency</td>
+<td>string</td>
+<td><code>Required</code> The currency in which the customer should be charged.</td>
+</tr>
+<tr>
+<td>reference</td>
+<td>string</td>
+<td><code>Required</code> Your transaction reference. Must be unique for every transaction.</td>
+</tr>
+<tr>
+<td>channels</td>
+<td>array</td>
+<td><code>Optional</code> Allowed payment channels for this transaction. Example <code>['card', 'bank_transfer', 'mobile_money']</code>.</td>
+</tr>
+<tr>
+<td>default_channel</td>
+<td>string</td>
+<td><code>Optional</code> The channel that shows up when the modal is instantiated. Example <code>bank_transfer</code></td>
+</tr>
+<tr>
+<td>notification_url</td>
+<td>string</td>
+<td><code>Required</code> The webhook URL to be called when the transaction is complete.</td>
+</tr>
+<tr>
+<td>narration</td>
+<td>string</td>
+<td><code>Require
+HEADERS: []
+BODY: {
+    "amount": 6000,
+    "redirect_url": "https://korapay.com?order=1234",
+    "currency": "NGN",
+    "reference": "test-postman-transaction-1",
+    "narration": "Payment for product Y",
+    "merchant_bears_cost": false,
+    "customer": {
+        "name": "John Doe",
+        "email": "john@email.com"
+    },
+    "notification_url": "https://webhook.site/8d321d8d-397f-4bab-bf4d-7e9ae3afbd50"
+}
+--- EXAMPLE: Initialize Charge 200
+{
+    "status": true,
+    "message": "Charge created successfully",
+    "data": {
+        "reference": "test-postman-transaction-1234719",
+        "checkout_url": "https://checkout.korapay.com/KPY-PI-202509171758oDUd0V19327/pay"
+    }
+}
+--- EXAMPLE: Initialize Charge With Existing Split Reference 200
+{
+    "status": true,
+    "message": "Charge created successfully",
+    "data": {
+        "reference": "test-postman-transaction-12345",
+        "checkout_url": "https://checkout.korapay.com/KPY-PI-202509171744yxuDov36332/pay"
+    }
+}
+--- EXAMPLE: Initialize Charge With Dynamic Percentage Type Split Configuration 200
+{
+    "status": true,
+    "message": "Charge created successfully",
+    "data": {
+        "reference": "test-postman-transaction-123456",
+        "checkout_url": "https://checkout.korapay.com/KPY-PI-202509171746S5yZVy30765/pay"
+    }
+}
+--- EXAMPLE: Error Response: Split Payment Minimum Amount Validation 400
+{
+    "status": false,
+    "code": "AA027",
+    "message": "Split payment can only be applied on NGN7150 and above using the selected split configuration",
+    "data": null
+}
+
+################ /Pay-ins/Query Charge
+DESC: <p>This endpoint returns the status and details of a charge through the reference.</p>
+<h2 id="url-parameters">URL Parameters</h2>
+<div class="click-to-expand-wrapper is-table-wrapper"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Data Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>reference</td>
+<td>string</td>
+<td>the unique charge reference</td>
+</tr>
+</tbody>
+</table>
+</div><h2 id="successful-response-body">Successful Response Body</h2>
+<div class="click-to-expand-wrapper is-table-wrapper"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Data Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>status</td>
+<td>string</td>
+<td>request status</td>
+</tr>
+<tr>
+<td>message</td>
+<td>string</td>
+<td>request status message</td>
+</tr>
+<tr>
+<td>data</td>
+<td>object</td>
+<td>object containing transaction details</td>
+</tr>
+<tr>
+<td>data.reference</td>
+<td>string</td>
+<td>the transaction unique reference</td>
+</tr>
+<tr>
+<td>data.amount</td>
+<td>money</td>
+<td>transaction amount</td>
+</tr>
+<tr>
+<td>data.amount_paid</td>
+<td>money</td>
+<td>the amount paid by the customer</td>
+</tr>
+<tr>
+<td>data.amount_accepted</td>
+<td>money</td>
+<td>the amount accepted by Kora.  <br />  <br />Its value is based on the configuration for overpayment and underpayment.  <br />  <br />For pay with bank transfer, this is the amount that must be credited to your customer.</td>
+</tr>
+<tr>
+<td>money</td>
+<td>transaction fee</td>
+<td></td>
+</tr>
+<tr>
+<td>data.currency</td>
+<td>string</td>
+<td>transa
+HEADERS: []
+BODY: undefined
+--- EXAMPLE: Query Charge - Successful Pay-In 200
+{
+    "status": true,
+    "message": "Charge retrieved successfully",
+    "data": {
+        "reference": "your-transaction-reference-001",
+        "status": "success",
+        "amount": "100.00",
+        "amount_paid": "100.00",
+        "fee": "25.00",
+        "currency": "NGN",
+        "description": "Payment for Product Y",
+        "payer_bank_account": {
+            "account_number": "******2468",
+            "account_name": "John Doe",
+            "bank_name": "WEMA BANK"
+        }
+    }
+}
+--- EXAMPLE: Query Charge - Failed Pay-in undefined
+{
+    "status": true,
+    "message": "Charge retrieved successfully",
+    "data": {
+        "reference": "your-transaction-reference-001",
+        "status": "failed",
+        "amount": "100.00",
+        "amount_paid": "0.00",
+        "fee": "25.00",
+        "currency": "NGN",
+        "description": "Card Payment",
+        "created_at": "2021-10-28 07:28:59",
+        "payment_attempts": [
+            {
+                "reference": "KPY-CM-unEr27sJ616S",
+                "status": "failed",
+                "channel": "card",
+                "message": "Insufficient funds"
+            }
+        ],
+        "card": {
+            "card_type": "mastercard",
+            "first_six": "539983",
+            "last_four": "8381",
+            "expiry": "10/31"
+        }
+    }
+}
+--- EXAMPLE: Query Charge - Expired Pay-in 200
+{
+    "status": true,
+    "message": "Charge retrieved successfully",
+    "data": {
+        "reference": "your-transaction-reference-001",
+        "status": "expired",
+        "amount": "100.00",
+        "amount_paid": "0.00",
+        "fee": "25.00",
+        "currency": "NGN",
+        "description": "Payment for Product X",
+        "created_at": "2021-10-28 07:28:59",
+        "payment_attempts": [
+            {
+                "reference": "KPY-CM-unE13asJ0154",
+                "status": "expired",
+                "channel": "bank_transfer",
+                "message": "Action required"
+            }
+        ]
+    }
+}
+--- EXAMPLE: Query Charge - Not Found 404
+{
+    "status": false,
+    "message": "Charge not found",
+    "data": null
+}
+--- EXAMPLE: Query Charge: Mobile Money - Success undefined
+{
+    "status": true,
+    "message": "Charge retrieved successfully",
+    "data": {
+        "reference": "your-transaction-reference-001",
+        "status": "success",
+        "amount": "100.00",
+        "amount_paid": "100.00",
+        "fee": "25.00",
+        "currency": "NGN",
+        "description": "Payment for Product Y",
+        "mobile_money": {
+            "mobile_number": "+25490******268",
+            "netwprk_provuder": "M-Pesa"
+        }
+    }
+}
+--- EXAMPLE: Query charge Pool Account 200
+{
+    "status": true,
+    "message": "Charge retrieved successfully",
+    "data": {
+        "reference": "KPY-PAY-DDWYJxN0ttCrN9Z",
+        "status": "success",
+        "amount": "30.00",
+        "amount_paid": "30.00",
+        "fee": 2.32,
+        "currency": "KES",
+        "description": "Pool account transfer from tobe",
+        "customer": {
+            "name": "tobe",
+            "email": "tobe12@gmail.com"
+        },
+        "pool_account": {
+            "pool_account_reference": "MIKP7DXSJGRZKES",
+            "account_details": {
+                "currency": "KES",
+                "bank_code": "mobile_money",
+                "bank_name": "Kora kes mobile money"
+            },
+            "payer_details": {
+                "payer_name": "Test Payer"
+            }
+        }
+    }
+}
+
+################ /Payouts/Single Payout/Single Payout to Bank Account
+DESC: <p>This endpoint is used to initiate a single disbursement to bank account.</p>
+<h2 id="request-body">Request Body</h2>
+<div class="click-to-expand-wrapper is-table-wrapper"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Data Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>reference</td>
+<td>string</td>
+<td><code>Optional</code> — unique transaction reference</td>
+</tr>
+<tr>
+<td>destination</td>
+<td>object</td>
+<td><code>Required</code></td>
+</tr>
+<tr>
+<td>destination.type</td>
+<td>string</td>
+<td><code>Required</code> — can be <code>bank_account</code> or <code>mobile_money</code></td>
+</tr>
+<tr>
+<td>destination.amount</td>
+<td>number</td>
+<td><code>Required</code> — transaction amount (two decimal places)</td>
+</tr>
+<tr>
+<td>destination.currency</td>
+<td>string</td>
+<td><code>Required</code> — transaction currency e.g. <code>NGN</code>, <code>KES</code>, <code>GHS</code>, <code>XOF</code>, <code>XAF</code>, <code>EGP</code>, <code>ZAR</code>, <code>USD</code>, or <code>GBP</code></td>
+</tr>
+<tr>
+<td>destination.narration</td>
+<td>string</td>
+<td><code>Optional</code> — transaction narration or description</td>
+</tr>
+<tr>
+<td>destination.customer</td>
+<td>object</td>
+<td><code>Required</code></td>
+</tr>
+<tr>
+<td>destination.customer.name</td>
+<td>string</td>
+<td><code>Optional</code> — customer name</td>
+</tr>
+<tr>
+<td>destination.customer.email</td>
+<td>string</td>
+<td><code>Required</code> — customer email</td>
+</tr>
+<tr>
+<td>destination.bank_account</td>
+<td>objec
+HEADERS: []
+BODY: {
+    "reference": "your-unique-transaction-reference-001",
+    "destination": {
+        "type": "bank_account",
+        "amount": "100",
+        "currency": "NGN",
+        "narration": "Test Transfer Payment",
+        "bank_account": {
+            "bank": "033",
+            "account": "0000000000"
+        },
+        "customer": {
+            "name": "John Doe",
+            "email": "johndoe@email.com"
+        }
+    }
+}
+
+--- EXAMPLE: Single USD Payout to Bank Account - Success 200
+{
+    "status": true,
+    "message": "transfer initiated successfully",
+    "data": {
+        "amount": "10",
+        "fee": "2.50",
+        "currency": "USD",
+        "status": "processing",
+        "reference": "your-unique-transaction-reference-001",
+        "narration": "Payout",
+        "customer": {
+            "name": "Bella Taylor",
+            "email": "bellataylor@gmail.com",
+            "phone": null
+        }
+    }
+}
+--- EXAMPLE: Single GBP Payout to Bank Account - Success 200
+{
+    "status": true,
+    "message": "transfer initiated successfully",
+    "data": {
+        "amount": "10",
+        "fee": "2.50",
+        "currency": "USD",
+        "status": "processing",
+        "reference": "your-unique-transaction-reference-001",
+        "narration": "Payout",
+        "customer": {
+            "name": "Bella Taylor",
+            "email": "bellataylor@gmail.com",
+            "phone": null
+        }
+    }
+}
+--- EXAMPLE: Single Payout to Bank Account - Success 200
+{
+    "status": true,
+    "message": "transfer initiated successfully",
+    "data": {
+        "amount": "100.00",
+        "fee": "2.50",
+        "currency": "NGN",
+        "status": "processing",
+        "reference": "your-unique-transaction-reference-001",
+        "narration": "Test Transfer Payment",
+        "customer": {
+            "name": "John Doe",
+            "email": "johndoe@email.com",
+            "phone": null
+        }
+    }
+}
+--- EXAMPLE: Single Payout to Bank Account - Insufficient Funds 409
+{
+    "status": false,
+    "message": "Insufficient funds in disbursement wallet",
+    "data": null
+}
+--- EXAMPLE: Single Payout to Bank Account - Bank not Found 404
+{
+    "status": false,
+    "message": "bank not found",
+    "data": null
+}
+--- EXAMPLE: Single Payout to Bank Account - Request Validation Error 400
+{
+    "status": false,
+    "error": "bad_request",
+    "message": "invalid request data",
+    "data": {
+        "amount": {
+            "message": "reference is required",
+            "customErrorMessage": "reference is required"
+        }
+    }
+}
+
+################ /Payouts/Verify Payout Transaction
+DESC: <p>This endpoints returns the status and details of a disbursement through the reference.</p>
+<h2 id="url-parameters">URL Parameters</h2>
+<div class="click-to-expand-wrapper is-table-wrapper"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Data Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>transactionReference</td>
+<td>string</td>
+<td>unique reference</td>
+</tr>
+</tbody>
+</table>
+</div><h2 id="successful-response-body">Successful Response Body</h2>
+<div class="click-to-expand-wrapper is-table-wrapper"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Data Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>status</td>
+<td>string</td>
+<td>request status</td>
+</tr>
+<tr>
+<td>message</td>
+<td>string</td>
+<td>request status message</td>
+</tr>
+<tr>
+<td>data</td>
+<td>object</td>
+<td>object containing transaction details: amount, fee, narration, currency, status, reference, customer etc.</td>
+</tr>
+<tr>
+<td>data.fee</td>
+<td>money</td>
+<td>transaction fee</td>
+</tr>
+<tr>
+<td>data.reference</td>
+<td>string</td>
+<td>unique transaction identifier</td>
+</tr>
+<tr>
+<td>data.amount</td>
+<td>money</td>
+<td>transaction amount</td>
+</tr>
+<tr>
+<td>data.narration</td>
+<td>string</td>
+<td>purpose of transaction</td>
+</tr>
+<tr>
+<td>data.currency</td>
+<td>string</td>
+<td>transaction currency e.g. NGN</td>
+</tr>
+<tr>
+<td>data.status</td>
+<td>string</td>
+<td>gives an overview status of the transaction ie. was the payment made successfully or not. It can be <strong>processing</strong>, <stro
+HEADERS: []
+BODY: undefined
+--- EXAMPLE: Verify Payout Transaction - Successful Payout 200
+{
+    "status": true,
+    "message": "Transaction retrieved successfully",
+    "data": {
+        "reference": "your-unique-transaction-reference-001",
+        "status": "success",
+        "amount": 1000,
+        "fee": 10,
+        "currency": "NGN",
+        "narration": "payout to customer",    
+        "trace_id": "000000000000000111111111111111",
+        "message": "Payout successful",
+        "customer": {
+            "name": "John Doe",
+            "email": "johndoe@korapay.com",
+            "phone": null
+        }
+    }
+}
+--- EXAMPLE: Verify Payout Transaction - Successful Remittance Payout 200
+{
+    "status": true,
+    "message": "Transaction retrieved successfully",
+    "data": {
+        "reference": "productivity-JSONref-01990Valentin-997-890-3785",
+        "batch_reference": null,
+        "status": "success",
+        "amount": "100.00",
+        "fee": 23.37,
+        "currency": "GHS",
+        "narration": "Test Transfer Payment backend",
+        "trace_id": "325312136131805485217437051622",
+        "message": "Payout successful",
+        "customer": {
+            "email": "jeremiah@korapay.com",
+            "name": "jeremiah",
+            "phone": null
+        },
+        "metadata": null,
+        "remittance_data": {
+            "sender_dob": "1990-05-15T00:00:00.000Z",
+            "sender_name": "Jeremiah Doe",
+            "sender_id_type": "Passport",
+            "source_of_funds": "Salary",
+            "sender_id_number": "A12345678",
+            "sender_occupation": "Software Engineer",
+            "remittance_purpose": "Family Support",
+            "sender_country_iso": "NG",
+            "sender_nationality": "Nigerian",
+            "sender_phone_number": "086778899010",
+            "sender_service_provider_name": "ABC Bank",
+            "sender_recipient_relationship": "Brother"
+        }
+    }
+}
+--- EXAMPLE: Verify Payout Transaction - Failed Payout 200
+{
+    "status": true,
+    "message": "Transaction retrieved successfully",
+    "data": {
+        "reference": "your-unique-transaction-reference-002",
+        "status": "failed",
+        "amount": 1000,
+        "fee": 10,
+        "currency": "NGN",
+        "narration": "payout to customer",    
+        "message": "Timeout waiting for response from destination",
+        "customer": {
+            "name": "John Doe",
+            "email": "johndoe@korapay.com",
+            "phone": null
+        }
+    }
+}
+--- EXAMPLE: Verify Payout Transaction - Pending Payout 200
+{
+    "status": true,
+    "message": "Transaction retrieved successfully",
+    "data": {
+        "reference": "your-unique-transaction-reference-002",
+        "status": "processing",
+        "amount": 1000,
+        "fee": 10,
+        "currency": "NGN",
+        "narration": "payout to customer",    
+        "message": "Timeout waiting for response from destination",
+        "customer": {
+            "name": "John Doe",
+            "email": "johndoe@korapay.com",
+            "phone": null
+        }
+    }
+}
+--- EXAMPLE: Verify Payout Transaction - Transaction not found 404
+{
+    "status": false,
+    "message": "Transaction not found",
+    "data": null
+}
+
+################ /Balances/Get Balances
+DESC: <p>This API allows you to retrieve your pending and available balances</p>
+<h2 id="successful-response-body">Successful Response Body</h2>
+<div class="click-to-expand-wrapper is-table-wrapper"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Data Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>status</td>
+<td>string</td>
+<td>request status</td>
+</tr>
+<tr>
+<td>message</td>
+<td>string</td>
+<td>request status message</td>
+</tr>
+<tr>
+<td>data.currency</td>
+<td>object</td>
+<td>The currency can be NGN, USD or any of the currencies available for you.</td>
+</tr>
+<tr>
+<td>data.currency.pending_balance</td>
+<td>number</td>
+<td>This refers to funds that have been received but are yet to be settled to you.</td>
+</tr>
+<tr>
+<td>data.currency.available_balance</td>
+<td>number</td>
+<td>This represents funds that are available and ready for you to use - to withdraw or to make payouts.</td>
+</tr>
+<tr>
+<td>data.currency.issuing_balance</td>
+<td>number</td>
+<td>This represents funds that are available and ready for you to use for all card related actions such as creation, funding. Funds withdrawn from cards are also settled to this wallet.  <br />  <br /><code>Note:</code> This is only available for the USD currency at the moment</td>
+</tr>
+</tbody>
+</table>
+</div>
+HEADERS: []
+BODY: undefined
+--- EXAMPLE: Get Balance - Success 200
+{
+    "status": true,
+    "message": "success",
+    "data": {
+        "NGN": {
+            "pending_balance": 0,
+            "available_balance": 946
+        },
+         "USD": {
+            "pending_balance": 0,
+            "available_balance": 946,
+            "issuing_balance": 500
+        }
+    }
+}
+
+################ /Balances/Get Balance History
+DESC: <p>This API allows you to retrieve the history of your balances. This provides information about all debit and credit actions on the wallet. The maximum amount of records that can be retrieved per request is 50</p>
+<h2 id="successful-response-body">Successful Response Body</h2>
+<div class="click-to-expand-wrapper is-table-wrapper"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Data Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>status</td>
+<td>string</td>
+<td>request status</td>
+</tr>
+<tr>
+<td>message</td>
+<td>string</td>
+<td>request status message</td>
+</tr>
+<tr>
+<td>data.has_more</td>
+<td>boolean</td>
+<td>This signifies whether there are still more items that can be retrieved on the next page</td>
+</tr>
+<tr>
+<td>data.history</td>
+<td>array</td>
+<td>This contains the list of balance history records. The array contains objects where each object has the information of the history information</td>
+</tr>
+</tbody>
+</table>
+</div>
+HEADERS: []
+BODY: undefined
+--- EXAMPLE: Get Balance History - Success 200
+{
+    "status": true,
+    "message": "Balance history retrieved successfully",
+    "data": {
+        "has_more": true,
+        "history": [
+            {
+                "pointer": "cus_713",
+                "amount": "100.00",
+                "currency": "NGN",
+                "balance_before": "1031741.79",
+                "balance_after": "1031641.79",
+                "date": "2023-05-24 08:00:35",
+                "description": "Refund processed for KPY-C-1G3fDjgD93md",
+                "direction": "debit",
+                "source": "refund",
+                "source_reference": "KPY-RFD-MQdYOcMDF678"
+            },
+            {
+                "pointer": "cus_712",
+                "amount": "100.00",
+                "currency": "NGN",
+                "balance_before": "1031841.79",
+                "balance_after": "1031741.79",
+                "date": "2023-05-23 07:52:05",
+                "description": "Refund processed for KPY-C-1G3fDjgD93md",
+                "direction": "debit",
+                "source": "refund",
+                "source_reference": "KPY-RFD-6s1DyLsidVlE"
+            },
+            {
+                "pointer": "cus_711",
+                "amount": "100.00",
+                "currency": "NGN",
+                "balance_before": "1031941.79",
+                "balance_after": "1031841.79",
+                "date": "2023-05-23 07:42:48",
+                "description": "Refund processed for KPY-C-1G3fDjgD93md",
+                "direction": "debit",
+                "source": "refund",
+                "source_reference": "KPY-RFD-zKm7j3b4eLlm"
+            },
+            {
+                "pointer": "cus_710",
+                "amount": "100.00",
+                "currency": "NGN",
+                "balance_before": "1032041.79",
+                "balance_after": "1031941.79",
+                "date": "2023-05-23 07:41:04",
+                "description": "Refund processed for KPY-C-1G3fDjgD93md",
+                "direction": "debit",
+                "source": "refund",
+                "source_reference": "KPY-RFD-5YqW9sAXGREt"
+            },
+            {
+                "pointer": "cus_70F",
+                "amount": "100.00",
+                "currency": "NGN",
+                "balance_before": "1032141.79",
+                "balance_after": "1032041.79",
+                "date": "2023-05-16 07:38:15",
+                "description": "Refund processed for KPY-C-1G3fDjgD93md",
+                "direction": "debit",
+                "source": "refund",
+
+################ /Miscellaneous/List Banks
+DESC: <h3 id="get-a-list-of-all-supported-banks-and-their-properties">Get a list of all supported banks and their properties</h3>
+<p>This endpoint returns all supported banks.</p>
+<h4 id="supported-country-and-their-country-code">Supported Country and their country code</h4>
+<pre class="click-to-expand-wrapper is-snippet-wrapper"><code>Nigeria        = 'NG'  // Currency: NGN (Nigerian Naira)
+Kenya          = 'KE'  // Currency: KES (Kenyan Shilling)
+SouthAfrica    = 'ZA'  // Currency: ZAR (South African Rand)
+Egypt          = 'EG'  // Currency: EGP (Egyptian Pound)
+United States  = 'US'  // Currency: USD (United State Dollars)
+Great Britain  = 'GB'  // Currency: GBP (Great Britain Pounds)
+
+</code></pre>
+HEADERS: []
+BODY: undefined
+--- EXAMPLE: List Banks - Success 200
+{
+    "status": true,
+    "message": "Successful",
+    "data": [
+        {
+            "name": " AL-Barakah Microfinance Bank",
+            "slug": "al-barakah-mfb",
+            "code": "090133",
+            "nibss_bank_code": "090133",
+            "country": "NG"
+        },
+        {
+            "name": "9 Payment Service Bank",
+            "slug": "9payment",
+            "code": "000802",
+            "nibss_bank_code": "000802",
+            "country": "NG"
+        },
+        {
+            "name": "AB Microfinance Bank",
+            "slug": "ab-mfb",
+            "code": "090270",
+            "nibss_bank_code": "090270",
+            "country": "NG"
+        },
+        {
+            "name": "Abbey Mortgage Bank",
+            "slug": "abbey-mb",
+            "code": "070010",
+            "nibss_bank_code": "070010",
+            "country": "NG"
+        },
+        {
+            "name": "Above Only Microfinance Bank",
+            "slug": "above-only-mfb",
+            "code": "090260",
+            "nibss_bank_code": "090260",
+            "country": "NG"
+        },
+        {
+            "name": "ABU Microfinance Bank",
+            "slug": "abu-mfb",
+            "code": "090197",
+            "nibss_bank_code": "090197",
+            "country": "NG"
+        },
+        {
+            "name": "Access Bank Nigeria",
+            "slug": "access",
+            "code": "044",
+            "nibss_bank_code": "000014",
+            "country": "NG"
+        },
+        {
+            "name": "Access Bank Plc (Diamond)",
+            "slug": "diamond",
+            "code": "063",
+            "nibss_bank_code": "000005",
+            "country": "NG"
+        },
+        {
+            "name": "ACCESS MOBILE",
+            "slug": "access-mobile",
+            "code": "323",
+            "nibss_bank_code": null,
+            "country": "NG"
+        },
+        {
+            "name": "Access Money",
+            "slug": "access-money",
+            "code": "927",
+            "nibss_bank_code": "100013",
+            "country": "NG"
+        },
+        {
+            "name": "Access Yello &amp; Beta",
+            "slug": "access-yellow",
+            "code": "100052",
+            "nibss_bank_code": "100052",
+            "country": "NG"
+        },
+        {
+            "name": "Accion Microfinance Bank",
+            "slug": "accion-mfb",
+            "code": "090134",
+            "nibss_bank_code": "090134",
+            "country": "NG"
+        },
+        {
+            "name": "Addosser Microfinance Bank",
+  
+
+################ /Identity/Nigeria/CAC Verification
+DESC: <p>This endpoint allows you to verify the validity of a Nigerian corporate affairs commission(CAC)</p>
+<p><strong>Payload</strong></p>
+<div class="click-to-expand-wrapper is-table-wrapper"><table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Data Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>id</td>
+<td>string</td>
+<td><code>Required</code> Corporate affairs commission number</td>
+</tr>
+<tr>
+<td>registration_type</td>
+<td>string</td>
+<td><code>Required</code> One of <code>RC</code>, <code>BN</code>, <code>IT</code>, <code>LP</code>, or <code>LLP</code></td>
+</tr>
+<tr>
+<td>registration_name</td>
+<td>string</td>
+<td><code>Optional</code> Business name</td>
+</tr>
+<tr>
+<td>verification_consent</td>
+<td>boolean</td>
+<td><code>Required</code> Indicates whether the user has provided explicit consent for their ID to be verified</td>
+</tr>
+</tbody>
+</table>
+</div>
+HEADERS: []
+BODY: {
+    "id": "00000011",
+    "registration_type": "RC",
+    "verification_consent": true
+}
+--- EXAMPLE: CAC Verification - Success 200
+{
+    "status": true,
+    "message": "CAC verified successfully",
+    "data": {
+        "reference": "VR-TCGSjd4tgYaquSE20",
+        "id": "RC00000011",
+        "id_type": "ng_cac",
+        "name": "John Doe Inc",
+        "email": "johnfakedoe@gmail.com",
+        "phone_number": "+1 000 000 0000",
+        "search_business_name": null,
+        "former_name": null,
+        "brand_name": null,
+        "registration_number": "RC00000000",
+        "registry_number": "00000000",
+        "vat_number": "00000000-0001",
+        "registration_date": "2017-06-09T00:00:00.000+00:00",
+        "registration_submission_date": "2017-05-31T11:22:07.713+00:00",
+        "date_dissolved": null,
+        "tin": "00000000-0001",
+        "jtb_tin": null,
+        "tax_office": null,
+        "website_email": null,
+        "type_of_entity": "PRIVATE COMPANY LIMITED BY SHARES",
+        "activity": "Information service activities",
+        "address": "1ST FLOOR,SUM HOUSE,Fake Street",
+        "state": "LAGOS",
+        "lga": "Lagos Mainland",
+        "city": "YABA",
+        "branch_address": "1ST FLOOR,SUM HOUSE,Fake Street, YABA, LAGOS STATE ",
+        "head_office_address": null,
+        "objectives": "",
+        "company_status": "ACTIVE",
+        "last_updated_at": "2022-03-30T14:19:35.571+00:00",
+        "share_capital_in_words": "TEN MILLION NAIRA",
+        "paid_share_capital": "10000000",
+        "subscribed_share_capital": "10000000",
+        "shares_value": "0.01 NGN",
+        "activity_description": "Information service activities",
+        "shares_issued": "10000000",
+        "parent_country": null,
+        "company_contact_persons": [
+            {
+                "contacts": {
+                    "email": [
+                        "jeneki2000@yahoo.co.uk"
+                    ],
+                    "phone": [
+                        "08034926354"
+                    ]
+                },
+                "name": "Eboikpomwen  Eki "
+            }
+        ],
+        "country": "ng",
+        "key_personnel": [
+            {
+                "name": "PETER DOE",
+                "designation": "WITNESS",
+                "is_corporate": false,
+                "appointed_on": null,
+                "resigned_on": null,
+                "shares_type": "",
+                "shares_value": null,
+                "shares_count": null,
+                "occupation": "LAWYER",
+                "nationality": null,
+                "birth_year": null,
+                "birth_month": null,
+       
+--- EXAMPLE: CAC Verification - Request Validation Error 422
+{
+    "status": false,
+    "error": "validation_error",
+    "message": "It seems there`s an issue with your input. Please correct it and try again.",
+    "data": {
+        "id": {
+            "message": "id with value 000000Y fails to match the required pattern: /^\\d+$/"
+        }
+    }
+}
+--- EXAMPLE: CAC Verification - Not Found 404
+{
+    "status": false,
+    "message": "CAC data not found",
+    "data": {}
+}

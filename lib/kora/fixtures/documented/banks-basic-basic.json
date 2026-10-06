@@ -1,0 +1,13 @@
+{
+  "httpStatus": 200,
+  "source": "docs/kora-snapshots/nigerian-bank-account-verification.md (Fetch Banks (Basic) sample response)",
+  "body": {
+    "status": true,
+    "message": "Banks fetched successfully",
+    "data": [
+      { "name": "Guaranty Trust Bank", "code": "058" },
+      { "name": "Access Bank", "code": "044" },
+      { "name": "Wema Bank", "code": "035" }
+    ]
+  }
+}

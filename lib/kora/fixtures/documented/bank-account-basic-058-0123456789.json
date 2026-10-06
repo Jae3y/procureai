@@ -1,0 +1,16 @@
+{
+  "httpStatus": 200,
+  "source": "docs/kora-snapshots/nigerian-bank-account-verification.md (Nigerian Bank Account (basic) response)",
+  "body": {
+    "status": true,
+    "message": "Bank account verified successfully",
+    "data": {
+      "reference": "VR-oR2Zjr6X77U5G73rb",
+      "id": "0123456789",
+      "id_type": "ng_bank_account_basic",
+      "bank_details": { "name": "Guaranty Trust Bank", "code": "058" },
+      "account_details": { "number": "0123456789", "name": "MICHAEL JOHN DOE" },
+      "requested_by": "API User"
+    }
+  }
+}

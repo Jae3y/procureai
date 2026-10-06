@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+body{margin:0;background:#F6F3EC;color:#14140F;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#14140F;text-decoration:none}a:hover{color:#5E5B52}
+::selection{background:#14140F;color:#F6F3EC}
+@keyframes stampIn{0%{opacity:0;transform:scale(1.5) rotate(-6deg)}55%{opacity:1;transform:scale(.985) rotate(-2deg)}100%{opacity:1;transform:scale(1) rotate(-2deg)}}
+@keyframes riseIn{0%{opacity:0;transform:translateY(18px)}100%{opacity:1;transform:none}}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+</style>
+</helmet>
+<div style="background:#F6F3EC;overflow-x:hidden">
+
+<header style="position:sticky;top:0;z-index:20;background:rgba(246,243,236,0.88);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)">
+  <div style="max-width:1680px;margin:0 auto;padding:0 clamp(24px,4vw,72px);height:72px;display:flex;align-items:center;justify-content:space-between;gap:24px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="display:flex;align-items:center"><span style="width:8px;height:8px;border-radius:50%;background:#14140F"></span><span style="width:18px;height:2px;background:#14140F"></span><span style="width:8px;height:8px;border-radius:50%;border:2px solid #14140F;box-sizing:border-box"></span></span>
+      <span style="font:700 21px/1 'Bricolage Grotesque';letter-spacing:-0.035em">ProcureAI</span>
+    </div>
+    <nav style="display:flex;align-items:center;gap:36px;font:500 15px/1 Inter">
+      <a href="#how">How it works</a>
+      <a href="#vendors">For vendors</a>
+      <a href="ProcureAI App.dc.html">Sign in</a>
+      <a href="ProcureAI App.dc.html" style="background:#14140F;color:#F6F3EC;padding:13px 20px;border-radius:999px" style-hover="background:#2B2B24;color:#F6F3EC">Start a purchase</a>
+    </nav>
+  </div>
+</header>
+
+<section data-screen-label="Hero" style="max-width:1680px;margin:0 auto;padding:clamp(72px,9vh,140px) clamp(24px,4vw,72px) 0;box-sizing:border-box">
+  <h1 style="margin:0;font:600 clamp(72px,9.6vw,184px)/0.88 'Bricolage Grotesque';letter-spacing:-0.055em;animation:riseIn 900ms cubic-bezier(.2,.7,.1,1) both">Tell it what you need.</h1>
+  <div style="margin-top:36px;display:inline-flex;align-items:center;gap:12px;border:1.5px dashed #B9B3A5;border-radius:12px;padding:18px 24px;font:500 14px/1 'JetBrains Mono';color:#5E5B52;animation:riseIn 900ms 150ms both">TAGLINE SLOT · one line, about 60 characters</div>
+
+  <div style="margin-top:clamp(56px,7vh,96px);border:1px solid #DCD7CB;border-radius:12px;background:#FBF9F4;padding:clamp(28px,3vw,48px);display:flex;align-items:flex-end;justify-content:space-between;gap:32px;flex-wrap:wrap;animation:riseIn 900ms 300ms both">
+    <div style="flex:1;min-width:320px">
+      <div style="font:500 14px/1 Inter;color:#5E5B52;margin-bottom:20px">New purchase</div>
+      <div style="font:600 clamp(32px,3.6vw,64px)/1.02 'Bricolage Grotesque';letter-spacing:-0.04em;min-height:2.04em">{{ typed }}<span style="display:inline-block;width:3px;height:0.85em;background:#14140F;margin-left:4px;vertical-align:-0.08em;animation:blink 1s infinite"></span></div>
+    </div>
+    <a href="ProcureAI App.dc.html" style="background:#14140F;color:#F6F3EC;font:500 17px/1 Inter;padding:20px 32px;border-radius:999px;display:flex;gap:12px;align-items:center" style-hover="background:#2B2B24;color:#F6F3EC">Continue <span style="font-size:20px">→</span></a>
+  </div>
+</section>
+
+<section style="padding:clamp(72px,9vh,120px) 0 clamp(96px,12vh,160px)">
+  <div style="position:relative;max-width:1680px;margin:0 auto;padding:0 clamp(24px,4vw,72px)">
+    <div style="position:absolute;left:calc(clamp(24px,4vw,72px) + 6px);right:calc(clamp(24px,4vw,72px) + 6px);top:7px;height:2px;background:#DCD7CB"></div>
+    <div style="position:absolute;left:calc(clamp(24px,4vw,72px) + 6px);top:7px;height:2px;background:#0B5D3B;width:{{ heroLine }};transition:width 3200ms cubic-bezier(.65,0,.25,1)"></div>
+    <div style="position:relative;display:flex;justify-content:space-between">
+      <sc-for list="{{ heroNodes }}" as="n" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;align-items:{{ n.align }};text-align:{{ n.talign }};width:16px">
+          <span style="width:16px;height:16px;border-radius:50%;box-sizing:border-box;border:2px solid {{ n.col }};background:{{ n.fill }};transition:all 500ms;transition-delay:{{ n.delay }}"></span>
+          <div style="white-space:nowrap;margin-top:24px;font:600 clamp(15px,1.15vw,20px)/1.2 'Bricolage Grotesque';letter-spacing:-0.02em">{{ n.label }}</div>
+          <div style="white-space:nowrap;margin-top:8px;font:500 clamp(12px,0.95vw,15px)/1 'JetBrains Mono';color:#5E5B52">{{ n.amount }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</section>
+
+<section id="how" data-screen-label="Quotes" style="border-top:1px solid #DCD7CB">
+  <div data-reveal="quotes" style="max-width:1680px;margin:0 auto;padding:clamp(96px,14vh,180px) clamp(24px,4vw,72px);box-sizing:border-box">
+    <div style="font:500 16px/1 'JetBrains Mono';color:#5E5B52;margin-bottom:28px">01 · Quotes</div>
+    <h2 style="margin:0;font:600 clamp(52px,6.4vw,124px)/0.92 'Bricolage Grotesque';letter-spacing:-0.05em;max-width:14ch">Twelve chats become one table.</h2>
+    <p style="margin:32px 0 0;font:400 clamp(18px,1.4vw,24px)/1.5 Inter;color:#5E5B52;max-width:44ch">ProcureAI messages vendors for you, reads their replies however they're written, and lines them up so you can compare.</p>
+    <div style="margin-top:80px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(32px,5vw,96px);align-items:center">
+      <div style="position:relative;height:440px">
+        <sc-for list="{{ msgs }}" as="m" hint-placeholder-count="5">
+          <div style="position:absolute;left:{{ m.x }};top:{{ m.y }};max-width:340px;background:#FBF9F4;border:1px solid #DCD7CB;border-radius:12px;padding:16px 18px;font:400 15px/1.45 Inter;transform:{{ m.tf }};opacity:{{ m.op }};transition:transform 1200ms cubic-bezier(.2,.7,.1,1),opacity 900ms;transition-delay:{{ m.delay }}">
+            <div style="font:500 11px/1 'JetBrains Mono';color:#5E5B52;margin-bottom:8px">{{ m.from }}</div>{{ m.text }}
+          </div>
+        </sc-for>
+      </div>
+      <div>
+        <div style="display:grid;grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,1fr));gap:12px;font:500 13px/1 Inter;color:#5E5B52;padding-bottom:16px;border-bottom:1px solid #14140F"><span>Vendor</span><span>Each</span><span>Total</span><span>Ready</span></div>
+        <sc-for list="{{ rows }}" as="r" hint-placeholder-count="3">
+          <div style="display:grid;grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,1fr));gap:12px;align-items:baseline;padding:26px 0;border-bottom:1px solid #DCD7CB;opacity:{{ r.op }};filter:blur({{ r.blur }});transition:opacity 900ms,filter 900ms;transition-delay:{{ r.delay }}">
+            <span style="font:600 clamp(18px,1.5vw,24px)/1 'Bricolage Grotesque';letter-spacing:-0.025em">{{ r.name }}</span>
+            <span style="font:500 clamp(15px,1.2vw,19px)/1 'JetBrains Mono'">{{ r.each }}</span>
+            <span style="font:500 clamp(15px,1.2vw,19px)/1 'JetBrains Mono'">{{ r.total }}</span>
+            <span style="font:500 clamp(14px,1.1vw,17px)/1 Inter">{{ r.ready }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section data-screen-label="Verification" style="border-top:1px solid #DCD7CB">
+  <div data-reveal="verify" style="max-width:1680px;margin:0 auto;padding:clamp(96px,14vh,180px) clamp(24px,4vw,72px);box-sizing:border-box;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(48px,6vw,120px);align-items:start">
+    <div>
+      <div style="font:500 16px/1 'JetBrains Mono';color:#5E5B52;margin-bottom:28px">02 · Checks</div>
+      <h2 style="margin:0;font:600 clamp(52px,6vw,116px)/0.92 'Bricolage Grotesque';letter-spacing:-0.05em">Cheapest isn't always real.</h2>
+      <p style="margin:32px 0 0;font:400 clamp(18px,1.4vw,24px)/1.5 Inter;color:#5E5B52;max-width:38ch">Before you pay anyone, Kora checks that each vendor is a registered business and that its bank account belongs to someone who runs it.</p>
+    </div>
+    <div style="padding-top:12px">
+      <div style="position:relative;padding:32px 0;border-top:1px solid #DCD7CB">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px;opacity:{{ vAOp }};transition:opacity 800ms 400ms"><span style="font:600 clamp(26px,2.4vw,40px)/1 'Bricolage Grotesque';letter-spacing:-0.035em">Vendor A</span><span style="font:500 clamp(20px,1.8vw,30px)/1 'JetBrains Mono'">₦3,900</span></div>
+        <span style="position:absolute;left:0;right:0;top:50px;height:3px;background:#B3261E;transform-origin:left;transform:scaleX({{ vStrike }});transition:transform 700ms cubic-bezier(.6,0,.2,1)"></span>
+        <sc-if value="{{ vSeen }}" hint-placeholder-val="{{ false }}"><div style="margin-top:22px"><span style="display:inline-flex;padding:10px 16px;border:2px solid #B3261E;border-radius:8px;color:#B3261E;font:600 17px/1.2 Inter;animation:stampIn 560ms cubic-bezier(.2,.7,.1,1) 500ms both">✕ Company registration could not be verified.</span></div></sc-if>
+      </div>
+      <div style="border:1.5px solid {{ vBBorder }};border-radius:12px;background:#FBF9F4;padding:32px;margin:0 -32px;transition:border-color 800ms 700ms">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px"><span style="font:600 clamp(26px,2.4vw,40px)/1 'Bricolage Grotesque';letter-spacing:-0.035em">Vendor B</span><span style="font:500 clamp(20px,1.8vw,30px)/1 'JetBrains Mono'">₦4,200</span></div>
+        <sc-if value="{{ vSeen }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:24px;display:grid;gap:12px;font:500 17px/1.4 Inter;animation:riseIn 600ms 900ms both">
+            <span><span style="color:#0B5D3B">✓</span>  Registered as Kwik Threads Garments Limited</span>
+            <span><span style="color:#0B5D3B">✓</span>  Payout account belongs to a registered director</span>
+            <span style="margin-top:8px"><span style="display:inline-flex;padding:7px 12px;border:1.5px solid #0B5D3B;border-radius:6px;color:#0B5D3B;font:500 13px/1 'JetBrains Mono';animation:stampIn 560ms cubic-bezier(.2,.7,.1,1) 1200ms both">KORA · KID-CAC-7Q2M41 · Verified</span></span>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section data-screen-label="Held" style="border-top:1px solid #DCD7CB">
+  <div data-reveal="held" style="max-width:1680px;margin:0 auto;padding:clamp(96px,14vh,180px) clamp(24px,4vw,72px);box-sizing:border-box">
+    <div style="font:500 16px/1 'JetBrains Mono';color:#5E5B52;margin-bottom:28px">03 · Payment</div>
+    <h2 style="margin:0;font:600 clamp(52px,6.4vw,124px)/0.92 'Bricolage Grotesque';letter-spacing:-0.05em;max-width:15ch">One account. One purchase. Then it closes.</h2>
+    <div style="margin-top:80px;font:500 clamp(64px,10vw,196px)/1 'JetBrains Mono';letter-spacing:-0.06em;white-space:nowrap;opacity:{{ hOp }};transform:translateY({{ hTy }});transition:all 1100ms cubic-bezier(.2,.7,.1,1)">902 441 7368</div>
+    <div style="margin-top:40px;padding-top:28px;border-top:1px solid #DCD7CB;display:flex;justify-content:space-between;gap:32px;flex-wrap:wrap;align-items:center">
+      <p style="margin:0;font:400 clamp(18px,1.4vw,22px)/1.5 Inter;color:#5E5B52;max-width:48ch">You pay into an account made for this purchase. The money is held there. Nobody can spend it until the vendor delivers.</p>
+      <span style="display:flex;align-items:center;gap:12px;font:500 clamp(20px,1.6vw,28px)/1 'JetBrains Mono';color:#C9861A"><span style="width:12px;height:12px;border-radius:50%;background:#C9861A"></span>₦1,260,000 held</span>
+    </div>
+  </div>
+</section>
+
+<section data-screen-label="Payouts" style="background:#14140F;color:#F6F3EC">
+  <div data-reveal="stages" style="max-width:1680px;margin:0 auto;padding:clamp(96px,14vh,180px) clamp(24px,4vw,72px);box-sizing:border-box">
+    <div style="font:500 16px/1 'JetBrains Mono';color:#B5B1A4;margin-bottom:28px">04 · Payouts</div>
+    <h2 style="margin:0;font:600 clamp(52px,6.4vw,124px)/0.92 'Bricolage Grotesque';letter-spacing:-0.05em;max-width:14ch">Paid in two stages. Never on faith.</h2>
+    <div style="margin-top:96px;display:grid;grid-template-columns:3fr 7fr;gap:0">
+      <div>
+        <div style="height:4px;background:#F6F3EC;transform-origin:left;transform:scaleX({{ s1 }});transition:transform 1200ms cubic-bezier(.65,0,.25,1)"></div>
+        <div style="margin-top:32px;font:500 clamp(28px,2.8vw,52px)/1 'JetBrains Mono';letter-spacing:-0.04em">₦378,000</div>
+        <div style="margin-top:14px;font:400 17px/1.5 Inter;color:#D6D2C6;max-width:24ch">30% when the vendor accepts the order.</div>
+      </div>
+      <div style="padding-left:12px">
+        <div style="height:4px;background:#F6F3EC;transform-origin:left;transform:scaleX({{ s2 }});transition:transform 1600ms cubic-bezier(.65,0,.25,1) 1200ms"></div>
+        <div style="margin-top:32px;font:500 clamp(28px,2.8vw,52px)/1 'JetBrains Mono';letter-spacing:-0.04em">₦882,000</div>
+        <div style="margin-top:14px;font:400 17px/1.5 Inter;color:#D6D2C6;max-width:36ch">70% when the vendor enters your delivery code, which you hand over with the goods.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="vendors" data-screen-label="Vendors" style="border-top:1px solid #DCD7CB">
+  <div style="max-width:1680px;margin:0 auto;padding:clamp(96px,14vh,180px) clamp(24px,4vw,72px);box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(48px,6vw,120px);align-items:end">
+    <div>
+      <div style="font:500 16px/1 'JetBrains Mono';color:#5E5B52;margin-bottom:28px">05 · For vendors</div>
+      <h2 style="margin:0;font:600 clamp(52px,6vw,116px)/0.92 'Bricolage Grotesque';letter-spacing:-0.05em">Reply the way you always do.</h2>
+    </div>
+    <p style="margin:0;font:400 clamp(18px,1.4vw,24px)/1.5 Inter;color:#5E5B52;max-width:40ch">Vendors get a link, type their price in their own words, and see their money arrive. No app, no forms, no chasing a deposit.</p>
+  </div>
+</section>
+
+<section data-screen-label="Record" style="border-top:1px solid #DCD7CB">
+  <div data-reveal="record" style="max-width:1680px;margin:0 auto;padding:clamp(96px,14vh,180px) clamp(24px,4vw,72px);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;text-align:center">
+    <div style="font:500 16px/1 'JetBrains Mono';color:#5E5B52;margin-bottom:28px">06 · Record</div>
+    <h2 style="margin:0;font:600 clamp(56px,7vw,136px)/0.9 'Bricolage Grotesque';letter-spacing:-0.055em;max-width:12ch">Every naira, on the record.</h2>
+    <p style="margin:32px 0 0;font:400 clamp(18px,1.4vw,24px)/1.5 Inter;color:#5E5B52;max-width:42ch">When it's done, share one page with everyone whose money it was.</p>
+    <article style="margin-top:80px;width:100%;max-width:640px;box-sizing:border-box;text-align:left;background:#FBF9F4;border:1px solid #DCD7CB;border-radius:12px;padding:44px;opacity:{{ rOp }};transform:translateY({{ rTy }}) rotate({{ rRot }});transition:all 1200ms cubic-bezier(.2,.7,.1,1)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:24px;border-bottom:2px solid #14140F;gap:16px">
+        <div><div style="font:700 15px/1 'Bricolage Grotesque';letter-spacing:-0.03em">ProcureAI</div><div style="margin-top:18px;font:600 34px/0.95 'Bricolage Grotesque';letter-spacing:-0.04em">300 branded T-shirts</div></div>
+        <div style="text-align:right;font:500 12px/1.8 'JetBrains Mono';color:#5E5B52">PA-2026-0417<br>15 October 2026</div>
+      </div>
+      <div style="display:grid;gap:14px;padding:24px 0;border-bottom:1px solid #DCD7CB;font:500 14px/1.3 'JetBrains Mono'">
+        <div style="display:flex;justify-content:space-between;gap:16px"><span style="font-family:Inter">Paid in</span><span>₦1,260,000</span><span style="color:#0B5D3B">KPY-CA-8F3K2Q9M</span></div>
+        <div style="display:flex;justify-content:space-between;gap:16px"><span style="font-family:Inter">Stage 1 · Kwik Threads</span><span>₦378,000</span><span style="color:#0B5D3B">KTR-1P6W2D</span></div>
+        <div style="display:flex;justify-content:space-between;gap:16px"><span style="font-family:Inter">Stage 2 · Kwik Threads</span><span>₦882,000</span><span style="color:#0B5D3B">KTR-4M8Z3K</span></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-top:20px;gap:16px;flex-wrap:wrap">
+        <span style="font:600 15px/1 Inter">Left unaccounted <span style="font-family:'JetBrains Mono';margin-left:8px">₦0</span></span>
+        <sc-if value="{{ rSeen }}" hint-placeholder-val="{{ false }}"><span style="display:inline-flex;padding:7px 11px;border:1.5px solid #0B5D3B;border-radius:6px;color:#0B5D3B;font:500 11px/1 'JetBrains Mono';animation:stampIn 560ms cubic-bezier(.2,.7,.1,1) 900ms both">COMPLETE · SIGNED BY KORA</span></sc-if>
+      </div>
+    </article>
+    <a href="ProcureAI App.dc.html" style="margin-top:80px;background:#14140F;color:#F6F3EC;font:500 19px/1 Inter;padding:24px 40px;border-radius:999px" style-hover="background:#2B2B24;color:#F6F3EC">Start a purchase</a>
+  </div>
+</section>
+
+<footer style="border-top:1px solid #DCD7CB">
+  <div style="max-width:1680px;margin:0 auto;padding:40px clamp(24px,4vw,72px);display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;font:400 14px/1.5 Inter;color:#5E5B52">
+    <span>ProcureAI · Lagos</span><span>Payments and identity checks by Kora</span>
+  </div>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const SENTENCE = '300 branded T-shirts, under ₦1.5m, delivered by 23 October';
+const HERO = [['Paid','₦1,260,000'],['Held','₦1,260,000'],['Stage 1 paid','₦378,000'],['Delivery code entered','481 906'],['Stage 2 paid','₦882,000'],['Complete','₦0 left']];
+const MSGS = [
+  { from:'Mama Tobi · 10:31', text:'boss 3900 per one, full payment before we start o', x:'0%', y:'10px', r:-4 },
+  { from:'Kwik Threads · 10:38', text:'I fit do am 4,200 each, delivery separate, 60% upfront, ready Thursday', x:'34%', y:'90px', r:3 },
+  { from:'Imole Apparel · 10:52', text:'Our price is N4,500 per unit inclusive of 2-colour print. 50% deposit.', x:'6%', y:'200px', r:-2 },
+  { from:'Kwik Threads · 10:40', text:'abeg confirm colour before i start', x:'46%', y:'280px', r:5 },
+  { from:'Mama Tobi · 10:44', text:'2 days e don ready', x:'12%', y:'350px', r:-6 }
+];
+const ROWS = [
+  { name:'Mama Tobi Prints', each:'₦3,900', total:'₦1,170,000', ready:'7 October' },
+  { name:'Kwik Threads', each:'₦4,200', total:'₦1,260,000', ready:'8 October' },
+  { name:'Imole Apparel Ltd', each:'₦4,500', total:'₦1,350,000', ready:'14 October' }
+];
+class Component extends DCLogic {
+  state = { n:0, drawn:false, seen:{} };
+  componentDidMount(){
+    this.t0 = setTimeout(() => {
+      this.iv = setInterval(() => {
+        if (this.state.n >= SENTENCE.length) { clearInterval(this.iv); this.setState({ drawn:true }); return; }
+        this.setState(s => ({ n: s.n + 1 }));
+      }, 42);
+    }, 900);
+    this.io = new IntersectionObserver(es => es.forEach(e => {
+      if (e.isIntersecting) { const k = e.target.dataset.reveal; this.setState(s => ({ seen:{ ...s.seen, [k]:true } })); this.io.unobserve(e.target); }
+    }), { threshold:0.35 });
+    this.observe();
+  }
+  observe(){ document.querySelectorAll('[data-reveal]').forEach(el => this.io.observe(el)); }
+  componentWillUnmount(){ clearTimeout(this.t0); clearInterval(this.iv); this.io && this.io.disconnect(); }
+  renderVals(){
+    const { n, drawn, seen } = this.state;
+    const heroNodes = HERO.map(([label, amount], i) => ({ label, amount,
+      align: i === 0 ? 'flex-start' : i === 5 ? 'flex-end' : 'center',
+      talign: i === 0 ? 'left' : i === 5 ? 'right' : 'center',
+      col: drawn ? (i === 1 ? '#C9861A' : '#0B5D3B') : '#CFC9BB',
+      fill: drawn ? (i === 1 ? '#C9861A' : '#0B5D3B') : '#F6F3EC',
+      delay: (i * 600) + 'ms' }));
+    const q = !!seen.quotes;
+    const msgs = MSGS.map((m, i) => ({ ...m,
+      tf: q ? 'translate(60%, 0) scale(0.6) rotate(0deg)' : 'rotate(' + m.r + 'deg)',
+      op: q ? 0 : 1, delay: (i * 120) + 'ms' }));
+    const rows = ROWS.map((r, i) => ({ ...r, op: q ? 1 : 0, blur: q ? '0px' : '8px', delay: (700 + i * 250) + 'ms' }));
+    const v = !!seen.verify, h = !!seen.held, st = !!seen.stages, rc = !!seen.record;
+    return {
+      typed: SENTENCE.slice(0, n),
+      heroLine: drawn ? 'calc(100% - 2 * clamp(24px,4vw,72px) - 12px)' : '0px',
+      heroNodes, msgs, rows,
+      vSeen: v, vStrike: v ? 1 : 0, vAOp: v ? 0.4 : 1, vBBorder: v ? '#0B5D3B' : '#DCD7CB',
+      hOp: h ? 1 : 0, hTy: h ? '0px' : '40px',
+      s1: st ? 1 : 0, s2: st ? 1 : 0,
+      rSeen: rc, rOp: rc ? 1 : 0, rTy: rc ? '0px' : '60px', rRot: rc ? '-1deg' : '2deg'
+    };
+  }
+}
+</script>
+</body>
+</html>

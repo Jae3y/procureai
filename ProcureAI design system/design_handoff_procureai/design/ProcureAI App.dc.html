@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+body{margin:0;background:#F6F3EC;color:#14140F;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#14140F}a:hover{color:#5E5B52}
+::selection{background:#14140F;color:#F6F3EC}
+button{font-family:inherit}
+@keyframes stampIn{0%{opacity:0;transform:scale(1.5) rotate(-6deg)}55%{opacity:1;transform:scale(.985) rotate(-2deg)}100%{opacity:1;transform:scale(1) rotate(-2deg)}}
+@keyframes chipIn{0%{opacity:0;transform:translateY(-32px);filter:blur(8px)}100%{opacity:1;transform:none;filter:none}}
+@keyframes riseIn{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:none}}
+@keyframes breathe{0%,100%{opacity:.3}50%{opacity:1}}
+@keyframes travel{0%{left:0%}100%{left:100%}}
+</style>
+</helmet>
+<div style="min-height:100vh;background:#F6F3EC;padding-bottom:72px;box-sizing:border-box">
+
+<header style="position:sticky;top:0;z-index:20;background:rgba(246,243,236,0.88);backdrop-filter:saturate(1.3) blur(16px);-webkit-backdrop-filter:saturate(1.3) blur(16px);border-bottom:1px solid #E4DFD3">
+  <div style="max-width:1680px;margin:0 auto;padding:0 clamp(24px,4vw,72px);height:72px;display:flex;align-items:center;justify-content:space-between;gap:clamp(16px,2vw,32px)">
+    <a href="ProcureAI Home.dc.html" title="Home" style="display:flex;align-items:center;gap:10px;flex-shrink:0;color:#14140F;text-decoration:none">
+      <span style="display:flex;align-items:center;gap:0"><span style="width:8px;height:8px;border-radius:50%;background:#14140F"></span><span style="width:18px;height:2px;background:#14140F"></span><span style="width:8px;height:8px;border-radius:50%;border:2px solid #14140F;box-sizing:border-box"></span></span>
+      <span style="font:700 21px/1 'Bricolage Grotesque';letter-spacing:-0.035em">ProcureAI</span>
+    </a>
+    <nav style="display:flex;align-items:center;min-width:0;overflow:hidden">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="6">
+        <div style="display:flex;align-items:center">
+          <span style="display:{{ n.lineDisp }};width:clamp(10px,2.4vw,40px);height:1px;background:{{ n.lineBg }};margin:0 clamp(6px,0.8vw,12px);transition:background 600ms"></span>
+          <button onClick="{{ n.go }}" style="display:flex;align-items:center;gap:8px;background:none;border:0;padding:8px 0;cursor:pointer;font:500 13px/1 Inter;color:{{ n.color }};transition:color 400ms">
+            <span style="width:9px;height:9px;border-radius:50%;box-sizing:border-box;border:1.5px solid {{ n.dotBorder }};background:{{ n.dotBg }};transition:all 500ms"></span>
+            <span>{{ n.label }}</span>
+          </button>
+        </div>
+      </sc-for>
+    </nav>
+    <div style="display:flex;align-items:center;gap:14px;flex-shrink:0;justify-content:flex-end">
+      <span style="font:500 13px/1 'JetBrains Mono';color:#5E5B52;display:{{ refDisp }}">PA-0417</span>
+      <span style="width:32px;height:32px;border-radius:50%;background:#14140F;color:#F6F3EC;display:grid;place-items:center;font:600 12px/1 Inter">TA</span>
+    </div>
+  </div>
+</header>
+
+<sc-if value="{{ isRequest }}" hint-placeholder-val="{{ true }}">
+<section data-screen-label="01 Request" style="min-height:calc(100vh - 72px);box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;max-width:1680px;margin:0 auto;padding:64px clamp(24px,4vw,72px) 140px">
+  <sc-if value="{{ notSubmitted }}" hint-placeholder-val="{{ true }}">
+    <div style="animation:riseIn 700ms cubic-bezier(.2,.7,.1,1) both">
+      <div style="font:500 16px/1 Inter;color:#5E5B52;margin-bottom:32px">New purchase</div>
+      <textarea value="{{ text }}" onChange="{{ onText }}" rows="3" spellcheck="false" style="display:block;width:100%;box-sizing:border-box;border:0;background:transparent;resize:none;outline:none;font:600 clamp(52px,6.4vw,124px)/0.98 'Bricolage Grotesque';letter-spacing:-0.045em;color:#14140F;padding:0;caret-color:#14140F"></textarea>
+      <div style="margin-top:48px;padding-top:24px;border-top:1px solid #DCD7CB;display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap">
+        <span style="font:400 18px/1.4 Inter;color:#5E5B52">Say what, how many, how much, and by when.</span>
+        <button onClick="{{ submit }}" style="border:0;background:#14140F;color:#F6F3EC;font:500 17px/1 Inter;padding:20px 32px;border-radius:999px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:12px" style-hover="background:#2B2B24">Continue <span style="font-size:20px">→</span></button>
+      </div>
+    </div>
+  </sc-if>
+  <sc-if value="{{ submitted }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <div style="font:500 16px/1 Inter;color:#5E5B52;margin-bottom:24px;animation:riseIn 600ms both">Your request</div>
+      <div style="font:600 clamp(28px,2.6vw,46px)/1.1 'Bricolage Grotesque';letter-spacing:-0.03em;color:#5E5B52;max-width:28ch;animation:riseIn 600ms both">“{{ text }}”</div>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:64px">
+        <div style="border:1px solid #DCD7CB;border-radius:12px;padding:28px 28px 32px;background:#FBF9F4;animation:chipIn 900ms cubic-bezier(.2,.7,.1,1) 150ms both">
+          <div style="font:500 14px/1 Inter;color:#5E5B52">Item</div>
+          <div style="font:600 clamp(30px,2.8vw,52px)/1 'Bricolage Grotesque';letter-spacing:-0.035em;margin-top:28px">Branded T-shirts</div>
+        </div>
+        <div style="border:1px solid #DCD7CB;border-radius:12px;padding:28px 28px 32px;background:#FBF9F4;animation:chipIn 900ms cubic-bezier(.2,.7,.1,1) 300ms both">
+          <div style="font:500 14px/1 Inter;color:#5E5B52">Quantity</div>
+          <div style="font:500 clamp(30px,2.8vw,52px)/1 'JetBrains Mono';letter-spacing:-0.04em;margin-top:28px">300</div>
+        </div>
+        <div style="border:1px solid #DCD7CB;border-radius:12px;padding:28px 28px 32px;background:#FBF9F4;animation:chipIn 900ms cubic-bezier(.2,.7,.1,1) 450ms both">
+          <div style="font:500 14px/1 Inter;color:#5E5B52">Budget</div>
+          <div style="font:500 clamp(30px,2.8vw,52px)/1 'JetBrains Mono';letter-spacing:-0.04em;margin-top:28px">₦1,500,000</div>
+        </div>
+        <div style="border:1px solid #DCD7CB;border-radius:12px;padding:28px 28px 32px;background:#FBF9F4;animation:chipIn 900ms cubic-bezier(.2,.7,.1,1) 600ms both">
+          <div style="font:500 14px/1 Inter;color:#5E5B52">Deadline</div>
+          <div style="font:600 clamp(30px,2.8vw,52px)/1 'Bricolage Grotesque';letter-spacing:-0.035em;margin-top:28px">23 October</div>
+        </div>
+      </div>
+      <div style="margin-top:48px;display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;animation:riseIn 700ms 900ms both">
+        <div style="display:flex;gap:24px;align-items:center">
+          <span style="font:400 18px/1.4 Inter;color:#5E5B52">ProcureAI will ask 14 apparel vendors in Lagos for quotes.</span>
+          <button onClick="{{ unsubmit }}" style="background:none;border:0;font:500 16px Inter;color:#14140F;text-decoration:underline;text-underline-offset:4px;cursor:pointer">Edit</button>
+        </div>
+        <button onClick="{{ toQuotes }}" style="border:0;background:#14140F;color:#F6F3EC;font:500 17px/1 Inter;padding:20px 32px;border-radius:999px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:12px" style-hover="background:#2B2B24">Ask vendors <span style="font-size:20px">→</span></button>
+      </div>
+    </div>
+  </sc-if>
+</section>
+</sc-if>
+
+<sc-if value="{{ isQuotes }}" hint-placeholder-val="{{ false }}">
+<section data-screen-label="02 Quotes" style="max-width:1680px;margin:0 auto;padding:88px clamp(24px,4vw,72px) 160px;box-sizing:border-box">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:32px;flex-wrap:wrap;margin-bottom:72px">
+    <div>
+      <div style="font:500 16px/1 Inter;color:#5E5B52;margin-bottom:24px">Quotes · 300 branded T-shirts</div>
+      <h1 style="margin:0;font:600 clamp(52px,5.6vw,108px)/0.95 'Bricolage Grotesque';letter-spacing:-0.045em">{{ quotesTitle }}</h1>
+    </div>
+    <div style="font:400 16px/1.5 'JetBrains Mono';color:#5E5B52;text-align:right">Sent to 14 vendors · 10:12<br>{{ repliedLine }}</div>
+  </div>
+
+  <sc-if value="{{ quotesWaiting }}" hint-placeholder-val="{{ false }}">
+    <div style="border-top:1px solid #DCD7CB;padding-top:96px;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(40px,6vw,120px);align-items:start">
+      <div>
+        <p style="margin:0;font:400 clamp(20px,1.5vw,26px)/1.5 Inter;color:#14140F;max-width:30ch;text-wrap:pretty">Most vendors reply within an hour. We'll message you on WhatsApp when the first quote lands.</p>
+        <p style="margin:24px 0 0;font:400 17px/1.5 Inter;color:#5E5B52;max-width:36ch">You can close this page. Nothing is paid until you approve a vendor.</p>
+      </div>
+      <div style="display:grid;gap:0">
+        <div style="height:120px;border-top:1px dashed #CFC9BB;display:flex;align-items:center;gap:20px"><span style="width:10px;height:10px;border-radius:50%;background:#14140F;animation:breathe 2.4s ease-in-out infinite"></span><span style="font:500 16px 'JetBrains Mono';color:#5E5B52">Waiting · 14 messages delivered</span></div>
+        <div style="height:120px;border-top:1px dashed #CFC9BB"></div>
+        <div style="height:120px;border-top:1px dashed #CFC9BB;border-bottom:1px dashed #CFC9BB"></div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ quotesReady }}" hint-placeholder-val="{{ true }}">
+    <div style="display:grid;grid-template-columns:minmax(0,4fr) clamp(40px,5vw,112px) minmax(0,8fr);padding-bottom:16px">
+      <div style="font:500 14px/1 Inter;color:#5E5B52">As they wrote it</div>
+      <div></div>
+      <div style="display:grid;grid-template-columns:minmax(120px,1.5fr) minmax(64px,0.8fr) minmax(96px,1.1fr) minmax(56px,0.8fr) minmax(72px,0.9fr);gap:clamp(10px,1.2vw,16px);font:500 14px/1 Inter;color:#5E5B52">
+        <span>As ProcureAI reads it</span><span>Each</span><span>Total</span><span>Upfront</span><span>Ready</span>
+      </div>
+    </div>
+    <sc-for list="{{ quotes }}" as="q" hint-placeholder-count="3">
+      <div style="display:grid;grid-template-columns:minmax(0,4fr) clamp(40px,5vw,112px) minmax(0,8fr);align-items:center;min-height:184px;border-top:1px solid #DCD7CB">
+        <div style="padding:32px 0">
+          <div style="display:flex;justify-content:space-between;gap:16px;font:500 13px/1 'JetBrains Mono';color:#5E5B52;margin-bottom:14px"><span>{{ q.phone }}</span><span>{{ q.time }}</span></div>
+          <div style="font:400 clamp(18px,1.35vw,22px)/1.5 Inter;color:#14140F;max-width:40ch;text-wrap:pretty">{{ q.raw }}</div>
+        </div>
+        <div style="position:relative;height:9px;margin:0 8px">
+          <span style="position:absolute;left:0;top:0;width:9px;height:9px;border-radius:50%;background:#14140F"></span>
+          <span style="position:absolute;left:4px;right:4px;top:4px;height:1px;background:#14140F;transform-origin:left center;transform:scaleX({{ q.line }});transition:transform 900ms cubic-bezier(.2,.7,.1,1);transition-delay:{{ q.delay }}"></span>
+          <span style="position:absolute;right:0;top:0;width:9px;height:9px;border-radius:50%;box-sizing:border-box;border:1.5px solid #14140F;background:#F6F3EC;opacity:{{ q.line }};transition:opacity 400ms;transition-delay:{{ q.delay2 }}"></span>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(120px,1.5fr) minmax(64px,0.8fr) minmax(96px,1.1fr) minmax(56px,0.8fr) minmax(72px,0.9fr);gap:clamp(10px,1.2vw,16px);align-items:baseline;opacity:{{ q.op }};filter:blur({{ q.blur }});transform:translateX({{ q.tx }});transition:opacity 900ms cubic-bezier(.2,.7,.1,1),filter 900ms,transform 900ms cubic-bezier(.2,.7,.1,1);transition-delay:{{ q.delay2 }}">
+          <div>
+            <div style="font:500 13px/1 Inter;color:#5E5B52;margin-bottom:8px">{{ q.tag }}</div>
+            <div style="font:600 clamp(22px,1.8vw,30px)/1.05 'Bricolage Grotesque';letter-spacing:-0.03em">{{ q.name }}</div>
+            <div style="font:400 14px/1.4 Inter;color:#5E5B52;margin-top:8px">{{ q.note }}</div>
+          </div>
+          <span style="font:500 clamp(15px,1.3vw,21px)/1 'JetBrains Mono';letter-spacing:-0.03em;white-space:nowrap">{{ q.each }}</span>
+          <span style="font:500 clamp(15px,1.3vw,21px)/1 'JetBrains Mono';letter-spacing:-0.03em;white-space:nowrap">{{ q.total }}</span>
+          <span style="font:500 clamp(17px,1.3vw,21px)/1 'JetBrains Mono';letter-spacing:-0.02em">{{ q.upfront }}</span>
+          <span style="font:500 clamp(14px,1.2vw,19px)/1.2 Inter;white-space:nowrap">{{ q.ready }}</span>
+        </div>
+      </div>
+    </sc-for>
+    <div style="border-top:1px solid #DCD7CB;padding-top:40px;display:flex;justify-content:space-between;align-items:center;gap:32px;flex-wrap:wrap">
+      <p style="margin:0;font:400 17px/1.5 Inter;color:#5E5B52;max-width:62ch">Prices are for 300 pieces with a one-colour front print. Whatever a vendor asks upfront, ProcureAI pays 30% on acceptance and 70% on delivery.</p>
+      <button onClick="{{ toDecision }}" style="border:0;background:#14140F;color:#F6F3EC;font:500 17px/1 Inter;padding:20px 32px;border-radius:999px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:12px" style-hover="background:#2B2B24">Check vendors with Kora <span style="font-size:20px">→</span></button>
+    </div>
+  </sc-if>
+</section>
+</sc-if>
+
+<sc-if value="{{ isDecision }}" hint-placeholder-val="{{ false }}">
+<section data-screen-label="03 Recommendation" style="max-width:1680px;margin:0 auto;padding:88px clamp(24px,4vw,72px) 160px;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(48px,7vw,140px);align-items:start">
+  <div style="position:sticky;top:120px">
+    <div style="font:500 16px/1 Inter;color:#5E5B52;margin-bottom:24px">Recommendation</div>
+    <h1 style="margin:0;font:600 clamp(88px,10vw,184px)/0.86 'Bricolage Grotesque';letter-spacing:-0.055em">Vendor B.</h1>
+    <div style="margin-top:28px;display:flex;gap:16px;align-items:baseline;flex-wrap:wrap"><span style="font:600 clamp(22px,1.8vw,30px)/1 'Bricolage Grotesque';letter-spacing:-0.03em">Kwik Threads</span><span style="font:500 clamp(20px,1.6vw,26px)/1 'JetBrains Mono';letter-spacing:-0.02em">₦1,260,000</span></div>
+    <div style="margin-top:48px;display:grid;gap:20px;max-width:46ch">
+      <p style="margin:0;font:400 clamp(18px,1.35vw,22px)/1.5 Inter;text-wrap:pretty">Vendor A quoted the lowest price, but Kora could not find its company registration, so ProcureAI will not send it money.</p>
+      <p style="margin:0;font:400 clamp(18px,1.35vw,22px)/1.5 Inter;text-wrap:pretty">Vendor B is ₦90,000 cheaper than Vendor C, is registered and active, and its payout account belongs to one of its directors.</p>
+    </div>
+    <button onClick="{{ toPay }}" style="margin-top:56px;border:0;background:#14140F;color:#F6F3EC;font:500 19px/1 Inter;padding:24px 40px;border-radius:999px;cursor:pointer;white-space:nowrap" style-hover="background:#2B2B24">Approve Vendor B</button>
+    <div style="margin-top:20px;font:400 15px/1.5 Inter;color:#5E5B52">You approve once. Your money is held until delivery.</div>
+  </div>
+
+  <div>
+    <div style="display:flex;justify-content:space-between;font:500 14px/1 Inter;color:#5E5B52;padding-bottom:20px"><span>Sorted by price</span><span>{{ checkLabel }}</span></div>
+
+    <div style="position:relative;border-top:1px solid #DCD7CB;padding:36px 0 40px">
+      <div style="display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:16px;align-items:baseline;opacity:{{ aOp }};transition:opacity 800ms 300ms">
+        <span style="font:500 15px 'JetBrains Mono';color:#5E5B52">01</span>
+        <div><div style="font:500 13px/1 Inter;color:#5E5B52;margin-bottom:10px">Vendor A · Cheapest</div><div style="font:600 clamp(28px,2.4vw,40px)/1 'Bricolage Grotesque';letter-spacing:-0.035em">Mama Tobi Prints</div></div>
+        <div style="text-align:right"><div style="font:500 clamp(22px,1.8vw,30px)/1 'JetBrains Mono';letter-spacing:-0.03em">₦3,900</div><div style="font:400 14px/1 'JetBrains Mono';color:#5E5B52;margin-top:10px">₦1,170,000</div></div>
+      </div>
+      <span style="position:absolute;left:0;right:0;top:86px;height:3px;background:#B3261E;transform-origin:left center;transform:scaleX({{ strike }});transition:transform 700ms cubic-bezier(.6,0,.2,1)"></span>
+      <sc-if value="{{ checked }}" hint-placeholder-val="{{ false }}">
+        <div style="margin:28px 0 0 64px;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+          <span style="display:inline-flex;align-items:center;gap:10px;padding:10px 16px;border:2px solid #B3261E;border-radius:8px;color:#B3261E;font:600 clamp(16px,1.2vw,19px)/1.2 Inter;animation:stampIn 560ms cubic-bezier(.2,.7,.1,1) 450ms both">✕ Company registration could not be verified.</span>
+          <span style="font:500 13px/1 'JetBrains Mono';color:#B3261E;animation:riseIn 500ms 900ms both">KORA · KID-CAC-0091X2 · Not found</span>
+        </div>
+      </sc-if>
+    </div>
+
+    <div style="border:1.5px solid {{ bBorder }};border-radius:12px;background:#FBF9F4;padding:36px 32px 40px;margin:0 -32px;transition:border-color 800ms 600ms">
+      <div style="display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:16px;align-items:baseline">
+        <span style="font:500 15px 'JetBrains Mono';color:#5E5B52">02</span>
+        <div><div style="font:500 13px/1 Inter;color:{{ bTagColor }};margin-bottom:10px;transition:color 600ms 600ms">{{ bTag }}</div><div style="font:600 clamp(28px,2.4vw,40px)/1 'Bricolage Grotesque';letter-spacing:-0.035em">Kwik Threads</div></div>
+        <div style="text-align:right"><div style="font:500 clamp(22px,1.8vw,30px)/1 'JetBrains Mono';letter-spacing:-0.03em">₦4,200</div><div style="font:400 14px/1 'JetBrains Mono';color:#5E5B52;margin-top:10px">₦1,260,000</div></div>
+      </div>
+      <sc-if value="{{ checked }}" hint-placeholder-val="{{ false }}">
+        <div style="margin:32px 0 0 64px;display:grid;gap:14px">
+          <div style="display:flex;gap:12px;font:500 clamp(16px,1.2vw,19px)/1.4 Inter;animation:riseIn 500ms 700ms both"><span style="color:#0B5D3B">✓</span><span>Registered as Kwik Threads Garments Limited <span style="font:500 14px 'JetBrains Mono';color:#5E5B52">RC 1482093</span></span></div>
+          <div style="display:flex;gap:12px;font:500 clamp(16px,1.2vw,19px)/1.4 Inter;animation:riseIn 500ms 820ms both"><span style="color:#0B5D3B">✓</span><span>Status: <span style="color:#0B5D3B">Active</span></span></div>
+          <div style="display:flex;gap:12px;font:500 clamp(16px,1.2vw,19px)/1.4 Inter;animation:riseIn 500ms 940ms both"><span style="color:#0B5D3B">✓</span><span>Payout account belongs to a registered director.</span></div>
+          <div style="margin-top:12px"><span style="display:inline-flex;padding:7px 12px;border:1.5px solid #0B5D3B;border-radius:6px;color:#0B5D3B;font:500 13px/1 'JetBrains Mono';animation:stampIn 560ms cubic-bezier(.2,.7,.1,1) 1100ms both">KORA · KID-CAC-7Q2M41 · Verified</span></div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ notChecked }}" hint-placeholder-val="{{ true }}">
+        <div style="margin:28px 0 0 64px;font:500 15px 'JetBrains Mono';color:#5E5B52;animation:breathe 1.6s infinite">Checking with Kora…</div>
+      </sc-if>
+    </div>
+
+    <div style="border-bottom:1px solid #DCD7CB;padding:36px 0 40px">
+      <div style="display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:16px;align-items:baseline">
+        <span style="font:500 15px 'JetBrains Mono';color:#5E5B52">03</span>
+        <div><div style="font:500 13px/1 Inter;color:#5E5B52;margin-bottom:10px">Vendor C</div><div style="font:600 clamp(28px,2.4vw,40px)/1 'Bricolage Grotesque';letter-spacing:-0.035em;color:#5E5B52">Imole Apparel Ltd</div></div>
+        <div style="text-align:right;color:#5E5B52"><div style="font:500 clamp(22px,1.8vw,30px)/1 'JetBrains Mono';letter-spacing:-0.03em">₦4,500</div><div style="font:400 14px/1 'JetBrains Mono';margin-top:10px">₦1,350,000</div></div>
+      </div>
+      <sc-if value="{{ checked }}" hint-placeholder-val="{{ false }}">
+        <div style="margin:24px 0 0 64px;display:flex;gap:20px;flex-wrap:wrap;align-items:center;animation:riseIn 500ms 1300ms both">
+          <span style="font:500 15px Inter;color:#0B5D3B">✓ Verified</span>
+          <span style="font:400 15px Inter;color:#5E5B52">Not chosen. ₦90,000 more for the same order.</span>
+          <span style="font:500 13px 'JetBrains Mono';color:#5E5B52">KID-CAC-3H8N05</span>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+</section>
+</sc-if>
+
+<sc-if value="{{ isPay }}" hint-placeholder-val="{{ false }}">
+<section data-screen-label="04 Pay" style="min-height:calc(100vh - 72px);box-sizing:border-box;max-width:1680px;margin:0 auto;padding:88px clamp(24px,4vw,72px) 160px;display:flex;flex-direction:column;justify-content:center">
+  <sc-if value="{{ payOpen }}" hint-placeholder-val="{{ true }}">
+    <div>
+      <sc-if value="{{ payShort }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:32px;flex-wrap:wrap;padding-bottom:40px;margin-bottom:56px;border-bottom:1px solid #DCD7CB;animation:riseIn 600ms both">
+          <div>
+            <div style="font:600 clamp(56px,6vw,112px)/0.92 'Bricolage Grotesque';letter-spacing:-0.05em;color:#B3261E">₦60,000 short.</div>
+            <p style="margin:24px 0 0;font:400 clamp(18px,1.35vw,22px)/1.5 Inter;max-width:52ch">We received ₦1,200,000. Send ₦60,000 more to the same account. Nothing goes to the vendor until the full amount is here.</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;font:500 clamp(18px,1.4vw,24px)/1 'JetBrains Mono';color:#C9861A"><span style="width:10px;height:10px;border-radius:50%;background:#C9861A"></span>₦1,200,000 held</div>
+        </div>
+      </sc-if>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:24px;flex-wrap:wrap">
+        <div style="font:500 16px/1 Inter;color:#5E5B52">{{ payEyebrow }}</div>
+        <div style="font:500 clamp(22px,2vw,34px)/1 'JetBrains Mono';letter-spacing:-0.03em">{{ payAmount }}</div>
+      </div>
+      <div style="font:500 clamp(72px,10.4vw,196px)/1 'JetBrains Mono';letter-spacing:-0.06em;margin:40px 0 56px;white-space:nowrap">902 441 7368</div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:32px;align-items:end;border-top:1px solid #DCD7CB;padding-top:32px">
+        <div><div style="font:500 14px/1 Inter;color:#5E5B52;margin-bottom:12px">Bank</div><div style="font:500 20px/1.2 Inter">Wema Bank</div></div>
+        <div><div style="font:500 14px/1 Inter;color:#5E5B52;margin-bottom:12px">Account name</div><div style="font:500 20px/1.2 Inter">ProcureAI / PA-0417</div></div>
+        <div><div style="font:500 14px/1 Inter;color:#5E5B52;margin-bottom:12px">Closes in</div><div style="font:500 22px/1.1 'JetBrains Mono'">{{ countdown }}</div></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button onClick="{{ copy }}" style="border:1px solid #14140F;background:transparent;color:#14140F;font:500 16px/1 Inter;padding:16px 26px;border-radius:999px;cursor:pointer;white-space:nowrap" style-hover="background:#14140F;color:#F6F3EC">{{ copyLabel }}</button>
+          <button onClick="{{ markPaid }}" style="border:0;background:#14140F;color:#F6F3EC;font:500 16px/1 Inter;padding:17px 26px;border-radius:999px;cursor:pointer;white-space:nowrap" style-hover="background:#2B2B24">I've sent it</button>
+        </div>
+      </div>
+      <p style="margin:40px 0 0;font:400 17px/1.5 Inter;color:#5E5B52;max-width:60ch">This account exists for this purchase only and closes after one payment. Send from any Nigerian bank app.</p>
+    </div>
+  </sc-if>
+  <sc-if value="{{ payPaid }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;flex-direction:column;align-items:flex-start">
+      <div style="border:3px solid #0B5D3B;border-radius:12px;color:#0B5D3B;padding:clamp(32px,4vw,64px) clamp(36px,5vw,88px);animation:stampIn 700ms cubic-bezier(.2,.7,.1,1) both;transform-origin:30% 50%">
+        <div style="font:600 clamp(60px,7.4vw,140px)/0.9 'Bricolage Grotesque';letter-spacing:-0.05em">Payment confirmed</div>
+        <div style="display:flex;justify-content:space-between;gap:32px;flex-wrap:wrap;margin-top:36px;padding-top:24px;border-top:1.5px solid #0B5D3B;font:500 clamp(16px,1.3vw,22px)/1 'JetBrains Mono'"><span>₦1,260,000</span><span>KORA · KPY-CA-8F3K2Q9M</span><span>11:05</span></div>
+      </div>
+      <div style="margin-top:72px;display:flex;justify-content:space-between;align-items:center;gap:32px;flex-wrap:wrap;width:100%;animation:riseIn 700ms 700ms both">
+        <p style="margin:0;font:400 clamp(18px,1.35vw,22px)/1.5 Inter;max-width:48ch">Held for you. Kwik Threads receives ₦378,000 when they accept the order, and the rest when your delivery code is entered.</p>
+        <button onClick="{{ toTrack }}" style="border:0;background:#14140F;color:#F6F3EC;font:500 17px/1 Inter;padding:20px 32px;border-radius:999px;cursor:pointer;white-space:nowrap;display:flex;gap:12px;align-items:center" style-hover="background:#2B2B24">Open tracker <span style="font-size:20px">→</span></button>
+      </div>
+    </div>
+  </sc-if>
+</section>
+</sc-if>
+
+<sc-if value="{{ isTrack }}" hint-placeholder-val="{{ false }}">
+<section data-screen-label="05 Tracker" style="max-width:1680px;margin:0 auto;padding:88px clamp(24px,4vw,72px) 160px;box-sizing:border-box">
+  <div style="font:500 16px/1 Inter;color:#5E5B52;margin-bottom:24px">Tracker · 300 branded T-shirts · Kwik Threads</div>
+  <h1 style="margin:0;font:600 clamp(52px,5.6vw,108px)/0.95 'Bricolage Grotesque';letter-spacing:-0.045em;max-width:16ch;color:{{ trackTitleColor }}">{{ trackTitle }}</h1>
+
+  <div style="position:relative;margin:88px 0 80px;padding:0 0 8px">
+    <div style="position:absolute;left:calc(100% / 12);right:calc(100% / 12);top:11px;height:2px;background:#DCD7CB"></div>
+    <div style="position:absolute;left:calc(100% / 12);top:11px;height:2px;background:#0B5D3B;width:{{ progW }};transition:width 1400ms cubic-bezier(.65,0,.25,1)"></div>
+    <div style="position:relative;display:grid;grid-template-columns:repeat(6,minmax(0,1fr))">
+      <sc-for list="{{ nodes }}" as="n" hint-placeholder-count="6">
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 8px">
+          <span style="width:24px;height:24px;border-radius:50%;box-sizing:border-box;border:2px solid {{ n.ring }};background:{{ n.fill }};transition:all 600ms;transition-delay:{{ n.delay }};display:grid;place-items:center"><span style="width:8px;height:8px;border-radius:50%;background:#F6F3EC;opacity:{{ n.core }}"></span></span>
+          <div style="font:600 clamp(17px,1.35vw,22px)/1.15 'Bricolage Grotesque';letter-spacing:-0.02em;margin-top:28px;color:{{ n.labelColor }};transition:color 600ms">{{ n.label }}</div>
+          <div style="font:500 clamp(14px,1.05vw,17px)/1 'JetBrains Mono';margin-top:10px;color:{{ n.amountColor }};min-height:17px">{{ n.amount }}</div>
+          <div style="margin-top:20px;min-height:30px">
+            <sc-if value="{{ n.done }}" hint-placeholder-val="{{ false }}">
+              <span style="display:inline-flex;padding:6px 9px;border:1.5px solid {{ n.ring }};border-radius:6px;color:{{ n.ring }};font:500 11px/1 'JetBrains Mono';white-space:nowrap;animation:stampIn 560ms cubic-bezier(.2,.7,.1,1) both;animation-delay:{{ n.delay }}">{{ n.ref }}</span>
+            </sc-if>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,560px);gap:clamp(32px,4vw,72px);align-items:start;border-top:1px solid #DCD7CB;padding-top:56px">
+    <div>
+      <div style="font:500 14px/1 Inter;color:#5E5B52;margin-bottom:16px">Still held</div>
+      <div style="display:flex;align-items:center;gap:16px;font:500 clamp(40px,4vw,72px)/1 'JetBrains Mono';letter-spacing:-0.05em;color:{{ heldColor }};transition:color 600ms"><span style="width:14px;height:14px;border-radius:50%;background:{{ heldColor }}"></span>{{ heldAmount }}</div>
+
+      <sc-if value="{{ showCode }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-top:64px;padding-top:40px;border-top:1px solid #DCD7CB">
+          <div style="font:500 14px/1 Inter;color:#5E5B52;margin-bottom:16px">Your delivery code</div>
+          <div style="font:500 clamp(48px,4.4vw,80px)/1 'JetBrains Mono';letter-spacing:0.04em">481 906</div>
+          <p style="margin:20px 0 0;font:400 17px/1.5 Inter;color:#5E5B52;max-width:52ch">Give this code to Kwik Threads only when all 300 T-shirts are in your hands. When they enter it, ₦882,000 is released to them.</p>
+        </div>
+      </sc-if>
+      <sc-if value="{{ failed }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:64px;padding-top:40px;border-top:1px solid #DCD7CB;animation:riseIn 600ms both">
+          <div style="font:600 clamp(32px,2.8vw,48px)/1 'Bricolage Grotesque';letter-spacing:-0.035em;color:#B3261E">Stage 2 payout failed.</div>
+          <p style="margin:20px 0 0;font:400 18px/1.5 Inter;max-width:52ch">The vendor's bank declined the transfer of ₦882,000. The money is still held and has not left the account.</p>
+          <div style="display:flex;align-items:center;gap:24px;margin-top:32px;flex-wrap:wrap">
+            <button onClick="{{ retry }}" style="border:0;background:#14140F;color:#F6F3EC;font:500 17px/1 Inter;padding:18px 30px;border-radius:999px;cursor:pointer;white-space:nowrap" style-hover="background:#2B2B24">Retry payout</button>
+            <span style="font:500 13px 'JetBrains Mono';color:#B3261E">KORA · KTR-9X4B7C · Failed</span>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ complete }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:64px;padding-top:40px;border-top:1px solid #DCD7CB;display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;animation:riseIn 600ms both">
+          <p style="margin:0;font:400 18px/1.5 Inter;max-width:44ch">Kwik Threads has been paid in full. The record is ready to share.</p>
+          <button onClick="{{ toRecord }}" style="border:0;background:#14140F;color:#F6F3EC;font:500 17px/1 Inter;padding:20px 32px;border-radius:999px;cursor:pointer;white-space:nowrap;display:flex;gap:12px;align-items:center" style-hover="background:#2B2B24">Open record <span style="font-size:20px">→</span></button>
+        </div>
+      </sc-if>
+    </div>
+
+    <aside style="background:#14140F;color:#F6F3EC;border-radius:12px;padding:32px 32px 12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:24px;border-bottom:1px solid #2E2E27">
+        <span style="font:600 22px/1 'Bricolage Grotesque';letter-spacing:-0.02em">Kora events</span>
+        <span style="display:flex;align-items:center;gap:8px;font:500 13px/1 'JetBrains Mono';color:#B5B1A4"><span style="width:7px;height:7px;border-radius:50%;background:#F6F3EC;animation:breathe 2.4s infinite"></span>Live</span>
+      </div>
+      <sc-for list="{{ events }}" as="e" hint-placeholder-count="6">
+        <div style="display:grid;grid-template-columns:72px minmax(0,1fr);gap:16px;padding:20px 0;border-bottom:1px solid #2E2E27;animation:riseIn 600ms both">
+          <span style="font:500 13px/1.5 'JetBrains Mono';color:#B5B1A4">{{ e.time }}</span>
+          <div>
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:baseline"><span style="font:500 14px/1.4 'JetBrains Mono'">{{ e.name }}</span><span style="font:500 14px/1.4 'JetBrains Mono';white-space:nowrap">{{ e.amount }}</span></div>
+            <div style="font:400 14px/1.5 Inter;color:#D6D2C6;margin-top:4px">{{ e.detail }}</div>
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px;flex-wrap:wrap">
+              <span style="font:500 12px/1 'JetBrains Mono';color:#B5B1A4">{{ e.ref }}</span>
+              <span style="font:500 12px/1 Inter;background:#0B5D3B;color:#F6F3EC;padding:5px 8px;border-radius:4px">✓ Signature verified</span>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </aside>
+  </div>
+</section>
+</sc-if>
+
+<sc-if value="{{ isRecord }}" hint-placeholder-val="{{ false }}">
+<section data-screen-label="06 Record" style="max-width:1680px;margin:0 auto;padding:72px clamp(24px,4vw,72px) 160px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center">
+  <div style="width:100%;max-width:880px;display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:32px;flex-wrap:wrap">
+    <span style="font:500 16px/1 Inter;color:#5E5B52">Purchase record</span>
+    <div style="display:flex;gap:12px">
+      <button onClick="{{ copy }}" style="border:1px solid #14140F;background:transparent;color:#14140F;font:500 15px/1 Inter;padding:14px 22px;border-radius:999px;cursor:pointer;white-space:nowrap" style-hover="background:#14140F;color:#F6F3EC">{{ linkLabel }}</button>
+      <button style="border:0;background:#14140F;color:#F6F3EC;font:500 15px/1 Inter;padding:14px 22px;border-radius:999px;cursor:pointer;white-space:nowrap" style-hover="background:#2B2B24">Save as image</button>
+    </div>
+  </div>
+  <article style="width:100%;max-width:880px;box-sizing:border-box;background:#FBF9F4;border:1px solid #DCD7CB;border-radius:12px;padding:clamp(32px,4.4vw,72px);animation:riseIn 700ms both">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:32px;border-bottom:2px solid #14140F">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px"><span style="display:flex;align-items:center"><span style="width:7px;height:7px;border-radius:50%;background:#14140F"></span><span style="width:14px;height:2px;background:#14140F"></span><span style="width:7px;height:7px;border-radius:50%;border:2px solid #14140F;box-sizing:border-box"></span></span><span style="font:700 17px/1 'Bricolage Grotesque';letter-spacing:-0.03em">ProcureAI</span></div>
+        <h2 style="margin:28px 0 0;font:600 clamp(36px,3.6vw,60px)/0.95 'Bricolage Grotesque';letter-spacing:-0.045em">300 branded T-shirts</h2>
+      </div>
+      <div style="text-align:right;font:500 13px/1.8 'JetBrains Mono';color:#5E5B52">PA-2026-0417<br>5–15 October 2026<br>Buyer: Tolu Adebayo</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:140px minmax(0,1fr);gap:24px;padding:28px 0;border-bottom:1px solid #DCD7CB">
+      <span style="font:500 14px/1.5 Inter;color:#5E5B52">1 · Request</span>
+      <div style="font:400 18px/1.5 Inter">“300 branded T-shirts, under ₦1.5m, delivered by 23 October”</div>
+    </div>
+    <div style="display:grid;grid-template-columns:140px minmax(0,1fr);gap:24px;padding:28px 0;border-bottom:1px solid #DCD7CB">
+      <span style="font:500 14px/1.5 Inter;color:#5E5B52">2 · Quotes</span>
+      <div style="display:grid;gap:12px;font:500 15px/1.4 'JetBrains Mono'">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 110px 130px;gap:12px;color:#5E5B52"><span style="font-family:Inter;text-decoration:line-through;text-decoration-color:#B3261E">A · Mama Tobi Prints</span><span>₦3,900</span><span style="text-align:right;color:#B3261E">Not verified</span></div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 110px 130px;gap:12px"><span style="font-family:Inter;font-weight:600">B · Kwik Threads</span><span>₦4,200</span><span style="text-align:right;color:#0B5D3B">Chosen</span></div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 110px 130px;gap:12px;color:#5E5B52"><span style="font-family:Inter">C · Imole Apparel Ltd</span><span>₦4,500</span><span style="text-align:right">Verified</span></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:140px minmax(0,1fr);gap:24px;padding:28px 0;border-bottom:1px solid #DCD7CB">
+      <span style="font:500 14px/1.5 Inter;color:#5E5B52">3 · Why B</span>
+      <div style="display:grid;gap:10px;font:400 16px/1.55 Inter;text-wrap:pretty"><span>Vendor A quoted the lowest price, but Kora could not find its company registration, so ProcureAI did not send it money.</span><span>Vendor B was ₦90,000 cheaper than Vendor C, registered and active, and its payout account belongs to one of its directors.</span></div>
+    </div>
+    <div style="display:grid;grid-template-columns:140px minmax(0,1fr);gap:24px;padding:28px 0;border-bottom:1px solid #DCD7CB">
+      <span style="font:500 14px/1.5 Inter;color:#5E5B52">4 · Checks</span>
+      <div style="display:grid;gap:10px;font:500 14px/1.4 'JetBrains Mono'">
+        <div style="display:flex;justify-content:space-between;gap:16px"><span style="font-family:Inter;font-size:15px">Kwik Threads Garments Limited · RC 1482093 · Active</span><span style="color:#0B5D3B">KID-CAC-7Q2M41</span></div>
+        <div style="display:flex;justify-content:space-between;gap:16px"><span style="font-family:Inter;font-size:15px">Payout account owner is a director</span><span style="color:#0B5D3B">KID-BVN-5T1R88</span></div>
+        <div style="display:flex;justify-content:space-between;gap:16px"><span style="font-family:Inter;font-size:15px">Mama Tobi Prints · registration not found</span><span style="color:#B3261E">KID-CAC-0091X2</span></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:140px minmax(0,1fr);gap:24px;padding:28px 0">
+      <span style="font:500 14px/1.5 Inter;color:#5E5B52">5 · Money</span>
+      <div style="display:grid;gap:12px;font:500 15px/1.4 'JetBrains Mono'">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 130px 150px;gap:12px"><span style="font-family:Inter">Paid in · 5 October</span><span style="text-align:right">₦1,260,000</span><span style="text-align:right;color:#0B5D3B">KPY-CA-8F3K2Q9M</span></div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 130px 150px;gap:12px"><span style="font-family:Inter">Stage 1 to vendor · 5 October</span><span style="text-align:right">₦378,000</span><span style="text-align:right;color:#0B5D3B">KTR-1P6W2D</span></div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 130px 150px;gap:12px"><span style="font-family:Inter">Stage 2 to vendor · 15 October</span><span style="text-align:right">₦882,000</span><span style="text-align:right;color:#0B5D3B">KTR-4M8Z3K</span></div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 130px 150px;gap:12px;padding-top:14px;border-top:2px solid #14140F;font-weight:600"><span style="font-family:Inter">Left unaccounted</span><span style="text-align:right">₦0</span><span></span></div>
+      </div>
+    </div>
+    <div style="position:relative;margin-top:24px;padding:28px 0 0;border-top:1px solid #DCD7CB">
+      <div style="position:absolute;left:6px;right:6px;top:34px;height:2px;background:#0B5D3B"></div>
+      <div style="position:relative;display:flex;justify-content:space-between">
+        <span style="width:14px;height:14px;border-radius:50%;background:#0B5D3B"></span><span style="width:14px;height:14px;border-radius:50%;background:#0B5D3B"></span><span style="width:14px;height:14px;border-radius:50%;background:#0B5D3B"></span><span style="width:14px;height:14px;border-radius:50%;background:#0B5D3B"></span><span style="width:14px;height:14px;border-radius:50%;background:#0B5D3B"></span><span style="width:14px;height:14px;border-radius:50%;background:#0B5D3B"></span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:28px;gap:16px;flex-wrap:wrap">
+        <span style="font:500 13px/1 'JetBrains Mono';color:#5E5B52">Check this record at procureai.ng/r/0417</span>
+        <span style="display:inline-flex;padding:8px 12px;border:1.5px solid #0B5D3B;border-radius:6px;color:#0B5D3B;font:500 12px/1 'JetBrains Mono';transform:rotate(-2deg)">COMPLETE · ALL REFERENCES SIGNED BY KORA</span>
+      </div>
+    </div>
+  </article>
+</section>
+</sc-if>
+
+<sc-if value="{{ demo }}" hint-placeholder-val="{{ true }}">
+  <div style="position:fixed;right:20px;top:84px;z-index:30;display:flex;align-items:center;gap:6px;padding:6px 6px 6px 12px;opacity:0.92;max-width:calc(100vw - 40px);overflow-x:auto;background:#FBF9F4;border:1px solid #DCD7CB;border-radius:999px;font:500 13px/1 Inter">
+    <span style="color:#5E5B52;margin-right:4px">Demo</span>
+    <sc-for list="{{ demoActions }}" as="d" hint-placeholder-count="2">
+      <button onClick="{{ d.run }}" style="border:1px solid #DCD7CB;background:#F6F3EC;color:#14140F;font:500 12px/1 Inter;padding:8px 12px;border-radius:999px;cursor:pointer;white-space:nowrap" style-hover="border-color:#14140F">{{ d.label }}</button>
+    </sc-for>
+  </div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Request&quot;,&quot;Quotes&quot;,&quot;Decision&quot;,&quot;Pay&quot;,&quot;Track&quot;,&quot;Record&quot;],&quot;default&quot;:&quot;Request&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Flow&quot;},&quot;quotes&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Replies in&quot;,&quot;Waiting for vendors&quot;],&quot;default&quot;:&quot;Replies in&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;States&quot;},&quot;payout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Succeeds&quot;,&quot;Fails first time&quot;],&quot;default&quot;:&quot;Succeeds&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;States&quot;},&quot;demoControls&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Recording&quot;}}">
+const SCREENS = ['Request','Quotes','Decision','Pay','Track','Record'];
+const QUOTES = [
+  { phone:'+234 803 412 7781', time:'10:31', raw:'boss good evening. 300 pcs i go do am 3900 per one, na full payment before we start o. 2 days e don ready. i go deliver myself', tag:'Vendor A', name:'Mama Tobi Prints', note:'Delivers in person', each:'₦3,900', total:'₦1,170,000', upfront:'100%', ready:'7 October' },
+  { phone:'+234 816 090 2214', time:'10:38', raw:'I fit do am 4,200 each, delivery separate, 60% upfront, ready Thursday', tag:'Vendor B', name:'Kwik Threads', note:'Delivery free in Lagos, confirmed on follow-up', each:'₦4,200', total:'₦1,260,000', upfront:'60%', ready:'8 October' },
+  { phone:'+234 909 551 3046', time:'10:52', raw:'Good afternoon. Our price is N4,500 per unit inclusive of 2-colour print. 50% deposit to commence. Lead time 7 working days. Delivery within Lagos is free.', tag:'Vendor C', name:'Imole Apparel Ltd', note:'Two-colour print included', each:'₦4,500', total:'₦1,350,000', upfront:'50%', ready:'14 October' }
+];
+const BASE_EVENTS = [
+  { time:'10:58', name:'identity.cac', amount:'', detail:'Mama Tobi Prints · registration not found', ref:'KID-CAC-0091X2' },
+  { time:'10:58', name:'identity.cac', amount:'', detail:'Kwik Threads Garments Limited · Active', ref:'KID-CAC-7Q2M41' },
+  { time:'10:58', name:'identity.bvn_match', amount:'', detail:'Payout account owner is a director', ref:'KID-BVN-5T1R88' },
+  { time:'11:05', name:'charge.success', amount:'₦1,260,000', detail:'Paid into 902 441 7368', ref:'KPY-CA-8F3K2Q9M' }
+];
+const EV_S1 = { time:'11:06', name:'transfer.success', amount:'₦378,000', detail:'Stage 1 to Kwik Threads', ref:'KTR-1P6W2D' };
+const EV_FAIL = { time:'14:19', name:'transfer.failed', amount:'₦882,000', detail:'Declined by receiving bank', ref:'KTR-9X4B7C' };
+const EV_S2 = { time:'14:21', name:'transfer.success', amount:'₦882,000', detail:'Stage 2 to Kwik Threads', ref:'KTR-4M8Z3K' };
+
+class Component extends DCLogic {
+  state = { screen:0, text:'300 branded T-shirts, under ₦1.5m, delivered by 23 October', submitted:false, resolved:false, checked:false, pay:'awaiting', secs:1781, step:2, failed:false, failedOnce:false, events:[...BASE_EVENTS, EV_S1], waiting:null, copied:false };
+  ts = [];
+  later(fn, ms){ this.ts.push(setTimeout(fn, ms)); }
+  clear(){ this.ts.forEach(clearTimeout); this.ts = []; }
+  componentDidMount(){
+    this.onResize = () => this.forceUpdate(); window.addEventListener('resize', this.onResize);
+    this.timer = setInterval(() => { if (this.state.screen === 3 && this.state.pay !== 'paid') this.setState(s => ({ secs: Math.max(0, s.secs - 1) })); }, 1000);
+    this.applyStart();
+  }
+  componentDidUpdate(p){ if (p.startScreen !== this.props.startScreen) this.applyStart(); }
+  componentWillUnmount(){ window.removeEventListener('resize', this.onResize); clearInterval(this.timer); this.clear(); }
+  applyStart(){
+    const i = Math.max(0, SCREENS.indexOf(this.props.startScreen ?? 'Request'));
+    if (i >= 4) this.setState({ pay:'paid' });
+    if (i === 5) this.setState({ step:5, events:[...BASE_EVENTS, EV_S1, EV_S2] });
+    this.go(i, true);
+  }
+  go(n, initial){
+    this.clear();
+    this.setState({ screen:n, copied:false });
+    if (typeof window !== 'undefined') window.scrollTo(0, 0);
+    if (n === 1) { this.setState({ resolved:false }); this.later(() => this.setState({ resolved:true }), 700); }
+    if (n === 2) { this.setState({ checked:false }); this.later(() => this.setState({ checked:true }), 1200); }
+    if (n === 4 && this.state.step <= 2 && !this.state.failed) {
+      this.setState({ step:0, events:[...BASE_EVENTS] });
+      this.later(() => this.setState({ step:1 }), 500);
+      this.later(() => this.setState(s => ({ step:2, events:[...s.events, EV_S1] })), 1900);
+    }
+  }
+  deliver(){
+    if (this.state.step !== 2) return;
+    this.setState({ step:3 });
+    const fails = (this.props.payout ?? 'Succeeds') === 'Fails first time' && !this.state.failedOnce;
+    this.later(() => {
+      if (fails) this.setState(s => ({ failed:true, failedOnce:true, events:[...s.events, EV_FAIL] }));
+      else this.payStage2();
+    }, 1700);
+  }
+  payStage2(){
+    this.setState(s => ({ failed:false, step:4, events:[...s.events, EV_S2] }));
+    this.later(() => this.setState({ step:5 }), 1500);
+  }
+  resetTrack(){ this.clear(); this.setState({ step:2, failed:false, failedOnce:false, events:[...BASE_EVENTS, EV_S1] }); }
+
+  renderVals(){
+    const s = this.state, sc = s.screen;
+    const nav = SCREENS.map((label, i) => ({
+      label, go: () => this.go(i),
+      color: i === sc ? '#14140F' : '#5E5B52',
+      dotBorder: i <= sc ? '#14140F' : '#B9B3A5',
+      dotBg: i < sc ? '#14140F' : 'transparent',
+      lineBg: i <= sc ? '#14140F' : '#DCD7CB',
+      lineDisp: i === 0 ? 'none' : 'block'
+    }));
+    const waiting = s.waiting ?? ((this.props.quotes ?? 'Replies in') === 'Waiting for vendors');
+    const quotes = QUOTES.map((q, i) => ({ ...q,
+      line: s.resolved ? 1 : 0, op: s.resolved ? 1 : 0, blur: s.resolved ? '0px' : '10px', tx: s.resolved ? '0px' : '-24px',
+      delay: (i * 380) + 'ms', delay2: (i * 380 + 500) + 'ms' }));
+    const mm = Math.floor(s.secs / 60), ss = String(s.secs % 60).padStart(2, '0');
+
+    const step = s.step, failed = s.failed;
+    const nodeDefs = [
+      { label:'Paid', amount:'₦1,260,000', ref:'KPY-CA-8F3K2Q9M' },
+      { label:'Held', amount: step >= 4 ? '₦0' : step >= 2 ? '₦882,000' : '₦1,260,000', ref:'KVA · 902 441 7368' },
+      { label:'Stage 1 paid', amount:'₦378,000', ref:'KTR-1P6W2D' },
+      { label:'Delivery code entered', amount:'15 October', ref:'Code 481 906 ✓' },
+      { label: failed ? 'Stage 2 failed' : 'Stage 2 paid', amount:'₦882,000', ref: failed ? 'KTR-9X4B7C · Failed' : 'KTR-4M8Z3K' },
+      { label:'Complete', amount:'', ref:'PA-2026-0417' }
+    ];
+    const nodes = nodeDefs.map((n, i) => {
+      const isFail = failed && i === 4;
+      const done = i <= step || isFail;
+      const held = i === 1 && done && step < 5;
+      const col = isFail ? '#B3261E' : held ? '#C9861A' : '#0B5D3B';
+      return { ...n, done,
+        ring: done ? col : '#CFC9BB', fill: done ? col : '#F6F3EC', core: done ? 1 : 0,
+        labelColor: done ? (isFail ? '#B3261E' : '#14140F') : '#5E5B52',
+        amountColor: done ? (held ? '#C9861A' : isFail ? '#B3261E' : '#14140F') : '#5E5B52',
+        delay: '200ms' };
+    });
+    const trackTitle = failed ? 'Stage 2 payout failed.' : ['Paid. Waiting for the vendor.', 'Held. Waiting for the vendor to accept.', 'Stage 1 paid. Waiting for delivery.', 'Delivery confirmed. Paying the rest.', 'Stage 2 paid.', 'Complete. Every naira accounted for.'][step];
+    const heldN = step >= 4 ? '₦0' : step >= 2 ? '₦882,000' : '₦1,260,000';
+
+    let demoActions = [];
+    if (sc === 0) demoActions = [{ label: s.submitted ? 'Reset' : 'Submit', run: () => this.setState({ submitted: !s.submitted }) }];
+    if (sc === 1) demoActions = [{ label: waiting ? 'Show replies' : 'Show waiting state', run: () => this.setState({ waiting: !waiting }) }, { label:'Replay', run: () => this.go(1) }];
+    if (sc === 2) demoActions = [{ label:'Replay checks', run: () => this.go(2) }];
+    if (sc === 3) demoActions = s.pay === 'awaiting'
+      ? [{ label:'Transfer ₦1,260,000', run: () => this.setState({ pay:'paid' }) }, { label:'Transfer ₦1,200,000', run: () => this.setState({ pay:'short' }) }]
+      : s.pay === 'short' ? [{ label:'Send ₦60,000', run: () => this.setState({ pay:'paid' }) }, { label:'Reset', run: () => this.setState({ pay:'awaiting', secs:1781 }) }]
+      : [{ label:'Reset', run: () => this.setState({ pay:'awaiting', secs:1781 }) }];
+    if (sc === 4) demoActions = [{ label:'Vendor enters code', run: () => this.deliver() }, { label:'Reset', run: () => this.resetTrack() }];
+    if (sc === 5) demoActions = [{ label:'Back to tracker', run: () => this.go(4) }];
+
+    return {
+      nav, refDisp: (typeof window !== 'undefined' && window.innerWidth < 1100) ? 'none' : 'inline', text: s.text, onText: e => this.setState({ text: e.target.value }),
+      isRequest: sc === 0, isQuotes: sc === 1, isDecision: sc === 2, isPay: sc === 3, isTrack: sc === 4, isRecord: sc === 5,
+      submitted: s.submitted, notSubmitted: !s.submitted,
+      submit: () => this.setState({ submitted:true }), unsubmit: () => this.setState({ submitted:false }),
+      toQuotes: () => this.go(1), toDecision: () => this.go(2), toPay: () => this.go(3), toTrack: () => this.go(4), toRecord: () => this.go(5),
+      quotesWaiting: waiting, quotesReady: !waiting, quotes,
+      quotesTitle: waiting ? 'Waiting for vendors to reply.' : 'Three replies. One format.',
+      repliedLine: waiting ? '0 of 14 replied' : '3 of 14 replied',
+      checked: s.checked, notChecked: !s.checked, strike: s.checked ? 1 : 0, aOp: s.checked ? 0.45 : 1,
+      bBorder: s.checked ? '#0B5D3B' : '#DCD7CB', bTag: s.checked ? 'Vendor B · Recommended' : 'Vendor B', bTagColor: s.checked ? '#0B5D3B' : '#5E5B52',
+      checkLabel: s.checked ? 'Checked by Kora · 10:58' : 'Checking with Kora…',
+      payOpen: s.pay !== 'paid', payPaid: s.pay === 'paid', payShort: s.pay === 'short',
+      payEyebrow: s.pay === 'short' ? 'Send the rest to this account' : 'Pay into this account',
+      payAmount: s.pay === 'short' ? '₦60,000' : '₦1,260,000',
+      countdown: mm + ':' + ss,
+      markPaid: () => this.setState({ pay:'paid' }),
+      copy: () => { this.setState({ copied:true }); this.later(() => this.setState({ copied:false }), 1600); },
+      copyLabel: s.copied ? 'Copied' : 'Copy number', linkLabel: s.copied ? 'Link copied' : 'Copy link',
+      nodes, progW: 'calc((100% - 100% / 6) * ' + (Math.min(step, 5) / 5) + ')',
+      trackTitle, trackTitleColor: failed ? '#B3261E' : '#14140F',
+      heldAmount: heldN, heldColor: step >= 4 ? '#0B5D3B' : '#C9861A',
+      showCode: step <= 2 && !failed, failed, complete: step === 5,
+      retry: () => { this.setState({ failed:false }); this.later(() => this.payStage2(), 900); },
+      events: s.events,
+      demo: this.props.demoControls ?? true, demoActions
+    };
+  }
+}
+</script>
+</body>
+</html>
