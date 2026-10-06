@@ -63,3 +63,23 @@ People (DIRECTOR/SHAREHOLDER) keep the spec's symmetric rule, which handles midd
 **D-25 · Env additions to §3.5.** `AI_BASE_URL` (provider-agnostic AI), `DATABASE_URL_TEST` (integration tests), `ADMIN_TOKEN` (required when `DEMO_MODE=false`, or /admin would be open), `CRON_SECRET` (Vercel Cron), `LOG_LEVEL`. Fail-fast validation lists every problem at once.
 
 **D-26 · Tests and the Kora test double.** Unit and integration suites run against `tests/kora-double`, a local HTTP server whose every response copies a shape from Kora's docs (snapshots in `docs/kora-snapshots`). It also behaves statefully: under/overpayment preferences, insufficient funds, 035 failing. The `sandbox` suite runs the same flows against the real Kora sandbox with the owner's key. The double is test-only, and a test asserts no app module imports it.
+
+## Built during the UI phase
+
+**D-27 · Invite tokens are HMAC(request, label).** ProcureAI has no WhatsApp/SMS sending, so a person shares vendor links. Tokens are a keyed MAC of (request id, vendor label), stored only as sha256 — unguessable and single-purpose like random tokens, but the server can show the link again (admin screen) without storing it.
+
+**D-28 · Copy changes where the handoff's words would be untrue.** Stage 1 is paid when money is held (D-12), so the tracker says "Held. Paying the vendor's 30%." and the paid screen says "receives ₦378,000 now". Kora's one-time accounts are single-use, so the short state says "Send ₦60,000 more to **this** account" (a new account). "Sent to 14 vendors" becomes "Invited N vendors" with the real directory count. The quotes footnote drops "one-colour front print" (not part of the parsed spec).
+
+**D-29 · "next <weekday>"** means the occurrence in the following Monday–Sunday week (said on Monday 5 Oct, "next tuesday" = 13 Oct; plain "Tuesday" = 6 Oct). Relative dates resolve against the request's creation date in Lagos time.
+
+**D-30 · UI additions not in the handoff**, built in its visual language: vendor business-details form (RC, bank picker from Kora's basic list, account, email, consent checkbox); "Quote sent", "Another vendor was chosen", "You were chosen — waiting for payment" and "On hold" phone states; buyer name/email fields when not in demo mode; expired-account state; payout-failed/blocked/disputed blocks on the tracker; Kora panel pills "Kora API" / "Simulated identity" / "✕ Signature invalid" (admin only) next to "✓ Signature verified"; SIMULATED IDENTITY badge; admin console and reconciliation screen; sandbox demo strip (DEMO_MODE + test key only); OFFLINE banner.
+
+**D-31 · Wrong handover code returns 200 `{ok:false}`.** It is an expected answer, not a failed request; browsers log 4xx fetches as console errors, and the brief requires none.
+
+**D-32 · "Save as image"** is a server-rendered PNG (`/r/:signedId/image`, `next/og`) with Inter embedded — the renderer's default font has no ₦ glyph.
+
+**D-33 · `npm run dev:offline`.** Runs the app against the Kora test double (which also delivers signed webhooks) so the UI can be exercised without keys. A red "OFFLINE · KORA TEST DOUBLE" banner is on every page; it is never presented as Kora.
+
+**D-34 · Record stamp is conditional.** "ALL REFERENCES SIGNED BY KORA" only when every money movement was confirmed by a signature-verified webhook; otherwise "ALL REFERENCES CONFIRMED WITH KORA" (some were confirmed by query).
+
+**D-35 · Home and Landing marketing pages are not built yet**; `/` opens the product at `/buy`. They are listed in HANDOFF.md.
