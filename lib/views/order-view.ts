@@ -156,6 +156,9 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
           : "paid";
   const shortfall = order.amountKobo > order.amountAcceptedKobo ? order.amountKobo - order.amountAcceptedKobo : 0n;
   const shown = openPayIn ?? lastPayIn;
+  // What the open account takes. Kora caps one account at ₦1,000,000, so after a short payment on a
+  // large order the rest may need more than one account; the screen asks only for what this one takes.
+  const thisAccountKobo = payState === "short" && openPayIn ? (openPayIn.amountExpectedKobo < shortfall ? openPayIn.amountExpectedKobo : shortfall) : shortfall;
 
   // ── trail ──
   const codeUsed = Boolean(order.codeUsedAt);
@@ -275,7 +278,7 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
     screen: ["CREATED", "AWAITING_PAYMENT", "UNDERPAID"].includes(order.status) ? "pay" : "track",
     pay: {
       state: payState,
-      amountDue: formatNaira(payState === "short" ? shortfall : (shown?.amountExpectedKobo ?? order.amountKobo)),
+      amountDue: formatNaira(payState === "short" ? thisAccountKobo : (shown?.amountExpectedKobo ?? order.amountKobo)),
       accountNumber: spacedAccount(shown?.accountNumber),
       bankName: shown?.bankName ? bankLabel(shown.bankName) : null,
       accountName: shown?.accountName ?? null,
