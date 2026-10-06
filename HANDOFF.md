@@ -113,6 +113,11 @@ Steps 1–6 are **done**, and step 7's code part is done. Branch `main-0lkoc1` (
   admin needs `ADMIN_TOKEN` when set, a buyer per visitor, buyer-scoped sandbox buttons, "Open vendor's phone" link.
 - Also fixed: preflight counted a proxy 403 as PASS on "invalid account" and overwrote recorded fixtures with proxy
   pages; now only Kora's own JSON answers count or get recorded.
+- Audit round (same day): browser walk-through of every screen at 1440px and 390px (no console errors, no sideways
+  scroll). Fixed: "underpaid"/"overpaid" repeated on every poll under "Return all"; short-payment screen on orders over
+  ₦1M asked for more than one account takes; missing favicon (console 404); public `/api/health` leaked balance and DB
+  errors (now admin-only details); `db:test:reset` used a flag Prisma 7 removed; npm audit 0 via overrides; DEMO.md
+  numbers. Tests: **239**. Note: Prisma refuses `migrate reset` when an AI agent runs it, so run `db:test:reset` yourself.
 - **Left for the owner:** README "Deploy → Owner steps" 1–7 (Vercel project, Neon, env vars, Kora webhook URL, seed,
   pinger, live checks), then a fresh `npm run preflight` from a network that can reach Kora (the cloud container can't,
   BLOCKERS B-08).
