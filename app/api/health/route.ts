@@ -3,13 +3,17 @@ import { env, EnvError } from "@/lib/env";
 import { kora } from "@/lib/kora/client";
 import { isKoraError } from "@/lib/kora/errors";
 import { json } from "@/lib/http/route";
+import { isAdmin } from "@/lib/http/session";
 import { formatNaira } from "@/lib/money";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** GET /api/health — DB, Kora reachability + balance, outbox depth. 503 only when the DB is down. */
-export async function GET(): Promise<Response> {
+/**
+ * GET /api/health — DB, Kora reachability + balance, outbox depth. 503 only when the DB is down.
+ * Anyone sees up/down per dependency; the balance, outbox and error details are for the admin only.
+ */
+export async function GET(req: Request): Promise<Response> {
   const started = performance.now();
   const out: Record<string, unknown> = {};
   let ok = true;
@@ -48,5 +52,18 @@ export async function GET(): Promise<Response> {
   }
 
   out.latencyMs = Math.round(performance.now() - started);
-  return json({ status: ok ? "ok" : "down", ...out }, ok ? 200 : 503);
+  const body = adminCaller(req)
+    ? { status: ok ? "ok" : "down", ...out }
+    : { status: ok ? "ok" : "down", db: { ok: (out.db as { ok: boolean }).ok }, kora: { ok: Boolean((out.kora as { ok?: boolean } | undefined)?.ok) } };
+  return json(body, ok ? 200 : 503);
+}
+
+/** isAdmin reads the environment; when that's misconfigured, health must still answer (as public). */
+function adminCaller(req: Request): boolean {
+  try {
+    return isAdmin(req);
+  } catch (err) {
+    if (err instanceof EnvError) return false;
+    throw err;
+  }
 }

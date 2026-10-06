@@ -115,5 +115,5 @@ receipt, and open SSE streams.
 5. Seed the vendor directory once: locally, `DATABASE_URL=<Neon URL> npm run demo:reset`.
 6. Free pinger: cron-job.org → new cron job → URL `https://<project>.vercel.app/api/cron/tick`, every minute,
    method GET, header `Authorization: Bearer <CRON_SECRET>`.
-7. Check on the live URL: `/api/health`; a full purchase from `/buy` to the record page; the PNG at `/r/<id>/image`;
+7. Check on the live URL: `/api/health` (public: up/down; with `Authorization: Bearer <ADMIN_TOKEN>`, balance and details); a full purchase from `/buy` to the record page; the PNG at `/r/<id>/image`;
    a webhook arriving (admin page, after signing in with `ADMIN_TOKEN`); the pinger's job history showing 200s.
