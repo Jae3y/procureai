@@ -52,9 +52,9 @@ async function chooseRoute(verification: { bankCode: string; accountNumber: stri
     const s = SANDBOX_ACCOUNTS[setting];
     return { route: "SANDBOX_TEST_ACCOUNT", bank: s.bank, account: s.account };
   }
-  // In live Kora sandbox (api.korapay.com), disbursements to non-sandbox test accounts
+  // Against the real Kora sandbox (test key, real API), disbursements to non-sandbox test accounts
   // are rejected with "Invalid account." Automatically route to Kora's 033 success account.
-  if (kora().isTestMode && kora().baseUrl.includes("korapay.com")) {
+  if (kora().isLiveSandbox) {
     return { route: "SANDBOX_TEST_ACCOUNT", bank: "033", account: "0000000000" };
   }
   return { route: "VERIFIED_ACCOUNT", bank: verification.bankCode, account: verification.accountNumber };

@@ -5,6 +5,7 @@ import { bankLabel } from "@/lib/domain/payin";
 import { env } from "@/lib/env";
 import type { OrderStatus, Payout, PayoutStage } from "@/lib/generated/prisma/client";
 import { signRecordId } from "@/lib/crypto";
+import { instalmentsFor } from "@/lib/kora/limits";
 import { formatNaira, splitStages } from "@/lib/money";
 import { itemPhrase, lagosDay, lagosTime, longOrderRef, orderRef, spacedAccount, spacedCode } from "./format";
 import type { KoraRow } from "./request-view";
@@ -45,6 +46,8 @@ export type OrderView = {
     heldSoFar: string | null;
     paidStamp: { amount: string; reference: string; time: string } | null;
     overpaid: string | null;
+    /** Kora caps one account at ₦1,000,000, so larger orders are paid in several transfers. */
+    instalment: { part: number; of: number; receivedSoFar: string | null } | null;
   };
   track: {
     title: string;
@@ -284,6 +287,12 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
           ? { amount: formatNaira(order.amountAcceptedKobo), reference: firstPaid.reference, time: lagosTime(successPayIns.at(-1)?.creditedAt ?? firstPaid.createdAt) }
           : null,
       overpaid: order.amountAcceptedKobo > order.amountKobo ? formatNaira(order.amountAcceptedKobo - order.amountKobo) : null,
+      instalment: (() => {
+        const remaining = order.amountKobo > order.amountAcceptedKobo ? order.amountKobo - order.amountAcceptedKobo : 0n;
+        const of = successPayIns.length + (remaining > 0n ? instalmentsFor(remaining) : 0);
+        if (of <= 1 || reachedHeld) return null;
+        return { part: successPayIns.length + 1, of, receivedSoFar: order.amountAcceptedKobo > 0n ? formatNaira(order.amountAcceptedKobo) : null };
+      })(),
     },
     track: {
       title: t.title,

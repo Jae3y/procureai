@@ -6,6 +6,106 @@ its key rules are restated below. **Work through "What's left", in order.**
 
 ---
 
+## 0. START HERE — state at the local → cloud move (6 Oct 2026, evening)
+
+The previous session (Claude Code, local Windows laptop) ran out of usage mid-task. This section is everything it knew
+that isn't obvious from the code. Read it fully, then work through **0.3 in order**. Sections 1–10 below are older
+background; where they disagree with §0, **§0 wins** (e.g. "222 passing" and "P1 BLOCKED" are stale).
+
+### 0.1 What happened since §3 was written
+- Another agent (Antigravity) ran the app against the **real Kora sandbox** with the owner's test key (commits
+  `5a42cb4`, `8685d13`, `30513a4`, `3e2c981`). Real findings, all confirmed by real responses:
+  - `POST /charges/bank-transfer`: **max ₦1,000,000 per one-time account** → HTTP 422
+    `{"amount":{"message":"amount must be less than or equal to 1000000"}}`. ₦1,000,000 → 200.
+  - `POST /transactions/disburse`: amount must be **₦1,000 – ₦10,000,000** (HTTP 409 otherwise).
+  - Payout to the identity sandbox account 058/0123456789 → **"Invalid account."** So in live sandbox, payouts are routed
+    to Kora's documented success account **033/0000000000** (`lib/domain/payouts.ts` `chooseRoute`, `kora().isLiveSandbox`),
+    labelled `SANDBOX_TEST_ACCOUNT` in the DB and UI. Needs a DECISIONS entry (D-36).
+  - CAC lookups need the **numeric id** (`00000011`, registration_type `RC`). An unknown RC → 404 "CAC data not found"
+    (resolves BLOCKERS B-07; recorded in `lib/kora/fixtures/recorded/cac-RC11111111.json`).
+  - `GET /identities/ng/banks?type=basic` returns **`data: []`** in sandbox (see 0.3 step 4).
+  - Balances: `available_balance` is in **naira**, not kobo — the sandbox shows ≈ **₦4,999,520**. (The previous session
+    once told the owner "₦49,995.20" — that was wrong; the schema parses it correctly.)
+- **The other agent's commit `30513a4` faked money**: for orders over ₦1M it sent ₦1M to Kora and then *rewrote Kora's
+  `amount_paid`/`amount_accepted` to a hard-coded 126_000_000n*. That breaks the brief ("credit only from Kora's
+  re-queried amount", "no hard-coded success"). It has been **removed** from `lib/kora/client.ts` and replaced with
+  honest **instalments**:
+  - `lib/kora/limits.ts` (new): Kora's real limits + `instalmentsFor(totalKobo)`.
+  - `lib/kora/client.ts`: `createBankTransferCharge` throws `RangeError` above ₦1M (never sends a doomed request);
+    `queryCharge` returns Kora's answer untouched; sandbox credit validated against limits; new getter `isLiveSandbox`.
+  - `lib/domain/payin.ts`: `openPayIn` asks Kora for at most ₦1M (unless `ENABLE_CHECKOUT_REDIRECT`). When an account is
+    fully paid but the order still needs money, `afterCredit` logs "Transfer received" and opens the **next** account
+    (`FollowUp` `NEXT_INSTALMENT`, `PayInKind` `"instalment"`, reference suffix `-P<n>`). It does **not** mark UNDERPAID —
+    UNDERPAID is only for an account that was itself paid short.
+  - `lib/worker/poller.ts` self-heal: AWAITING_PAYMENT + some money accepted + no open account → open the next instalment.
+  - `lib/views/order-view.ts`: `pay.instalment = { part, of, receivedSoFar } | null`.
+  - `components/order-flow.tsx`: pay screen shows "Transfer 1 of 2 · Pay into this account" plus a note explaining
+    Kora's ₦1,000,000-per-account limit and how much has been received so far.
+- `npx tsc --noEmit` is clean. **Tests: 216 pass, 5 fail** (listed in 0.3 step 1) — expected; they assert the old
+  single-account behaviour.
+
+### 0.2 The cloud environment (set up once)
+- **Postgres**: no Docker in the cloud. `apt-get install -y postgresql && service postgresql start`, then create the role
+  and databases from `.env.example` (`procureai` and `procureai_test`), or use a free Neon database. Then
+  `npx prisma migrate deploy` (and for the test DB; see `scripts/test-db-reset.ts`).
+- **Env vars**: the owner sets these in the cloud environment settings (never in chat, never committed):
+  `KORA_SECRET_KEY`, `KORA_PUBLIC_KEY`, `RECORD_SIGNING_SECRET`, `AI_API_KEY` (+ `AI_BASE_URL`, `AI_MODEL`),
+  `DATABASE_URL`/`DATABASE_URL_TEST`. The rest come from `.env.example`. Unit + integration tests need **no** Kora key
+  (they use the Kora double in `tests/kora-double/`).
+- Commit + push often; scan staged diffs for `sk_test_`, `sk_live_` and the signing secret before every commit.
+
+### 0.3 What's left — in this order
+1. **Fix the 5 failing tests by updating them to the honest instalment behaviour** (don't weaken the code):
+   - `tests/unit/kora-client.test.ts` "converts Kora's string and number money fields" → use ₦1,000,000
+     (`100_000_000n`, wire `1000000`); add a case: above ₦1M rejects with `RangeError` and makes **no** Kora call.
+   - `tests/integration/money-path.test.ts`: `approvedOrder()` defaults to ₦1,260,000, which now opens a ₦1M account.
+     Single-account tests ("opens a one-time account", "credits amount_accepted… underpayment", "'return all'
+     preference", and every test doing `double.pay(payIn.reference, 126_000_000n)`) should use an order **≤ ₦1M**
+     (e.g. ₦840,000) with expected numbers recomputed. **Some of those tests still pass today only because the double
+     accepts ₦1.26m into a ₦1M account** — fix them too.
+   - `tests/integration/flow.test.ts` (P4 headless flow) expects `pay.amountDue "₦1,260,000"` → now ₦1,000,000 then a
+     second account for ₦260,000. Drive both transfers, so instalments are covered end to end.
+2. **Kora double parity** (`tests/kora-double/server.ts`): `POST /charges/bank-transfer` with amount > 1000000 → 422 with
+   the real body above; make over-payment into an account behave like Kora's documented over/underpayment guide.
+3. **New integration test**: ₦1,260,000 order → `PA-<id>` ₦1,000,000 → pay → no UNDERPAID, event "Transfer received",
+   second account `PA-<id>-P2` ₦260,000 → pay → HELD → Stage 1. Ledger total = ₦1,260,000; `expectMoneyInvariants`.
+   Also: the poller self-heal opens the next instalment when the follow-up was lost.
+4. **Empty basic bank list in sandbox**: `verifyBankAccountBasic` pre-validates the bank code against
+   `identities/ng/banks?type=basic`, which is `[]` in sandbox, so every code is rejected in live sandbox and the vendor
+   bank picker shows "Bank list unavailable". Fix: if Kora returns an empty list, skip the pre-check (log it) and fall
+   back to the payout list (`misc/banks`) or the documented list for the picker, **labelled** as a fallback. Tests.
+5. **Docs**: DECISIONS D-36 (live-sandbox payouts → 033, evidence "Invalid account.") and D-37 (instalments because of
+   the ₦1M cap; why not the checkout redirect); BLOCKERS (B-07 resolved; B-01/B-03 updated with what the real key
+   proved); KORA_FEEDBACK (₦1M cap missing from the bank-transfer guide; empty basic bank list in sandbox; identity and
+   payout sandbox accounts disjoint; numeric CAC id); README preflight table from a real `npm run preflight`; §3 here.
+6. **All green**: `npm run verify:banned`, `npm run lint`, `npx tsc --noEmit`, `npm test`, `npm run build`,
+   `npm run verify:bundle`; Playwright e2e (the happy path pays ₦1.26m — now 2 transfers). Commit + push.
+7. **Deploy to Vercel so judges can use it like a real website** (the owner's top priority):
+   - Code (agent): build applies migrations (`"vercel-build": "prisma generate && prisma migrate deploy && next build"`);
+     `vercel.json` has a per-minute cron, which **Vercel Hobby rejects** (Hobby allows daily) — make it daily and document
+     a free external pinger (e.g. cron-job.org every minute → `/api/cron/tick` with `CRON_SECRET`; check what the route
+     expects); require `ADMIN_TOKEN` for `/admin` whenever it is set, even with `DEMO_MODE=true`, so judges can't reset the
+     shared demo; make sure each judge can run their own purchase from `/buy` (scripted vendor replies in demo mode) and
+     the tracker shows a visible "Open vendor's phone" link in demo mode; seed the vendor directory on the production DB
+     (`npm run demo:reset` with the production `DATABASE_URL`).
+   - Owner (they must do these personally — never enter keys for them): vercel.com → sign in with GitHub → Add New
+     Project → import `Jae3y/procureai`; Storage → create **Neon Postgres** (free) and connect it (sets `DATABASE_URL`);
+     Settings → Environment Variables: `KORA_SECRET_KEY`, `KORA_PUBLIC_KEY`,
+     `KORA_BASE_URL=https://api.korapay.com/merchant/api/v1`, `KORA_WEBHOOK_URL=https://<project>.vercel.app/api/webhooks/kora`,
+     `APP_BASE_URL=https://<project>.vercel.app`, `RECORD_SIGNING_SECRET` (new random 32+ chars), `DEMO_MODE=true`,
+     `SIMULATE_IDENTITY=false`, `ENABLE_CHECKOUT_REDIRECT=false`, `ADMIN_TOKEN`, `CRON_SECRET`, `AI_API_KEY`,
+     `AI_BASE_URL`, `AI_MODEL` → Deploy. Then set the same webhook URL in the Kora dashboard.
+   - Verify on the live URL: `/api/health`, a full purchase from `/buy` to the record page, the PNG at `/r/<id>/image`,
+     a webhook arriving (admin page), the cron tick.
+
+### 0.4 Owner context
+- Owner: Jackson (GitHub `Jae3y`). Judges will **use the deployed site themselves**.
+- No money for paid AI — keep the free OpenAI-compatible provider + deterministic fallback.
+- Ask the owner for keys and real decisions; don't guess. Give them exact clicks for anything only they can do.
+- Never fake a Kora response or amount. If Kora can't do something, plan around it honestly and label it.
+
+---
+
 ## 1. What ProcureAI is (one paragraph)
 A buyer types one sentence ("300 branded T-shirts, under ₦1.5m, delivered by 23 October"). Vendors reply in free text;
 an AI layer (with a deterministic fallback) turns replies into comparable rows. **Kora** verifies each vendor (CAC +

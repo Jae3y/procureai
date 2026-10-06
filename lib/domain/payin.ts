@@ -2,6 +2,7 @@ import { db, transaction, type Tx } from "@/lib/db";
 import { env } from "@/lib/env";
 import type { Order, PayIn, PayInStatus } from "@/lib/generated/prisma/client";
 import { kora } from "@/lib/kora/client";
+import { KORA_MAX_CHARGE_KOBO } from "@/lib/kora/limits";
 import { isKoraError, KoraDuplicateReferenceError } from "@/lib/kora/errors";
 import { log } from "@/lib/log";
 import { formatNaira, type Kobo } from "@/lib/money";
@@ -35,12 +36,25 @@ export type ChargeSnapshot = {
   message: string | null;
 };
 
-export type FollowUp = { kind: "DISPATCH_STAGE_1" } | { kind: "TOP_UP"; shortfallKobo: Kobo } | { kind: "NEW_ACCOUNT" } | null;
+export type FollowUp =
+  | { kind: "DISPATCH_STAGE_1" }
+  | { kind: "TOP_UP"; shortfallKobo: Kobo }
+  | { kind: "NEXT_INSTALMENT"; remainingKobo: Kobo }
+  | { kind: "NEW_ACCOUNT" }
+  | null;
+
+/**
+ * initial      — the order's first account
+ * instalment   — the next account of a planned split (Kora caps one account at ₦1,000,000)
+ * top-up       — the rest after a genuine underpayment
+ * replacement  — a fresh account after an earlier one expired or its creation outcome was unknown
+ */
+export type PayInKind = "initial" | "instalment" | "top-up" | "replacement";
 export type ApplyResult = { changed: boolean; followUp: FollowUp; orderId: string };
 
-function payInReference(orderId: string, sequence: number, kind: "initial" | "top-up" | "replacement"): string {
+function payInReference(orderId: string, sequence: number, kind: PayInKind): string {
   if (sequence === 1) return `PA-${orderId}`;
-  return `PA-${orderId}-${kind === "top-up" ? "T" : "R"}${sequence}`;
+  return `PA-${orderId}-${kind === "top-up" ? "T" : kind === "instalment" ? "P" : "R"}${sequence}`;
 }
 
 async function nextSequence(orderId: string): Promise<number> {
@@ -57,7 +71,7 @@ async function nextSequence(orderId: string): Promise<number> {
 export async function openPayIn(
   orderId: string,
   amountKobo: Kobo,
-  kind: "initial" | "top-up" | "replacement",
+  kind: PayInKind,
   cause: Cause,
 ): Promise<PayIn> {
   const order = await db().order.findUnique({
@@ -67,6 +81,10 @@ export async function openPayIn(
   if (!order) throw new NotFoundError("Order");
   const e = env();
   const k = kora();
+  // Kora caps one bank-transfer account at ₦1,000,000 (real sandbox: 422 "amount must be less than
+  // or equal to 1000000"). Larger orders are paid across several accounts, each credited from Kora's
+  // own answer — never by pretending one account took more than Kora allows.
+  const requestKobo = !e.ENABLE_CHECKOUT_REDIRECT && amountKobo > KORA_MAX_CHARGE_KOBO ? KORA_MAX_CHARGE_KOBO : amountKobo;
 
   let sequence = await nextSequence(orderId);
   for (let attempt = 0; attempt < 2; attempt++, sequence++) {
@@ -80,11 +98,11 @@ export async function openPayIn(
       // Each channel normalises its own answer, so everything below is channel-agnostic.
       const opened = e.ENABLE_CHECKOUT_REDIRECT
         ? await k
-            .initializeCheckout({ reference, amountKobo, customer, narration, notificationUrl: e.KORA_WEBHOOK_URL, redirectUrl: `${e.APP_BASE_URL}/orders/${orderId}/pay`, metadata })
+            .initializeCheckout({ reference, amountKobo: requestKobo, customer, narration, notificationUrl: e.KORA_WEBHOOK_URL, redirectUrl: `${e.APP_BASE_URL}/orders/${orderId}/pay`, metadata })
             .then((r) => ({
               raw: r.raw,
               channel: "checkout",
-              expectedKobo: amountKobo,
+              expectedKobo: requestKobo,
               feeKobo: null,
               accountNumber: null,
               accountName: null,
@@ -93,7 +111,7 @@ export async function openPayIn(
               checkoutUrl: r.data.checkout_url,
             }))
         : await k
-            .createBankTransferCharge({ reference, amountKobo, customer, accountName, narration, notificationUrl: e.KORA_WEBHOOK_URL, metadata, autoComplete: false })
+            .createBankTransferCharge({ reference, amountKobo: requestKobo, customer, accountName, narration, notificationUrl: e.KORA_WEBHOOK_URL, metadata, autoComplete: false })
             .then((r) => ({
               raw: r.raw,
               channel: "bank_transfer",
@@ -115,7 +133,7 @@ export async function openPayIn(
             sequence,
             reference,
             channel: opened.channel,
-            amountRequestedKobo: amountKobo,
+            amountRequestedKobo: requestKobo,
             amountExpectedKobo: opened.expectedKobo,
             feeKobo: opened.feeKobo,
             accountNumber: opened.accountNumber,
@@ -147,7 +165,7 @@ export async function openPayIn(
         }
         await orderEvent(tx, orderId, {
           kind: "info",
-          title: kind === "top-up" ? "Account for the rest is ready" : "One-time account ready",
+          title: kind === "top-up" ? "Account for the rest is ready" : kind === "instalment" ? "Account for the next transfer is ready" : "One-time account ready",
           detail: isTransfer
             ? `${bankLabel(payIn.bankName)} · ${spaced(payIn.accountNumber ?? "")} · ${formatNaira(payIn.amountExpectedKobo)}`
             : `Kora checkout · ${formatNaira(amountKobo)}`,
@@ -235,7 +253,7 @@ export async function applyChargeSnapshot(reference: string, snap: ChargeSnapsho
           koraReference: reference,
         });
       }
-      return afterCredit(tx, order, cause);
+      return afterCredit(tx, order, cause, accepted >= payIn.amountExpectedKobo);
     }
 
     if (final === "FAILED" || final === "EXPIRED") {
@@ -266,7 +284,7 @@ export async function applyChargeSnapshot(reference: string, snap: ChargeSnapsho
   });
 }
 
-async function afterCredit(tx: Tx, order: Order, cause: Cause): Promise<ApplyResult> {
+async function afterCredit(tx: Tx, order: Order, cause: Cause, accountFullyPaid: boolean): Promise<ApplyResult> {
   if (order.amountAcceptedKobo >= order.amountKobo) {
     if (order.status === "AWAITING_PAYMENT" || order.status === "UNDERPAID") {
       const held = await transition(tx, order, "HELD", cause);
@@ -276,6 +294,16 @@ async function afterCredit(tx: Tx, order: Order, cause: Cause): Promise<ApplyRes
     return { changed: true, followUp: null, orderId: order.id };
   }
   const shortfallKobo = order.amountKobo - order.amountAcceptedKobo;
+  if (accountFullyPaid && order.status === "AWAITING_PAYMENT") {
+    // A planned instalment, not an underpayment: this account received everything it asked for.
+    await orderEvent(tx, order.id, {
+      kind: "info",
+      title: "Transfer received",
+      detail: `${formatNaira(order.amountAcceptedKobo)} of ${formatNaira(order.amountKobo)} received. Kora takes up to ₦1,000,000 per account, so the next account is for ${formatNaira(shortfallKobo)}.`,
+      amountKobo: shortfallKobo,
+    });
+    return { changed: true, followUp: { kind: "NEXT_INSTALMENT", remainingKobo: shortfallKobo }, orderId: order.id };
+  }
   if (order.status === "AWAITING_PAYMENT") await transition(tx, order, "UNDERPAID", { ...cause, note: `short ${formatNaira(shortfallKobo)}` });
   await orderEvent(tx, order.id, {
     kind: "error",
@@ -334,6 +362,7 @@ export async function runFollowUp(result: ApplyResult, cause: Cause): Promise<vo
   try {
     if (f.kind === "DISPATCH_STAGE_1") await dispatchStage(result.orderId, "STAGE_1", cause);
     if (f.kind === "TOP_UP" && f.shortfallKobo > 0n) await ensureOpenPayIn(result.orderId, f.shortfallKobo, "top-up", cause);
+    if (f.kind === "NEXT_INSTALMENT" && f.remainingKobo > 0n) await ensureOpenPayIn(result.orderId, f.remainingKobo, "instalment", cause);
   } catch (err) {
     // The money state is already committed; the poller's self-heal pass retries this follow-up.
     log.error({ err, orderId: result.orderId, followUp: f.kind }, "follow-up after charge failed");
@@ -348,7 +377,7 @@ export async function runFollowUp(result: ApplyResult, cause: Cause): Promise<vo
 }
 
 /** Opens a new account only if the order has no PROCESSING pay-in already. */
-export async function ensureOpenPayIn(orderId: string, amountKobo: Kobo, kind: "top-up" | "replacement", cause: Cause): Promise<PayIn | null> {
+export async function ensureOpenPayIn(orderId: string, amountKobo: Kobo, kind: Exclude<PayInKind, "initial">, cause: Cause): Promise<PayIn | null> {
   const open = await db().payIn.findFirst({ where: { orderId, status: "PROCESSING" } });
   if (open) return null;
   return openPayIn(orderId, amountKobo, kind, cause);

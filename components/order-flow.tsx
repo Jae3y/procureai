@@ -154,7 +154,11 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
       ) : null}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 24, flexWrap: "wrap" }}>
         <div id="pay-eyebrow" className="eyebrow" style={{ marginBottom: 0 }}>
-          {short ? "Send the rest to this account" : "Pay into this account"}
+          {short
+            ? "Send the rest to this account"
+            : p.instalment
+              ? `Transfer ${p.instalment.part} of ${p.instalment.of} · Pay into this account`
+              : "Pay into this account"}
         </div>
         <div className="mono" style={{ font: "500 clamp(22px,2vw,34px)/1 var(--font-mono)", letterSpacing: "-0.03em" }}>
           {p.amountDue}
@@ -196,6 +200,12 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
       <p className="note" style={{ marginTop: 40, maxWidth: "60ch" }}>
         This account exists for this purchase only and closes after one payment. Send from any Nigerian bank app.
       </p>
+      {p.instalment ? (
+        <p className="note" style={{ marginTop: 12, maxWidth: "60ch" }}>
+          Kora accepts up to ₦1,000,000 per one-time account, so {v.amount} is paid in {p.instalment.of} transfers.
+          {p.instalment.receivedSoFar ? ` Received so far: ${p.instalment.receivedSoFar}.` : ""} The next account appears here as soon as Kora confirms this one.
+        </p>
+      ) : null}
       <div aria-live="polite">
         {recheck.error ? <p className="form-error">{recheck.error.message}</p> : null}
       </div>

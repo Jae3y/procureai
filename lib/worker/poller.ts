@@ -113,6 +113,11 @@ async function selfHeal(now: Date): Promise<number> {
     select: { id: true },
     take: 10,
   });
+  const instalmentNoAccount = await db().order.findMany({
+    where: { status: "AWAITING_PAYMENT", amountAcceptedKobo: { gt: 0 }, payIns: { none: { status: "PROCESSING" } } },
+    select: { id: true, amountKobo: true, amountAcceptedKobo: true },
+    take: 10,
+  });
   const underpaidNoAccount = await db().order.findMany({
     where: { status: "UNDERPAID", payIns: { none: { status: "PROCESSING" } } },
     select: { id: true, amountKobo: true, amountAcceptedKobo: true },
@@ -122,6 +127,10 @@ async function selfHeal(now: Date): Promise<number> {
   const jobs: Array<{ orderId: string; run: () => Promise<unknown> }> = [
     ...heldNoStage1.map((o) => ({ orderId: o.id, run: () => dispatchStage(o.id, "STAGE_1", cause) })),
     ...codeNoStage2.map((o) => ({ orderId: o.id, run: () => dispatchStage(o.id, "STAGE_2", cause) })),
+    ...instalmentNoAccount.map((o) => ({
+      orderId: o.id,
+      run: () => ensureOpenPayIn(o.id, o.amountKobo - o.amountAcceptedKobo, "instalment", cause),
+    })),
     ...underpaidNoAccount.map((o) => ({
       orderId: o.id,
       run: () => ensureOpenPayIn(o.id, o.amountKobo - o.amountAcceptedKobo, "top-up", cause),

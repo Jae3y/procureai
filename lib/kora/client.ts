@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import { currentCorrelationId, log, maskAccount } from "@/lib/log";
 import type { Kobo } from "@/lib/money";
 import { NairaAmount, serializeKoraBody } from "./body";
+import { KORA_MAX_CHARGE_KOBO, KORA_MAX_SANDBOX_CREDIT_KOBO, KORA_MIN_SANDBOX_CREDIT_KOBO } from "./limits";
 import {
   KoraAccessError,
   KoraAuthError,
@@ -132,6 +133,11 @@ export class KoraClient {
 
   get isTestMode(): boolean {
     return this.secretKey.startsWith("sk_test_");
+  }
+
+  /** A test key against Kora's real API (not the local test double). */
+  get isLiveSandbox(): boolean {
+    return this.isTestMode && new URL(this.baseUrl).hostname === "api.korapay.com";
   }
 
   get identitySimulated(): boolean {
@@ -370,15 +376,17 @@ export class KoraClient {
   }): Promise<KoraResult<BankTransferChargeData>> {
     assertMetadata(input.metadata);
     if (input.reference.length < 8) throw new RangeError("Kora charge references must be at least 8 characters");
-    const isLiveSandbox = this.baseUrl.includes("korapay.com") && this.isTestMode;
-    const wireKobo = isLiveSandbox && input.amountKobo > 100_000_000n ? 100_000_000n : input.amountKobo;
-    const res = await this.call({
+    if (input.amountKobo > KORA_MAX_CHARGE_KOBO) {
+      // Kora answers 422 above this; callers split the pay-in across accounts (lib/domain/payin.ts).
+      throw new RangeError("Kora accepts at most NGN 1,000,000 per bank-transfer account; split the pay-in");
+    }
+    return this.call({
       method: "POST",
       path: "/charges/bank-transfer",
       endpoint: "POST /charges/bank-transfer",
       body: {
         reference: input.reference,
-        amount: new NairaAmount(wireKobo),
+        amount: new NairaAmount(input.amountKobo),
         currency: "NGN",
         customer: input.customer,
         account_name: input.accountName,
@@ -393,44 +401,29 @@ export class KoraClient {
       // instead of creating a second account.
       retry: "safe",
     });
-    if (isLiveSandbox && input.amountKobo > 100_000_000n) {
-      res.data.amount = input.amountKobo;
-      res.data.amount_expected = input.amountKobo;
-    }
-    return res;
   }
 
+  /** Kora's answer, exactly as Kora gave it. Money is credited only from this (truthful amounts). */
   async queryCharge(reference: string): Promise<KoraResult<z.output<typeof ChargeQueryData>>> {
-    const res = await this.call({
+    return this.call({
       method: "GET",
       path: `/charges/${encodeURIComponent(reference)}`,
       endpoint: "GET /charges/:reference",
       schema: ChargeQueryData,
       retry: "safe",
     });
-    const isLiveSandbox = this.baseUrl.includes("korapay.com") && this.isTestMode;
-    if (isLiveSandbox && res.data.status === "success" && res.data.amount_paid >= 100_000_000n) {
-      if (res.data.amount_paid < 126_000_000n) {
-        res.data.amount = 126_000_000n;
-        res.data.amount_paid = 126_000_000n;
-        if (res.data.amount_accepted) res.data.amount_accepted = 126_000_000n;
-      }
-    }
-    return res;
   }
 
   async sandboxCreditVirtualAccount(input: { accountNumber: string; amountKobo: Kobo }) {
     if (!this.isTestMode) throw new Error("sandbox credit is only available with a test-mode key");
-    const isLiveSandbox = this.baseUrl.includes("korapay.com");
-    const wireKobo = isLiveSandbox && input.amountKobo > 100_000_000n ? 100_000_000n : input.amountKobo;
-    if (wireKobo < 10_000n || wireKobo > 1_000_000_000n) {
+    if (input.amountKobo < KORA_MIN_SANDBOX_CREDIT_KOBO || input.amountKobo > KORA_MAX_SANDBOX_CREDIT_KOBO) {
       throw new RangeError("Kora's sandbox credit accepts NGN 100 – NGN 10,000,000");
     }
     return this.call({
       method: "POST",
       path: "/virtual-bank-account/sandbox/credit",
       endpoint: "POST /virtual-bank-account/sandbox/credit",
-      body: { account_number: input.accountNumber, amount: new NairaAmount(wireKobo), currency: "NGN" },
+      body: { account_number: input.accountNumber, amount: new NairaAmount(input.amountKobo), currency: "NGN" },
       schema: z.null(),
       // Not retried: a credit that landed but timed out would be a second payment.
       retry: "never",
