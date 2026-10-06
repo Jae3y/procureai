@@ -4,6 +4,7 @@ import { revealHandoverCode, submitHandoverCode } from "@/lib/domain/handover";
 import { openPayIn, reconcileCharge } from "@/lib/domain/payin";
 import { dispatchStage, reconcilePayout, retryPayout } from "@/lib/domain/payouts";
 import { setSetting } from "@/lib/domain/settings";
+import { buildOrderView } from "@/lib/views/order-view";
 import { receiveKoraWebhook } from "@/lib/webhooks/receive";
 import { processOutboxBatch } from "@/lib/worker/outbox";
 import { pollOnce } from "@/lib/worker/poller";
@@ -98,6 +99,10 @@ describe("truthful amounts — the re-query beats the webhook", () => {
     expect(await status(order.id)).toBe("AWAITING_PAYMENT");
     expect(await heldBalance(order.id)).toBe(0n);
     expect(await db().orderEvent.count({ where: { orderId: order.id, title: "charge.underpaid" } })).toBe(1);
+    // The poller asks again every few seconds; the buyer is told once.
+    await reconcileCharge(payIn.reference, user);
+    await reconcileCharge(payIn.reference, user);
+    expect(await db().orderEvent.count({ where: { orderId: order.id, title: "charge.underpaid" } })).toBe(1);
   });
 
   it("accepts an overpayment, holds the excess and pays the vendor only the order total", async () => {
@@ -170,6 +175,30 @@ describe("instalments — Kora takes at most ₦1,000,000 per one-time account",
     await expectMoneyInvariants(order.id);
   });
 
+  it("a short payment on a large order asks only for what each capped account takes", async () => {
+    const { order, payIn } = await approvedOrder(250_000_000n);
+    double.pay(payIn.reference, 50_000_000n); // ₦500,000 into the ₦1,000,000 account
+    await reconcileCharge(payIn.reference, user);
+    expect(await status(order.id)).toBe("UNDERPAID");
+    let view = await buildOrderView(order.id, "buyer");
+    expect(view.pay).toMatchObject({ state: "short", shortfall: "₦2,000,000", amountDue: "₦1,000,000" });
+
+    const t2 = await db().payIn.findFirstOrThrow({ where: { orderId: order.id, sequence: 2 } });
+    expect(t2.amountRequestedKobo).toBe(100_000_000n);
+    double.pay(t2.reference, 100_000_000n);
+    await reconcileCharge(t2.reference, user);
+    expect(await db().orderEvent.count({ where: { orderId: order.id, kind: "error" } })).toBe(1); // only the first shortfall
+    expect(await db().orderEvent.count({ where: { orderId: order.id, title: "Transfer received" } })).toBe(1);
+    view = await buildOrderView(order.id, "buyer");
+    expect(view.pay).toMatchObject({ state: "short", shortfall: "₦1,000,000", amountDue: "₦1,000,000" });
+
+    const t3 = await db().payIn.findFirstOrThrow({ where: { orderId: order.id, sequence: 3 } });
+    double.pay(t3.reference, 100_000_000n);
+    await reconcileCharge(t3.reference, user);
+    expect(await status(order.id)).toBe("STAGE_1_PAID");
+    await expectMoneyInvariants(order.id);
+  });
+
   it("the poller opens the next account when the follow-up was lost", async () => {
     const { order, payIn } = await approvedOrder(126_000_000n);
     for (let i = 0; i < 3; i++) double.next("POST /charges/bank-transfer", { status: 503 }); // every try of the follow-up fails
@@ -194,6 +223,7 @@ describe("Kora's 'return all' preference reverses an overpayment too", () => {
     await reconcileCharge(payIn.reference, user);
     expect(await status(order.id)).toBe("AWAITING_PAYMENT");
     expect(await heldBalance(order.id)).toBe(0n);
+    await reconcileCharge(payIn.reference, user);
     expect(await db().orderEvent.count({ where: { orderId: order.id, title: "charge.overpaid" } })).toBe(1);
   });
 });

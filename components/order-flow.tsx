@@ -135,7 +135,9 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
           <div>
             <div className="short-title">{p.shortfall} short.</div>
             <p className="body-lg" style={{ margin: "24px 0 0", maxWidth: "52ch" }}>
-              We received {p.heldSoFar}. Send {p.shortfall} more to this account. Nothing goes to the vendor until the full amount is here.
+              We received {p.heldSoFar}. Send {p.amountDue} to this account
+              {p.amountDue !== p.shortfall ? `, then the rest to the next one (Kora takes up to ₦1,000,000 per account)` : ""}. Nothing goes to
+              the vendor until the full amount is here.
             </p>
           </div>
           <div className="held-pill">
