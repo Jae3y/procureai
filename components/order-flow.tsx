@@ -135,7 +135,9 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
           <div>
             <div className="short-title">{p.shortfall} short.</div>
             <p className="body-lg" style={{ margin: "24px 0 0", maxWidth: "52ch" }}>
-              We received {p.heldSoFar}. Send {p.shortfall} more to this account. Nothing goes to the vendor until the full amount is here.
+              We received {p.heldSoFar}. Send {p.amountDue} to this account
+              {p.amountDue !== p.shortfall ? `, then the rest to the next one (Kora takes up to ₦1,000,000 per account)` : ""}. Nothing goes to
+              the vendor until the full amount is here.
             </p>
           </div>
           <div className="held-pill">
@@ -203,7 +205,8 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
       {p.instalment ? (
         <p className="note" style={{ marginTop: 12, maxWidth: "60ch" }}>
           Kora accepts up to ₦1,000,000 per one-time account, so {v.amount} is paid in {p.instalment.of} transfers.
-          {p.instalment.receivedSoFar ? ` Received so far: ${p.instalment.receivedSoFar}.` : ""} The next account appears here as soon as Kora confirms this one.
+          {p.instalment.receivedSoFar ? ` Received so far: ${p.instalment.receivedSoFar}.` : ""}
+          {p.instalment.part < p.instalment.of ? " The next account appears here as soon as Kora confirms this one." : ""}
         </p>
       ) : null}
       <div aria-live="polite">
@@ -401,6 +404,11 @@ function DemoStrip({ v }: { v: OrderView }) {
         <button type="button" disabled={demo.pending} onClick={() => void act("recheck")}>
           Re-check now
         </button>
+        {v.vendorPhoneLink ? (
+          <a href={v.vendorPhoneLink} target="_blank" rel="noopener" style={{ font: "500 12px/1 var(--font-body)", padding: "8px 12px" }}>
+            Open vendor&apos;s phone
+          </a>
+        ) : null}
         <a href="/admin" style={{ font: "500 12px/1 var(--font-body)", padding: "8px 12px" }}>
           Admin
         </a>

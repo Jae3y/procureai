@@ -1,12 +1,12 @@
 import { safeEqual, signSession, verifySession } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { DomainError } from "@/lib/domain/errors";
-import { env } from "@/lib/env";
+import { adminOpenToAll, env } from "@/lib/env";
 
 /**
  * Sessions are signed cookie values (HMAC, HKDF-separated keys). The buyer has no password: the
  * session cookie is set when they create their first request (or, in DEMO_MODE, on first visit).
- * Admin: open in DEMO_MODE; otherwise ADMIN_TOKEN, exchanged once for a signed cookie.
+ * Admin: open in DEMO_MODE without an ADMIN_TOKEN; otherwise ADMIN_TOKEN, exchanged once for a signed cookie.
  */
 
 export const BUYER_COOKIE = "pa_buyer";
@@ -43,7 +43,7 @@ export function buyerIdFrom(req: Request): string | null {
 
 export function isAdmin(req: Request): boolean {
   const e = env();
-  if (e.DEMO_MODE) return true;
+  if (adminOpenToAll(e)) return true;
   if (verifySession("admin-session", readCookie(req, ADMIN_COOKIE)) === "admin") return true;
   const auth = req.headers.get("authorization") ?? "";
   return Boolean(e.ADMIN_TOKEN) && auth.startsWith("Bearer ") && safeEqual(auth.slice(7), e.ADMIN_TOKEN);

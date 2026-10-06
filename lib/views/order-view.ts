@@ -4,7 +4,7 @@ import { revealHandoverCode } from "@/lib/domain/handover";
 import { bankLabel } from "@/lib/domain/payin";
 import { env } from "@/lib/env";
 import type { OrderStatus, Payout, PayoutStage } from "@/lib/generated/prisma/client";
-import { signRecordId } from "@/lib/crypto";
+import { inviteTokenFor, signRecordId } from "@/lib/crypto";
 import { instalmentsFor } from "@/lib/kora/limits";
 import { formatNaira, splitStages } from "@/lib/money";
 import { itemPhrase, lagosDay, lagosTime, longOrderRef, orderRef, spacedAccount, spacedCode } from "./format";
@@ -78,6 +78,8 @@ export type OrderView = {
   sandboxRoute: string | null;
   testMode: boolean;
   demoMode: boolean;
+  /** DEMO_MODE only: the chosen vendor's phone screen, so a visitor can play the vendor too. */
+  vendorPhoneLink: string | null;
 };
 
 function latestOf(payouts: Payout[], stage: PayoutStage): Payout | undefined {
@@ -154,6 +156,9 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
           : "paid";
   const shortfall = order.amountKobo > order.amountAcceptedKobo ? order.amountKobo - order.amountAcceptedKobo : 0n;
   const shown = openPayIn ?? lastPayIn;
+  // What the open account takes. Kora caps one account at ₦1,000,000, so after a short payment on a
+  // large order the rest may need more than one account; the screen asks only for what this one takes.
+  const thisAccountKobo = payState === "short" && openPayIn ? (openPayIn.amountExpectedKobo < shortfall ? openPayIn.amountExpectedKobo : shortfall) : shortfall;
 
   // ── trail ──
   const codeUsed = Boolean(order.codeUsedAt);
@@ -273,7 +278,7 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
     screen: ["CREATED", "AWAITING_PAYMENT", "UNDERPAID"].includes(order.status) ? "pay" : "track",
     pay: {
       state: payState,
-      amountDue: formatNaira(payState === "short" ? shortfall : (shown?.amountExpectedKobo ?? order.amountKobo)),
+      amountDue: formatNaira(payState === "short" ? thisAccountKobo : (shown?.amountExpectedKobo ?? order.amountKobo)),
       accountNumber: spacedAccount(shown?.accountNumber),
       bankName: shown?.bankName ? bankLabel(shown.bankName) : null,
       accountName: shown?.accountName ?? null,
@@ -339,5 +344,6 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
     sandboxRoute: routeNote ? `${routeNote.destinationBankCode}/${routeNote.destinationAccount}` : null,
     testMode: e.KORA_SECRET_KEY.startsWith("sk_test_"),
     demoMode: e.DEMO_MODE,
+    vendorPhoneLink: e.DEMO_MODE && audience !== "vendor" ? `${e.APP_BASE_URL}/v/${inviteTokenFor(order.requestId, order.vendor.label)}` : null,
   };
 }

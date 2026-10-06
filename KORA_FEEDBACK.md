@@ -57,3 +57,14 @@ and payouts (`/misc/banks`). The docs warn about basic vs premium; a mapping bet
 - **Customer email domain validation**: Emails using mock TLDs like `.test` fail validation with `"customer.email must be a valid email"`.
 - **`/misc/banks` requires Public Key**: `GET /misc/banks?countryCode=NG` must be authenticated with `Authorization: Bearer <PUBLIC_KEY>`, while transactional endpoints use the Secret Key.
 - **Basic identity bank list returns empty in sandbox**: `GET /identities/ng/banks?type=basic` returns `data: []` in sandbox mode for new merchant accounts.
+
+## 12. Limits that only show up as errors (real sandbox, 6 Oct 2026)
+- **₦1,000,000 per bank-transfer account.** `POST /charges/bank-transfer` above ₦1,000,000 → HTTP 422
+  `{"amount":{"message":"amount must be less than or equal to 1000000"}}`. The Pay-with-Bank-Transfer guide doesn't mention
+  a ceiling, so a B2B order of ₦1.26m fails at the last step. We now split the pay-in across several one-time accounts.
+  **Ask:** document the limit (and whether it differs in live mode) on the guide and the endpoint page.
+- **Payout range ₦1,000 – ₦10,000,000** ("You can only transfer an amount between NGN 1000 and NGN 10000000", HTTP 409).
+  Worth a line in the payout guide's request table.
+- **`/misc/banks` takes the public key.** Every other server call takes the secret key; the endpoint page doesn't say so.
+- **The empty basic bank list** (§11) breaks the documented "fetch banks, then verify the account" flow in sandbox:
+  every bank code looks unsupported.

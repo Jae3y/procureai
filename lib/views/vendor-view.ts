@@ -17,6 +17,8 @@ export type VendorView = {
   quote: { raw: string; total: string; parsedBy: "AI" | "FALLBACK" } | null;
   banks: Array<{ name: string; code: string }>;
   banksError: string | null;
+  /** Set when the picker shows Kora's payout bank list because its verification list came back empty. */
+  banksNote: string | null;
   order: (Pick<OrderView, "ref" | "status" | "stage1Amount" | "stage2Amount" | "amount" | "vendor" | "events" | "lastEventId"> & { id: string; heldAmount: string; recordPath: string | null }) | null;
   closed: boolean;
 };
@@ -31,9 +33,12 @@ export async function buildVendorView(token: string): Promise<VendorView> {
 
   let banks: Array<{ name: string; code: string }> = [];
   let banksError: string | null = null;
+  let banksNote: string | null = null;
   if (!quote) {
     try {
-      banks = (await kora().basicIdentityBanks()).map((b) => ({ name: b.name, code: b.code })).sort((a, b) => a.name.localeCompare(b.name));
+      const list = await kora().bankPickerList();
+      banks = list.banks.map((b) => ({ name: b.name, code: b.code })).sort((a, b) => a.name.localeCompare(b.name));
+      if (list.source === "payout") banksNote = "Kora's verification bank list is empty here, so this is Kora's payout bank list.";
     } catch (err) {
       if (!isKoraError(err)) throw err;
       log.warn({ err: err.message }, "could not load Kora's bank list for the vendor form");
@@ -73,6 +78,7 @@ export async function buildVendorView(token: string): Promise<VendorView> {
     quote: quote ? { raw: quote.rawReply, total: quote.totalKobo !== null ? formatNaira(quote.totalKobo) : "No price read", parsedBy: quote.parsedBy } : null,
     banks,
     banksError,
+    banksNote,
     order,
     // Quotes are only taken while the request is collecting or being checked.
     closed: request.status === "CANCELLED" || (!quote && request.status !== "COLLECTING" && request.status !== "VERIFYING"),
