@@ -280,6 +280,17 @@ export async function applyChargeSnapshot(reference: string, snap: ChargeSnapsho
         signature,
       });
     }
+    // The same preference reverses an overpayment in full, too.
+    if (snap.paymentEvent === "overpayment" && snap.paidKobo !== null && snap.paidKobo > payIn.amountExpectedKobo) {
+      await orderEvent(tx, order.id, {
+        kind: "kora",
+        title: "charge.overpaid",
+        detail: snap.message ?? `${formatNaira(snap.paidKobo)} arrived but ${formatNaira(payIn.amountExpectedKobo)} was expected; Kora returned it to the payer.`,
+        amountKobo: snap.paidKobo,
+        koraReference: reference,
+        signature,
+      });
+    }
     return { changed: false, followUp: null, orderId: order.id };
   });
 }

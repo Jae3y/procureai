@@ -57,13 +57,28 @@ describe("P4 · the full flow, headless", () => {
     let o = await d.order(orderId);
     expect(o.screen).toBe("pay");
     expect(o.pay.state).toBe("open");
-    expect(o.pay.amountDue).toBe("₦1,260,000");
+    // Kora takes at most ₦1,000,000 per one-time account, so ₦1,260,000 is paid in two transfers.
+    expect(o.pay.amountDue).toBe("₦1,000,000");
+    expect(o.pay.instalment).toEqual({ part: 1, of: 2, receivedSoFar: null });
     expect(o.pay.accountNumber).toMatch(/^\d{3} \d{3} \d{4}$/);
 
-    // The buyer pays; Kora's webhook arrives; Stage 1 is dispatched and confirmed.
-    const payIn = await db().payIn.findFirstOrThrow({ where: { orderId } });
-    double.pay(payIn.reference, 126_000_000n);
-    await deliver(double.chargeWebhook(payIn.reference));
+    // Transfer 1: the account is fully paid, but the order isn't — no UNDERPAID, the next account opens.
+    const first = await db().payIn.findFirstOrThrow({ where: { orderId, sequence: 1 } });
+    expect(first.reference).toBe(`PA-${orderId}`);
+    double.pay(first.reference, 100_000_000n);
+    await deliver(double.chargeWebhook(first.reference));
+    o = await d.order(orderId);
+    expect(o.status).toBe("AWAITING_PAYMENT");
+    expect(o.pay.state).toBe("open");
+    expect(o.pay.amountDue).toBe("₦260,000");
+    expect(o.pay.instalment).toEqual({ part: 2, of: 2, receivedSoFar: "₦1,000,000" });
+    expect(await db().payout.count({ where: { orderId } })).toBe(0);
+
+    // Transfer 2; Kora's webhook arrives; Stage 1 is dispatched and confirmed.
+    const second = await db().payIn.findFirstOrThrow({ where: { orderId, sequence: 2 } });
+    expect(second.reference).toBe(`PA-${orderId}-P2`);
+    double.pay(second.reference, 26_000_000n);
+    await deliver(double.chargeWebhook(second.reference));
     const s1 = await db().payout.findFirstOrThrow({ where: { orderId, stage: "STAGE_1" } });
     expect(s1.amountKobo).toBe(37_800_000n);
     await deliver(double.transferWebhook(s1.reference, "success"));
@@ -121,8 +136,12 @@ describe("P4 · the full flow, headless", () => {
     const requestId = await d.createAndQuote();
     await d.verifyAndRecommend(requestId);
     const { orderId } = await d.approveTwice(requestId);
-    const payIn = await db().payIn.findFirstOrThrow({ where: { orderId } });
-    double.pay(payIn.reference, 126_000_000n);
+    const first = await db().payIn.findFirstOrThrow({ where: { orderId, sequence: 1 } });
+    double.pay(first.reference, 100_000_000n);
+    await d.recheck(orderId);
+    expect((await d.order(orderId)).status).toBe("AWAITING_PAYMENT"); // transfer 1 of 2 credited
+    const second = await db().payIn.findFirstOrThrow({ where: { orderId, sequence: 2 } });
+    double.pay(second.reference, 26_000_000n);
     await d.recheck(orderId);
     expect((await d.order(orderId)).status).toBe("STAGE_1_PAID");
   });

@@ -39,24 +39,32 @@ describe("Kora client — parsing documented responses", () => {
     expect(acct.data.account_details.name).toBe("MICHAEL JOHN DOE");
   });
 
+  const chargeInput = (reference: string, amountKobo: bigint) => ({
+    reference,
+    amountKobo,
+    customer: { name: "T", email: "t@procureai.test" },
+    accountName: "ProcureAI / PA-0001",
+    narration: "n",
+    notificationUrl: "https://procureai.test/api/webhooks/kora",
+    metadata: { orderId: "o1" },
+  });
+
   it("converts Kora's string and number money fields to kobo", async () => {
-    const created = await kora().createBankTransferCharge({
-      reference: "PA-test-0001",
-      amountKobo: 126_000_000n,
-      customer: { name: "T", email: "t@procureai.test" },
-      accountName: "ProcureAI / PA-0001",
-      narration: "n",
-      notificationUrl: "https://procureai.test/api/webhooks/kora",
-      metadata: { orderId: "o1" },
-    });
-    expect(created.data.amount).toBe(126_000_000n); // number 1260000 → kobo
+    const created = await kora().createBankTransferCharge(chargeInput("PA-test-0001", 100_000_000n));
+    expect(created.data.amount).toBe(100_000_000n); // number 1000000 → kobo
     expect(created.data.fee).toBe(2_250n); // 22.5
     const sentBody = double.calls.find((c) => c.path === "/charges/bank-transfer")?.body as { amount: number };
-    expect(sentBody.amount).toBe(1260000); // exact decimal on the wire
+    expect(sentBody.amount).toBe(1000000); // exact decimal on the wire
 
     const q = await kora().queryCharge("PA-test-0001");
-    expect(q.data.amount).toBe(126_000_000n); // string "1260000.00" → kobo
+    expect(q.data.amount).toBe(100_000_000n); // string "1000000.00" → kobo
     expect(q.data.amount_paid).toBe(0n);
+  });
+
+  it("refuses a bank-transfer charge above Kora's ₦1,000,000 per-account ceiling without calling Kora", async () => {
+    const err = await kora().createBankTransferCharge(chargeInput("PA-test-0002", 100_000_001n)).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(RangeError);
+    expect(double.callsTo("POST /charges/bank-transfer")).toBe(0);
   });
 });
 
