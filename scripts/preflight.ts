@@ -15,7 +15,7 @@ import { randomBytes } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { KoraClient, type KoraResult } from "@/lib/kora/client";
-import { isKoraError, type KoraError } from "@/lib/kora/errors";
+import { isKoraError, KoraValidationError, type KoraError } from "@/lib/kora/errors";
 import { log } from "@/lib/log";
 import { formatNaira } from "@/lib/money";
 
@@ -67,7 +67,9 @@ async function step<T>(
       latencyMs,
       detail: verdict?.detail ?? errDetail(e),
     });
-    if (e.body !== undefined) await record(TEST_DIR, `error-${name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`, e.httpStatus ?? 0, e.body);
+    // Only Kora's own JSON answers become fixtures — never a proxy or gateway page in front of it.
+    const fromKora = typeof e.body === "object" && e.body !== null && !("nonJsonBody" in e.body);
+    if (fromKora) await record(TEST_DIR, `error-${name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`, e.httpStatus ?? 0, e.body);
     return undefined;
   }
 }
@@ -106,7 +108,8 @@ async function payoutStep(client: KoraClient, label: string, bank: string, accou
       }),
     (r) => ({ ok: true, detail: `initiated, status=${r.data.status}` }),
     (e) => {
-      if (expect === "rejected") return { ok: true, detail: `rejected at initiation as expected: ${e.koraMessage ?? e.message}` };
+      // Only Kora refusing the account counts; an auth, access, network or server failure proves nothing.
+      if (expect === "rejected" && e instanceof KoraValidationError) return { ok: true, detail: `rejected at initiation as expected: ${e.koraMessage ?? e.message}` };
       return undefined;
     },
   );
@@ -167,6 +170,7 @@ async function main() {
       "CAC valid (RC00000011)",
       "CAC invalid (RC11111111)",
       "Identity banks (basic)",
+      "Payout banks (/misc/banks, public key)",
       "Bank account basic (058/0123456789)",
       "Balance",
       "Payout success (033/0000000000)",
@@ -184,7 +188,7 @@ async function main() {
     return;
   }
 
-  const client = new KoraClient({ baseUrl, secretKey, simulateIdentity: false });
+  const client = new KoraClient({ baseUrl, secretKey, publicKey: process.env.KORA_PUBLIC_KEY || undefined, simulateIdentity: false });
 
   const cac = await step(
     "CAC valid (RC00000011)",
@@ -215,6 +219,13 @@ async function main() {
     (r) => ({ ok: r.data.some((b) => b.code === "058"), detail: `${r.data.length} banks; 058 ${r.data.some((b) => b.code === "058") ? "present" : "MISSING"}` }),
   );
   if (banks) await record(IDENTITY_DIR, "banks-basic-basic", banks.httpStatus, banks.raw);
+
+  // The vendor bank picker falls back to this list when the basic identity list is empty (sandbox).
+  await step(
+    "Payout banks (/misc/banks, public key)",
+    () => client.listPayoutBanks(),
+    (r) => ({ ok: r.data.some((b) => b.code === "058"), detail: `${r.data.length} banks; 058 ${r.data.some((b) => b.code === "058") ? "present" : "MISSING"}` }),
+  );
 
   const acct = await step(
     "Bank account basic (058/0123456789)",
