@@ -1,0 +1,495 @@
+// ProcureAI schema. Money is BIGINT kobo everywhere (I7).
+// Constraints Prisma cannot express — triggers, partial unique indexes, CHECKs — live in the
+// raw-SQL migration prisma/migrations/*_invariants/migration.sql, each tagged with I1–I8.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../lib/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RequestStatus {
+  DRAFT
+  COLLECTING
+  VERIFYING
+  RECOMMENDED
+  APPROVED
+  CANCELLED
+}
+
+enum MatchMethod {
+  COMPANY
+  DIRECTOR
+  NONE
+}
+
+enum Verdict {
+  VERIFIED
+  FAILED
+}
+
+enum ParsedBy {
+  AI
+  FALLBACK
+}
+
+enum OrderStatus {
+  CREATED
+  AWAITING_PAYMENT
+  UNDERPAID
+  HELD
+  STAGE_1_PAID
+  CODE_VERIFIED
+  RELEASED
+  COMPLETE
+  PAYOUT_FAILED
+  DISPUTED
+  REFUNDED
+}
+
+enum PayInStatus {
+  PROCESSING
+  SUCCESS
+  FAILED
+  EXPIRED
+}
+
+enum PayoutStage {
+  STAGE_1
+  STAGE_2
+}
+
+enum PayoutStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+/// Where a payout is sent. VERIFIED_ACCOUNT = the account on the VendorVerification row.
+/// SANDBOX_TEST_ACCOUNT = one of Kora's documented test-mode payout accounts, used only with a
+/// test key to force a sandbox outcome (DECISIONS.md D-03). A DB CHECK pins the allowed accounts.
+enum PayoutRoute {
+  VERIFIED_ACCOUNT
+  SANDBOX_TEST_ACCOUNT
+}
+
+enum RefundStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum LedgerAccount {
+  BUYER_PAYIN
+  HELD
+  VENDOR_PAYOUT
+  FEE
+}
+
+enum Direction {
+  DEBIT
+  CREDIT
+}
+
+enum EventSource {
+  WEBHOOK
+  API
+}
+
+enum CauseType {
+  WEBHOOK
+  POLLER
+  USER
+  ADMIN
+  SYSTEM
+}
+
+model Buyer {
+  id        String    @id @default(cuid())
+  name      String
+  email     String
+  createdAt DateTime  @default(now())
+  requests  Request[]
+}
+
+/// Directory of vendors ProcureAI can invite (a stand-in for a real sourcing network).
+model VendorContact {
+  id           String   @id @default(cuid())
+  businessName String
+  phone        String   @unique
+  category     String
+  city         String
+  createdAt    DateTime @default(now())
+  vendors      Vendor[]
+}
+
+model Request {
+  id              String           @id @default(cuid())
+  buyerId         String
+  buyer           Buyer            @relation(fields: [buyerId], references: [id])
+  rawText         String
+  item            String
+  quantity        Int
+  budgetKobo      BigInt
+  deadline        DateTime         @db.Date
+  specParsedBy    ParsedBy
+  specModel       String?
+  status          RequestStatus    @default(DRAFT)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  vendors         Vendor[]
+  quotes          Quote[]
+  recommendations Recommendation[]
+  order           Order?
+
+  @@index([buyerId])
+}
+
+/// One vendor invited to one request. Bank/RC fields are what the vendor submitted; once a
+/// VERIFIED verification exists they are frozen at the DB level (I4).
+model Vendor {
+  id              String               @id @default(cuid())
+  requestId       String
+  request         Request              @relation(fields: [requestId], references: [id])
+  contactId       String?
+  contact         VendorContact?       @relation(fields: [contactId], references: [id])
+  label           String
+  name            String?
+  rcNumber        String?
+  bankCode        String?
+  accountNumber   String?
+  contactPhone    String
+  /// Kora requires a recipient email on every payout (destination.customer.email).
+  email           String?
+  inviteTokenHash String               @unique
+  inviteExpiresAt DateTime
+  consentAt       DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  quote           Quote?
+  verifications   VendorVerification[]
+  orders          Order[]
+
+  @@unique([requestId, label])
+}
+
+/// Append-only (I4, I8): a correction is a new row, never an update.
+model VendorVerification {
+  id               String      @id @default(cuid())
+  seq              BigInt      @unique @default(autoincrement())
+  vendorId         String
+  vendor           Vendor      @relation(fields: [vendorId], references: [id])
+  rcNumber         String
+  cacReference     String?
+  registeredName   String?
+  companyStatus    String?
+  directors        Json
+  bankCode         String
+  accountNumber    String
+  accountReference String?
+  accountName      String?
+  matchMethod      MatchMethod
+  /// Token-overlap ratio in basis points (0–10000). Integer: no floats server-side.
+  matchScoreBp     Int
+  matchedPerson    String?
+  verdict          Verdict
+  failureReason    String?
+  simulated        Boolean
+  rawCac           Json?
+  rawAccount       Json?
+  checkedAt        DateTime    @default(now())
+  orders           Order[]
+  payouts          Payout[]
+
+  @@index([vendorId, seq])
+}
+
+model Quote {
+  id              String    @id @default(cuid())
+  requestId       String
+  request         Request   @relation(fields: [requestId], references: [id])
+  vendorId        String    @unique
+  vendor          Vendor    @relation(fields: [vendorId], references: [id])
+  rawReply        String
+  receivedAt      DateTime  @default(now())
+  unitPriceKobo   BigInt?
+  totalKobo       BigInt?
+  deliveryKobo    BigInt?
+  quantityOffered Int?
+  upfrontPercent  Int?
+  readyDate       DateTime? @db.Date
+  meetsSpec       Boolean
+  flags           Json
+  parsedBy        ParsedBy
+  model           String?
+  orders          Order[]
+
+  @@index([requestId])
+}
+
+model Recommendation {
+  id             String   @id @default(cuid())
+  requestId      String
+  request        Request  @relation(fields: [requestId], references: [id])
+  chosenQuoteId  String?
+  rankedQuoteIds Json
+  reasoning      String
+  model          String?
+  parsedBy       ParsedBy
+  createdAt      DateTime @default(now())
+
+  @@index([requestId, createdAt])
+}
+
+model Order {
+  id                 String             @id @default(cuid())
+  number             Int                @unique @default(autoincrement())
+  requestId          String             @unique
+  request            Request            @relation(fields: [requestId], references: [id])
+  quoteId            String
+  quote              Quote              @relation(fields: [quoteId], references: [id])
+  vendorId           String
+  vendor             Vendor             @relation(fields: [vendorId], references: [id])
+  verificationId     String
+  verification       VendorVerification @relation(fields: [verificationId], references: [id])
+  amountKobo         BigInt
+  status             OrderStatus        @default(CREATED)
+  chargeReference    String?            @unique
+  virtualAccount     Json?
+  amountPaidKobo     BigInt             @default(0)
+  amountAcceptedKobo BigInt             @default(0)
+  handoverCodeHash   String?
+  handoverCodeCipher String?
+  codeAttempts       Int                @default(0)
+  codeExpiresAt      DateTime?
+  codeUsedAt         DateTime?
+  payoutRoute        PayoutRoute        @default(VERIFIED_ACCOUNT)
+  approvedAt         DateTime           @default(now())
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  payIns             PayIn[]
+  payouts            Payout[]
+  ledger             LedgerEntry[]
+  transitions        OrderTransition[]
+  events             OrderEvent[]
+  koraEvents         KoraEvent[]
+  refunds            Refund[]
+}
+
+/// One Kora charge (one-time account) for an order. An underpaid order may get a top-up charge.
+model PayIn {
+  id                  String      @id @default(cuid())
+  orderId             String
+  order               Order       @relation(fields: [orderId], references: [id])
+  sequence            Int
+  reference           String      @unique
+  channel             String      @default("bank_transfer")
+  amountRequestedKobo BigInt
+  amountExpectedKobo  BigInt
+  amountPaidKobo      BigInt      @default(0)
+  amountAcceptedKobo  BigInt      @default(0)
+  feeKobo             BigInt?
+  status              PayInStatus @default(PROCESSING)
+  accountNumber       String?
+  accountName         String?
+  bankName            String?
+  expiresAt           DateTime?
+  checkoutUrl         String?
+  koraResponse        Json
+  lastQueryResponse   Json?
+  lastQueriedAt       DateTime?
+  creditedAt          DateTime?
+  createdAt           DateTime    @default(now())
+
+  @@unique([orderId, sequence])
+}
+
+model Payout {
+  id                  String       @id @default(cuid())
+  orderId             String
+  order               Order        @relation(fields: [orderId], references: [id])
+  verificationId      String
+  verification        VendorVerification @relation(fields: [verificationId], references: [id])
+  stage               PayoutStage
+  attempt             Int          @default(1)
+  reference           String       @unique
+  amountKobo          BigInt
+  status              PayoutStatus @default(PENDING)
+  failureReason       String?
+  retryOfId           String?      @unique
+  retryOf             Payout?      @relation("PayoutRetry", fields: [retryOfId], references: [id])
+  retriedBy           Payout?      @relation("PayoutRetry")
+  route               PayoutRoute
+  destinationBankCode String
+  destinationAccount  String
+  feeKobo             BigInt?
+  koraResponse        Json?
+  koraErrorKind       String?
+  dispatchedAt        DateTime?
+  resolvedAt          DateTime?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  @@index([orderId])
+  @@index([status, createdAt])
+}
+
+/// A Kora refund of held money back to the buyer (DISPUTED → REFUNDED).
+model Refund {
+  id               String       @id @default(cuid())
+  orderId          String
+  order            Order        @relation(fields: [orderId], references: [id])
+  paymentReference String
+  reference        String       @unique
+  amountKobo       BigInt
+  status           RefundStatus @default(PENDING)
+  reason           String
+  failureReason    String?
+  koraResponse     Json?
+  createdAt        DateTime     @default(now())
+  resolvedAt       DateTime?
+
+  @@index([orderId])
+}
+
+model LedgerEntry {
+  id            String        @id @default(cuid())
+  seq           BigInt        @unique @default(autoincrement())
+  orderId       String
+  order         Order         @relation(fields: [orderId], references: [id])
+  account       LedgerAccount
+  direction     Direction
+  amountKobo    BigInt
+  koraReference String
+  sourceType    String
+  sourceId      String
+  createdAt     DateTime      @default(now())
+
+  @@unique([sourceType, sourceId, account, direction])
+  @@index([orderId])
+}
+
+/// Every Kora event we saw, including invalid-signature webhooks (I6, I8).
+model KoraEvent {
+  id              String      @id @default(cuid())
+  seq             BigInt      @unique @default(autoincrement())
+  type            String
+  reference       String
+  source          EventSource
+  signatureValid  Boolean?
+  signatureMethod String?
+  idempotencyHash String
+  payload         Json
+  rawBody         String?
+  signatureHeader String?
+  orderId         String?
+  order           Order?      @relation(fields: [orderId], references: [id])
+  demoNote        String?
+  receivedAt      DateTime    @default(now())
+  processedAt     DateTime?
+  processError    String?
+  outbox          Outbox?
+
+  @@unique([type, reference, idempotencyHash])
+  @@index([orderId])
+}
+
+model Outbox {
+  id            String    @id @default(cuid())
+  eventId       String    @unique
+  event         KoraEvent @relation(fields: [eventId], references: [id])
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now())
+  lockedAt      DateTime?
+  lockedBy      String?
+  doneAt        DateTime?
+  lastError     String?
+  createdAt     DateTime  @default(now())
+
+  @@index([doneAt, nextAttemptAt])
+}
+
+model IdempotencyKey {
+  id           String   @id @default(cuid())
+  key          String   @unique
+  route        String
+  requestHash  String
+  statusCode   Int?
+  responseJson Json?
+  createdAt    DateTime @default(now())
+  completedAt  DateTime?
+}
+
+/// I5: the legal order transitions, read by the DB trigger that guards Order.status.
+/// Seeded by the invariants migration; a test asserts it equals lib/domain/state.ts.
+model OrderTransitionRule {
+  fromState OrderStatus
+  toState   OrderStatus
+
+  @@id([fromState, toState])
+}
+
+/// Audit of every order status change and what caused it (I5).
+model OrderTransition {
+  id        String      @id @default(cuid())
+  seq       BigInt      @unique @default(autoincrement())
+  orderId   String
+  order     Order       @relation(fields: [orderId], references: [id])
+  fromState OrderStatus
+  toState   OrderStatus
+  causeType CauseType
+  causeId   String
+  note      String?
+  /// The writing transaction. The I5 trigger requires an audit row from the same transaction.
+  txId      BigInt      @default(dbgenerated("txid_current()"))
+  at        DateTime    @default(now())
+
+  @@index([orderId, seq])
+}
+
+/// The order timeline streamed over SSE. `seq` is the SSE event id, so a reconnect backfills by
+/// asking for everything after Last-Event-ID.
+model OrderEvent {
+  id            BigInt   @id @default(autoincrement())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id])
+  kind          String
+  title         String
+  detail        String?
+  amountKobo    BigInt?
+  koraReference String?
+  signature     String?
+  createdAt     DateTime @default(now())
+
+  @@index([orderId, id])
+}
+
+/// Identity events per request (shown in the Kora events panel before an order exists).
+model RequestEvent {
+  id            BigInt   @id @default(autoincrement())
+  requestId     String
+  kind          String
+  title         String
+  detail        String?
+  koraReference String?
+  signature     String?
+  createdAt     DateTime @default(now())
+
+  @@index([requestId, id])
+}
+
+model RateLimit {
+  key         String   @id
+  windowStart DateTime
+  count       Int
+}
+
+model DemoSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
