@@ -15,7 +15,8 @@ import { expectMoneyInvariants, heldBalance } from "../helpers/ledger";
 const double = useKoraDouble();
 const user = { type: "USER" as const, id: "buyer-test" };
 
-async function approvedOrder(amountKobo = 126_000_000n) {
+/** ₦840,000 fits one Kora account (₦1,000,000 cap); larger orders are covered in "instalments". */
+async function approvedOrder(amountKobo = 84_000_000n) {
   const f = await makeOrderFixture({ amountKobo });
   const payIn = await openPayIn(f.order.id, amountKobo, "initial", user);
   return { ...f, payIn };
@@ -39,7 +40,7 @@ describe("pay-in creation", () => {
     expect(payIn.koraResponse).toMatchObject({ status: true, data: { reference: payIn.reference } });
     expect(await status(order.id)).toBe("AWAITING_PAYMENT");
     const sent = double.calls.find((c) => c.path === "/charges/bank-transfer")?.body as Record<string, unknown>;
-    expect(sent).toMatchObject({ amount: 1260000, currency: "NGN", merchant_bears_cost: true, metadata: { orderId: order.id } });
+    expect(sent).toMatchObject({ amount: 840000, currency: "NGN", merchant_bears_cost: true, metadata: { orderId: order.id } });
     expect(sent.notification_url).toBe("https://procureai.test/api/webhooks/kora");
   });
 
@@ -54,17 +55,17 @@ describe("pay-in creation", () => {
 describe("truthful amounts — the re-query beats the webhook", () => {
   it("credits Kora's queried amount_accepted, not the webhook amount (underpayment)", async () => {
     const { order, payIn } = await approvedOrder();
-    double.pay(payIn.reference, 120_000_000n); // buyer sends ₦1,200,000 of ₦1,260,000
-    const { rawBody, signature } = double.chargeWebhook(payIn.reference); // claims ₦1,260,000 (requested)
-    expect(JSON.parse(rawBody).data.amount).toBe(1260000);
+    double.pay(payIn.reference, 78_000_000n); // buyer sends ₦780,000 of ₦840,000
+    const { rawBody, signature } = double.chargeWebhook(payIn.reference); // claims ₦840,000 (requested)
+    expect(JSON.parse(rawBody).data.amount).toBe(840000);
     await deliver(rawBody, signature);
 
     const o = await db().order.findUniqueOrThrow({ where: { id: order.id } });
     expect(o.status).toBe("UNDERPAID");
-    expect(o.amountAcceptedKobo).toBe(120_000_000n);
-    expect(await heldBalance(order.id)).toBe(120_000_000n);
+    expect(o.amountAcceptedKobo).toBe(78_000_000n);
+    expect(await heldBalance(order.id)).toBe(78_000_000n);
     const short = await db().orderEvent.findFirst({ where: { orderId: order.id, title: "₦60,000 short." } });
-    expect(short?.detail).toBe("We received ₦1,200,000. Nothing goes to the vendor until the full amount is here.");
+    expect(short?.detail).toBe("We received ₦780,000. Nothing goes to the vendor until the full amount is here.");
     // An account for the shortfall is opened automatically.
     const topUp = await db().payIn.findFirstOrThrow({ where: { orderId: order.id, sequence: 2 } });
     expect(topUp.amountRequestedKobo).toBe(6_000_000n);
@@ -76,7 +77,7 @@ describe("truthful amounts — the re-query beats the webhook", () => {
     const second = double.chargeWebhook(topUp.reference);
     await deliver(second.rawBody, second.signature);
     const after = await db().order.findUniqueOrThrow({ where: { id: order.id } });
-    expect(after.amountAcceptedKobo).toBe(126_000_000n);
+    expect(after.amountAcceptedKobo).toBe(84_000_000n);
     expect(after.status).toBe("STAGE_1_PAID");
     await expectMoneyInvariants(order.id);
   });
@@ -84,15 +85,15 @@ describe("truthful amounts — the re-query beats the webhook", () => {
   it("credits amount_paid when Kora omits amount_accepted", async () => {
     double.includeAccepted = false;
     const { order, payIn } = await approvedOrder();
-    double.pay(payIn.reference, 126_000_000n);
+    double.pay(payIn.reference, 84_000_000n);
     await reconcileCharge(payIn.reference, user);
-    expect((await db().order.findUniqueOrThrow({ where: { id: order.id } })).amountAcceptedKobo).toBe(126_000_000n);
+    expect((await db().order.findUniqueOrThrow({ where: { id: order.id } })).amountAcceptedKobo).toBe(84_000_000n);
   });
 
   it("with Kora's 'return all' preference, an underpayment is returned and nothing is held", async () => {
     double.preference = "return_all";
     const { order, payIn } = await approvedOrder();
-    double.pay(payIn.reference, 120_000_000n);
+    double.pay(payIn.reference, 78_000_000n);
     await reconcileCharge(payIn.reference, user);
     expect(await status(order.id)).toBe("AWAITING_PAYMENT");
     expect(await heldBalance(order.id)).toBe(0n);
@@ -101,21 +102,106 @@ describe("truthful amounts — the re-query beats the webhook", () => {
 
   it("accepts an overpayment, holds the excess and pays the vendor only the order total", async () => {
     const { order, payIn } = await approvedOrder();
-    double.pay(payIn.reference, 130_000_000n);
+    double.pay(payIn.reference, 90_000_000n);
     await reconcileCharge(payIn.reference, user);
     const o = await db().order.findUniqueOrThrow({ where: { id: order.id } });
-    expect(o.amountAcceptedKobo).toBe(130_000_000n);
+    expect(o.amountAcceptedKobo).toBe(90_000_000n);
     expect(o.status).toBe("STAGE_1_PAID");
     const s1 = await db().payout.findFirstOrThrow({ where: { orderId: order.id, stage: "STAGE_1" } });
-    expect(s1.amountKobo).toBe(37_800_000n);
+    expect(s1.amountKobo).toBe(25_200_000n);
     expect(await db().orderEvent.count({ where: { orderId: order.id, title: "Overpaid" } })).toBe(1);
+  });
+});
+
+describe("instalments — Kora takes at most ₦1,000,000 per one-time account", () => {
+  it("₦1,260,000: ₦1,000,000 then ₦260,000, never UNDERPAID, then HELD → Stage 1", async () => {
+    const { order, payIn } = await approvedOrder(126_000_000n);
+    expect(payIn).toMatchObject({ reference: `PA-${order.id}`, amountRequestedKobo: 100_000_000n, amountExpectedKobo: 100_000_000n });
+    expect((double.calls.find((c) => c.path === "/charges/bank-transfer")?.body as { amount: number }).amount).toBe(1000000);
+
+    double.pay(payIn.reference, 100_000_000n);
+    const first = double.chargeWebhook(payIn.reference);
+    await deliver(first.rawBody, first.signature);
+    expect(await status(order.id)).toBe("AWAITING_PAYMENT");
+    expect(await db().orderTransition.count({ where: { orderId: order.id, toState: "UNDERPAID" } })).toBe(0);
+    const received = await db().orderEvent.findFirstOrThrow({ where: { orderId: order.id, title: "Transfer received" } });
+    expect(received.detail).toBe("₦1,000,000 of ₦1,260,000 received. Kora takes up to ₦1,000,000 per account, so the next account is for ₦260,000.");
+    expect(await db().payout.count({ where: { orderId: order.id } })).toBe(0);
+    await expectMoneyInvariants(order.id);
+
+    const second = await db().payIn.findFirstOrThrow({ where: { orderId: order.id, sequence: 2 } });
+    expect(second).toMatchObject({ reference: `PA-${order.id}-P2`, amountRequestedKobo: 26_000_000n, status: "PROCESSING" });
+    double.pay(second.reference, 26_000_000n);
+    const w = double.chargeWebhook(second.reference);
+    await deliver(w.rawBody, w.signature);
+
+    const o = await db().order.findUniqueOrThrow({ where: { id: order.id } });
+    expect(o.amountAcceptedKobo).toBe(126_000_000n);
+    expect(o.status).toBe("STAGE_1_PAID");
+    const credited = await db().ledgerEntry.aggregate({ where: { orderId: order.id, sourceType: "PAYIN", account: "HELD" }, _sum: { amountKobo: true } });
+    expect(credited._sum.amountKobo).toBe(126_000_000n);
+    expect((await db().payout.findFirstOrThrow({ where: { orderId: order.id, stage: "STAGE_1" } })).amountKobo).toBe(37_800_000n);
+    await expectMoneyInvariants(order.id);
+  });
+
+  it("₦2,500,000 needs three accounts: ₦1,000,000, ₦1,000,000, ₦500,000", async () => {
+    const { order, payIn } = await approvedOrder(250_000_000n);
+    double.pay(payIn.reference, 100_000_000n);
+    await reconcileCharge(payIn.reference, user);
+    const p2 = await db().payIn.findFirstOrThrow({ where: { orderId: order.id, sequence: 2 } });
+    expect(p2.amountRequestedKobo).toBe(100_000_000n);
+    double.pay(p2.reference, 100_000_000n);
+    await reconcileCharge(p2.reference, user);
+    const p3 = await db().payIn.findFirstOrThrow({ where: { orderId: order.id, sequence: 3 } });
+    expect(p3).toMatchObject({ reference: `PA-${order.id}-P3`, amountRequestedKobo: 50_000_000n });
+    double.pay(p3.reference, 50_000_000n);
+    await reconcileCharge(p3.reference, user);
+    expect(await status(order.id)).toBe("STAGE_1_PAID");
+    await expectMoneyInvariants(order.id);
+  });
+
+  it("an instalment account paid short is a real underpayment", async () => {
+    const { order, payIn } = await approvedOrder(126_000_000n);
+    double.pay(payIn.reference, 90_000_000n); // ₦900,000 into the ₦1,000,000 account (Accept All)
+    await reconcileCharge(payIn.reference, user);
+    expect(await status(order.id)).toBe("UNDERPAID");
+    const topUp = await db().payIn.findFirstOrThrow({ where: { orderId: order.id, sequence: 2 } });
+    expect(topUp).toMatchObject({ reference: `PA-${order.id}-T2`, amountRequestedKobo: 36_000_000n });
+    await expectMoneyInvariants(order.id);
+  });
+
+  it("the poller opens the next account when the follow-up was lost", async () => {
+    const { order, payIn } = await approvedOrder(126_000_000n);
+    for (let i = 0; i < 3; i++) double.next("POST /charges/bank-transfer", { status: 503 }); // every try of the follow-up fails
+    double.pay(payIn.reference, 100_000_000n);
+    await reconcileCharge(payIn.reference, user);
+    expect(await status(order.id)).toBe("AWAITING_PAYMENT");
+    expect(await db().payIn.count({ where: { orderId: order.id, status: "PROCESSING" } })).toBe(0);
+    expect(await db().orderEvent.count({ where: { orderId: order.id, title: "Couldn't open an account for the rest" } })).toBe(1);
+
+    await pollOnce(new Date(Date.now() + 2 * 60_000)); // past the self-heal gap
+    const next = await db().payIn.findFirstOrThrow({ where: { orderId: order.id, status: "PROCESSING" } });
+    expect(next.amountRequestedKobo).toBe(26_000_000n);
+    expect(next.reference).toMatch(new RegExp(`^PA-${order.id}-P\\d+$`));
+  });
+});
+
+describe("Kora's 'return all' preference reverses an overpayment too", () => {
+  it("nothing is held and the buyer is told", async () => {
+    double.preference = "return_all";
+    const { order, payIn } = await approvedOrder();
+    double.pay(payIn.reference, 90_000_000n);
+    await reconcileCharge(payIn.reference, user);
+    expect(await status(order.id)).toBe("AWAITING_PAYMENT");
+    expect(await heldBalance(order.id)).toBe(0n);
+    expect(await db().orderEvent.count({ where: { orderId: order.id, title: "charge.overpaid" } })).toBe(1);
   });
 });
 
 describe("webhooks — signature, duplicates, ordering, never a 5xx", () => {
   it("valid webhook → stored → outbox → HELD → Stage 1 dispatched", async () => {
     const { order, payIn } = await approvedOrder();
-    double.pay(payIn.reference, 126_000_000n);
+    double.pay(payIn.reference, 84_000_000n);
     const { rawBody, signature } = double.chargeWebhook(payIn.reference);
     const r = await deliver(rawBody, signature);
     expect(r).toMatchObject({ signatureValid: true, duplicate: false, enqueued: true });
@@ -130,7 +216,7 @@ describe("webhooks — signature, duplicates, ordering, never a 5xx", () => {
 
   it("an invalid signature is stored (for admin, in red) and changes nothing", async () => {
     const { order, payIn } = await approvedOrder();
-    double.pay(payIn.reference, 126_000_000n);
+    double.pay(payIn.reference, 84_000_000n);
     const { rawBody, signature } = double.chargeWebhook(payIn.reference, { tamper: true });
     const r = await deliver(rawBody, signature);
     expect(r).toMatchObject({ signatureValid: false, enqueued: false });
@@ -144,7 +230,7 @@ describe("webhooks — signature, duplicates, ordering, never a 5xx", () => {
 
   it("a forged copy delivered first cannot shadow the genuine webhook", async () => {
     const { order, payIn } = await approvedOrder();
-    double.pay(payIn.reference, 126_000_000n);
+    double.pay(payIn.reference, 84_000_000n);
     const genuine = double.chargeWebhook(payIn.reference);
     await deliver(genuine.rawBody, "0".repeat(64)); // same bytes, bad signature
     const r = await deliver(genuine.rawBody, genuine.signature);
@@ -154,7 +240,7 @@ describe("webhooks — signature, duplicates, ordering, never a 5xx", () => {
 
   it("duplicate deliveries are no-ops", async () => {
     const { order, payIn } = await approvedOrder();
-    double.pay(payIn.reference, 126_000_000n);
+    double.pay(payIn.reference, 84_000_000n);
     const { rawBody, signature } = double.chargeWebhook(payIn.reference);
     await deliver(rawBody, signature);
     const second = await deliver(rawBody, signature);
@@ -168,7 +254,7 @@ describe("webhooks — signature, duplicates, ordering, never a 5xx", () => {
 
   it("out-of-order: charge.failed after charge.success cannot undo the payment", async () => {
     const { order, payIn } = await approvedOrder();
-    double.pay(payIn.reference, 126_000_000n);
+    double.pay(payIn.reference, 84_000_000n);
     const ok = double.chargeWebhook(payIn.reference);
     const late = double.chargeWebhook(payIn.reference, { event: "charge.failed" });
     await deliver(late.rawBody, late.signature); // arrives first, but Kora's query says success
@@ -180,7 +266,7 @@ describe("webhooks — signature, duplicates, ordering, never a 5xx", () => {
 
   it("out-of-order: a transfer webhook that beats our own disburse bookkeeping still settles once", async () => {
     const { order, payIn } = await approvedOrder();
-    double.pay(payIn.reference, 126_000_000n);
+    double.pay(payIn.reference, 84_000_000n);
     await reconcileCharge(payIn.reference, user);
     const s1 = await db().payout.findFirstOrThrow({ where: { orderId: order.id, stage: "STAGE_1" } });
     const w = double.transferWebhook(s1.reference, "success");
@@ -224,7 +310,7 @@ describe("payouts — two stages, failures, retries, unknown outcomes", () => {
     expect(await status(f.order.id)).toBe("HELD");
     expect(await db().payout.count({ where: { orderId: f.order.id } })).toBe(0);
     const err = await db().orderEvent.findFirstOrThrow({ where: { orderId: f.order.id, kind: "error" } });
-    expect(err.detail).toBe("Insufficient funds in disbursement wallet. Kora balance is ₦0; Stage 1 needs ₦378,000.");
+    expect(err.detail).toBe("Insufficient funds in disbursement wallet. Kora balance is ₦0; Stage 1 needs ₦252,000.");
     // Funded again: the next attempt goes through.
     double.availableKobo = 1_000_000_000n;
     const r = await dispatchStage(f.order.id, "STAGE_1", user);
@@ -304,7 +390,7 @@ describe("payouts — two stages, failures, retries, unknown outcomes", () => {
     expect(await submitHandoverCode(f.order.id, code ?? "", "vendor")).toEqual({ ok: true });
     expect(await status(f.order.id)).toBe("RELEASED");
     const s2 = await db().payout.findFirstOrThrow({ where: { orderId: f.order.id, stage: "STAGE_2" } });
-    expect(s2.amountKobo).toBe(88_200_000n);
+    expect(s2.amountKobo).toBe(58_800_000n);
     const w = double.transferWebhook(s2.reference, "success");
     await deliver(w.rawBody, w.signature);
     expect(await status(f.order.id)).toBe("COMPLETE");
@@ -332,7 +418,7 @@ describe("payouts — two stages, failures, retries, unknown outcomes", () => {
 describe("the poller resolves a missing webhook", () => {
   it("finds a paid charge 20s+ after the account opened, with no webhook at all", async () => {
     const { order, payIn } = await approvedOrder();
-    double.pay(payIn.reference, 126_000_000n);
+    double.pay(payIn.reference, 84_000_000n);
     await pollOnce();
     expect(await status(order.id)).toBe("AWAITING_PAYMENT"); // too young
     await db().$executeRaw`UPDATE "PayIn" SET "createdAt" = now() - interval '1 minute' WHERE "id" = ${payIn.id}`;
@@ -343,7 +429,7 @@ describe("the poller resolves a missing webhook", () => {
   it("a suppressed webhook is stored but not acted on; the poller still gets there", async () => {
     const { order, payIn } = await approvedOrder();
     await setSetting("suppressNextWebhook", "true");
-    double.pay(payIn.reference, 126_000_000n);
+    double.pay(payIn.reference, 84_000_000n);
     const { rawBody, signature } = double.chargeWebhook(payIn.reference);
     const r = await deliver(rawBody, signature);
     expect(r.note).toBe("suppressed");
