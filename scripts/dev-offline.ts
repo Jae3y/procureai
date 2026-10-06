@@ -1,6 +1,6 @@
 /**
  * npm run dev:offline — runs ProcureAI against the Kora TEST DOUBLE (tests/kora-double) instead of
- * api.korapay.com, for clicking through the UI before a Kora test key exists. Every page shows an
+ * live Kora API, for clicking through the UI before a Kora test key exists. Every page shows an
  * "OFFLINE · KORA TEST DOUBLE" banner; nothing here is presented as real Kora.
  *
  * The double replays Kora's documented response shapes and POSTs signed webhooks back to the app.

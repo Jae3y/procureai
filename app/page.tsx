@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
+import { HomePage } from "@/components/home-page";
 
-/** The product starts at the request screen. */
 export default function Home() {
-  redirect("/buy");
+  return <HomePage />;
 }
