@@ -19,10 +19,14 @@ test("buyer and vendor complete a purchase; every naira is accounted for", async
 
   await page.getByRole("button", { name: "Approve Vendor B" }).click();
   await expect(page).toHaveURL(/\/orders\//, { timeout: 90_000 });
-  await expect(page.getByText("Pay into this account")).toBeVisible();
+  // Kora takes at most ₦1,000,000 per one-time account, so ₦1,260,000 is paid in two transfers.
+  await expect(page.getByText("Transfer 1 of 2 · Pay into this account")).toBeVisible();
 
   // Pay through the sandbox (real Kora sandbox credit, or the test double offline).
-  await page.getByRole("button", { name: /^Transfer ₦1,260,000$/ }).click();
+  await page.getByRole("button", { name: /^Transfer ₦1,000,000$/ }).click();
+  await expect(page.getByText("Transfer 2 of 2 · Pay into this account")).toBeVisible({ timeout: 90_000 });
+  await expect(page.getByText("Received so far: ₦1,000,000.", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: /^Transfer ₦260,000$/ }).click();
   await expect(page.getByText("Payment confirmed")).toBeVisible({ timeout: 90_000 });
   await page.getByRole("button", { name: "Open tracker" }).click();
   await expect(page.getByRole("heading", { name: "Stage 1 paid. Waiting for delivery." })).toBeVisible({ timeout: 90_000 });
