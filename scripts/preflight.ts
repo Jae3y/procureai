@@ -282,6 +282,13 @@ async function main() {
 
   const identityRows = rows.filter((r) => /CAC|Identity banks|Bank account basic/.test(r.name));
   const blocked = identityRows.some((r) => /KoraAccessError|KoraAuthError/.test(r.detail));
+  // Kora answers an unauthenticated call with 401; anything else means this network never reached it.
+  const unreachable = rows.find((r) => r.name.startsWith("Kora reachable"))?.result !== "PASS";
+  if (unreachable) {
+    console.log("\nKora status: UNREACHABLE from this network — no row above is Kora's answer. Run preflight where api.korapay.com is reachable.");
+    process.exitCode = 2;
+    return;
+  }
   console.log(
     blocked
       ? "\nIdentity status: BLOCKED for this key. Set SIMULATE_IDENTITY=true (labelled in the UI) and see BLOCKERS.md B-03."
