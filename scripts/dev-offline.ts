@@ -12,9 +12,10 @@ import { KoraDouble } from "../tests/kora-double/server";
 const PORT = Number(process.env.PORT ?? 3000);
 const DOUBLE_PORT = 4010;
 const SECRET = "sk_test_offline_kora_double";
+const PUBLIC = "pk_test_offline_kora_double";
 
 async function main() {
-  const double = new KoraDouble(SECRET);
+  const double = new KoraDouble(SECRET, PUBLIC);
   double.webhookTarget = `http://127.0.0.1:${PORT}/api/webhooks/kora`;
   const baseUrl = await double.start(DOUBLE_PORT);
   console.log(`\n  Kora TEST DOUBLE on ${baseUrl}  (webhooks → ${double.webhookTarget})\n`);
@@ -22,7 +23,7 @@ async function main() {
   const env = {
     ...process.env,
     KORA_SECRET_KEY: SECRET,
-    KORA_PUBLIC_KEY: "pk_test_offline_kora_double",
+    KORA_PUBLIC_KEY: PUBLIC,
     KORA_BASE_URL: baseUrl,
     KORA_WEBHOOK_URL: "https://offline.procureai.invalid/api/webhooks/kora",
     KORA_OFFLINE_DOUBLE: "1",

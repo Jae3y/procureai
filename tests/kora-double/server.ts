@@ -32,6 +32,7 @@ export type Preference = "accept_all" | "return_excess" | "return_all";
 
 export class KoraDouble {
   readonly secretKey: string;
+  readonly publicKey: string;
   private server: Server | undefined;
   baseUrl = "";
   calls: Array<{ method: string; path: string; body: unknown }> = [];
@@ -48,8 +49,9 @@ export class KoraDouble {
   webhookTarget: string | null = null;
   private overrides = new Map<string, Override[]>();
 
-  constructor(secretKey = process.env.KORA_SECRET_KEY ?? "sk_test_procureai_unit_tests_only") {
+  constructor(secretKey = process.env.KORA_SECRET_KEY ?? "sk_test_procureai_unit_tests_only", publicKey = "pk_test_procureai_unit_tests_only") {
     this.secretKey = secretKey;
+    this.publicKey = publicKey;
   }
 
   async start(listenPort = 0): Promise<string> {
@@ -184,7 +186,9 @@ export class KoraDouble {
       res.end(JSON.stringify(payload));
     };
 
-    if (req.headers.authorization !== `Bearer ${this.secretKey}`) {
+    // Like Kora: GET /misc/banks takes the public key; everything else the secret key.
+    const key = path === "/misc/banks" ? this.publicKey : this.secretKey;
+    if (req.headers.authorization !== `Bearer ${key}`) {
       return send(401, { status: false, error: "not_authenticated", message: "no authorization token found", data: null });
     }
 

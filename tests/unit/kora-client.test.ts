@@ -69,7 +69,7 @@ describe("Kora client — parsing documented responses", () => {
 });
 
 describe("Kora client — empty basic bank list (Kora's sandbox returns [])", () => {
-  const fresh = () => new KoraClient({ baseUrl: double.baseUrl, secretKey: double.secretKey, simulateIdentity: false, sleep: async () => undefined });
+  const fresh = () => new KoraClient({ baseUrl: double.baseUrl, secretKey: double.secretKey, publicKey: double.publicKey, simulateIdentity: false, sleep: async () => undefined });
   const emptyList = () => double.next("GET /identities/ng/banks", { status: 200, body: { status: true, message: "Banks fetched successfully", data: [] } });
 
   it("still verifies the account: the pre-check is skipped, Kora's own lookup decides", async () => {

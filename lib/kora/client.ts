@@ -71,6 +71,8 @@ type CallSpec<S extends z.ZodType> = {
   retry: RetryPolicy;
   /** Identity calls: log only reference/id_type, never the payload. */
   sensitive?: boolean;
+  /** Kora authenticates a few utility endpoints with the PUBLIC key (real sandbox, Oct 2026). */
+  auth?: "public";
 };
 
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
@@ -78,6 +80,8 @@ export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 export type KoraClientOptions = {
   baseUrl: string;
   secretKey: string;
+  /** Needed only for the endpoints Kora authenticates with the public key (GET /misc/banks). */
+  publicKey?: string;
   simulateIdentity: boolean;
   timeoutMs?: number;
   fetchImpl?: FetchLike;
@@ -116,6 +120,7 @@ const ACCESS_HINT =/not (been )?(enabled|activated|available|permitted|allowed)|
 export class KoraClient {
   private readonly baseUrl: string;
   private readonly secretKey: string;
+  private readonly publicKey: string | undefined;
   private readonly simulateIdentity: boolean;
   private readonly timeoutMs: number;
   private readonly fetchImpl: FetchLike;
@@ -125,6 +130,7 @@ export class KoraClient {
   constructor(opts: KoraClientOptions) {
     this.baseUrl = opts.baseUrl.replace(/\/+$/, "");
     this.secretKey = opts.secretKey;
+    this.publicKey = opts.publicKey;
     this.simulateIdentity = opts.simulateIdentity;
     this.timeoutMs = opts.timeoutMs ?? 10_000;
     this.fetchImpl = opts.fetchImpl ?? ((input, init) => fetch(input, init));
@@ -172,7 +178,7 @@ export class KoraClient {
         response = await this.fetchImpl(url.toString(), {
           method: spec.method,
           headers: {
-            Authorization: `Bearer ${this.secretKey}`,
+            Authorization: `Bearer ${spec.auth === "public" ? (this.publicKey ?? this.secretKey) : this.secretKey}`,
             Accept: "application/json",
             ...(bodyText !== undefined ? { "Content-Type": "application/json" } : {}),
           },
@@ -533,6 +539,7 @@ export class KoraClient {
       query: { countryCode: "NG" },
       schema: PayoutBanks,
       retry: "safe",
+      auth: "public",
     });
   }
 
@@ -641,6 +648,7 @@ export function kora(): KoraClient {
     defaultClient = new KoraClient({
       baseUrl: e.KORA_BASE_URL,
       secretKey: e.KORA_SECRET_KEY,
+      publicKey: e.KORA_PUBLIC_KEY,
       simulateIdentity: e.SIMULATE_IDENTITY,
     });
   }
