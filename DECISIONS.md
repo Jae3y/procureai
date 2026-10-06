@@ -82,4 +82,5 @@ People (DIRECTOR/SHAREHOLDER) keep the spec's symmetric rule, which handles midd
 
 **D-34 · Record stamp is conditional.** "ALL REFERENCES SIGNED BY KORA" only when every money movement was confirmed by a signature-verified webhook; otherwise "ALL REFERENCES CONFIRMED WITH KORA" (some were confirmed by query).
 
-**D-35 · Home and Landing marketing pages are not built yet**; `/` opens the product at `/buy`. They are listed in HANDOFF.md.
+**D-35 · Home marketing page implemented.** `/` renders the high-fidelity Home marketing page recreated from `ProcureAI Home.dc.html` (interactive prompt parser into 4 chips, example buttons, buyer/vendor switch, animated Money Trail, Who it's for, Three steps, FAQs accordion, vendor value prop, and call-to-action buttons into `/buy?text=...`). `/buy` continues to serve as the direct purchase workflow starting point.
+
