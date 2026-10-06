@@ -1,0 +1,15 @@
+{
+  "httpStatus": 409,
+  "recordedAt": "2026-10-06T15:13:22.048Z",
+  "source": "npm run preflight",
+  "body": {
+    "status": false,
+    "error": "conflict",
+    "message": "Invalid account.",
+    "data": {
+      "status": "failed",
+      "message": "Invalid account.",
+      "reference": "PF-20261006fad98a-PO058"
+    }
+  }
+}

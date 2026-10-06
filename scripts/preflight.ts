@@ -96,11 +96,11 @@ async function payoutStep(client: KoraClient, label: string, bank: string, accou
     () =>
       client.disburse({
         reference,
-        amountKobo: 10_000n,
+        amountKobo: 100_000n,
         bankCode: bank,
         accountNumber: account,
         narration: "ProcureAI preflight",
-        customer: { name: "ProcureAI Preflight", email: "preflight@procureai.test" },
+        customer: { name: "ProcureAI Preflight", email: "preflight@procureai.com" },
         notificationUrl: process.env.KORA_WEBHOOK_URL || "https://example.com/preflight-no-webhook",
         metadata: { preflight: runId },
       }),
@@ -243,7 +243,7 @@ async function main() {
       client.createBankTransferCharge({
         reference: chargeRef,
         amountKobo: 10_000n,
-        customer: { name: "ProcureAI Preflight", email: "preflight@procureai.test" },
+        customer: { name: "ProcureAI Preflight", email: "preflight@procureai.com" },
         accountName: "ProcureAI preflight",
         narration: "ProcureAI preflight",
         notificationUrl: process.env.KORA_WEBHOOK_URL || "https://example.com/preflight-no-webhook",

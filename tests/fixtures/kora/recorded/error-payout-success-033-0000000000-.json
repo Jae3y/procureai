@@ -1,0 +1,15 @@
+{
+  "httpStatus": 409,
+  "recordedAt": "2026-10-06T15:11:20.259Z",
+  "source": "npm run preflight",
+  "body": {
+    "status": false,
+    "error": "conflict",
+    "message": "You can only transfer an amount between NGN 1000 and NGN 10000000",
+    "data": {
+      "status": "failed",
+      "message": "You can only transfer an amount between NGN 1000 and NGN 10000000",
+      "reference": "PF-202610065349de-PO033"
+    }
+  }
+}

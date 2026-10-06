@@ -201,7 +201,8 @@ export class KoraDouble {
     const str = (v: unknown) => (typeof v === "string" ? v : String(v ?? ""));
 
     if (method === "POST" && path === "/identities/ng/cac") {
-      if (str(body.id) === "RC00000011") return send(200, cacValid.body);
+      const rawId = str(body.id).replace(/^(RC|BN|IT|LP|LLP)/i, "");
+      if (rawId === "00000011" || str(body.id) === "RC00000011") return send(200, cacValid.body);
       return send(404, { status: false, message: "No record found for this ID", data: null });
     }
     if (method === "GET" && path === "/identities/ng/banks") {

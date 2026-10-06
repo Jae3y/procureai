@@ -1,0 +1,15 @@
+{
+  "httpStatus": 422,
+  "recordedAt": "2026-10-06T15:07:03.492Z",
+  "source": "npm run preflight",
+  "body": {
+    "status": false,
+    "error": "validation_error",
+    "message": "One or more fields are invalid. Please fix them and try again.",
+    "data": {
+      "id": {
+        "message": "id with value RC00000011 fails to match the required pattern: /^\\d+$/"
+      }
+    }
+  }
+}

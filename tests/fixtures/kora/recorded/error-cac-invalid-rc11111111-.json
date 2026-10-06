@@ -1,0 +1,10 @@
+{
+  "httpStatus": 404,
+  "recordedAt": "2026-10-06T15:13:19.555Z",
+  "source": "npm run preflight",
+  "body": {
+    "status": false,
+    "message": "CAC data not found",
+    "data": {}
+  }
+}

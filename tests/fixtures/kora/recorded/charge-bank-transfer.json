@@ -1,0 +1,32 @@
+{
+  "httpStatus": 200,
+  "recordedAt": "2026-10-06T15:14:03.112Z",
+  "source": "npm run preflight",
+  "body": {
+    "status": true,
+    "message": "Bank transfer initiated successfully",
+    "data": {
+      "currency": "NGN",
+      "amount": 100,
+      "amount_expected": 100,
+      "fee": 50,
+      "vat": 3.75,
+      "reference": "PF-20261006fad98a-PA",
+      "payment_reference": "PF-20261006fad98a-PA",
+      "status": "processing",
+      "narration": "Payment on Trex Media",
+      "merchant_bears_cost": true,
+      "bank_account": {
+        "account_name": "ProcureAI preflight",
+        "account_number": "1110036113",
+        "bank_name": "test_bank_transfer",
+        "bank_code": "000",
+        "expiry_date_in_utc": "2026-10-06T17:14:00.871Z"
+      },
+      "customer": {
+        "name": "ProcureAI Preflight",
+        "email": "preflight@procureai.com"
+      }
+    }
+  }
+}
