@@ -305,14 +305,28 @@ export class KoraClient {
     return this.call({ ...spec, method: "GET", path: "/identities/ng/banks", query: { type }, retry: "safe" });
   }
 
-  /** Cached basic list (1h). Populates the vendor bank picker and pre-validates bank codes. */
+  /**
+   * Cached basic list (1h). Pre-validates bank codes. Kora's sandbox answers with an empty list
+   * (6 Oct 2026); an empty answer is not cached, so a fixed list is picked up on the next call.
+   */
   async basicIdentityBanks(): Promise<IdentityBank[]> {
     const fresh = this.basicBanksCache && Date.now() - this.basicBanksCache.at < 3_600_000;
-    if (!fresh) {
-      const res = await this.listIdentityBanks("basic");
-      this.basicBanksCache = { at: Date.now(), banks: res.data };
-    }
-    return this.basicBanksCache?.banks ?? [];
+    if (fresh) return this.basicBanksCache?.banks ?? [];
+    const res = await this.listIdentityBanks("basic");
+    if (res.data.length > 0) this.basicBanksCache = { at: Date.now(), banks: res.data };
+    return res.data;
+  }
+
+  /**
+   * Banks for the vendor's payout-account picker: Kora's basic identity list, or — when Kora returns
+   * that list empty — Kora's payout bank list, which uses the same CBN codes. The caller labels it.
+   */
+  async bankPickerList(): Promise<{ banks: IdentityBank[]; source: "identity" | "payout" }> {
+    const identity = await this.basicIdentityBanks();
+    if (identity.length > 0) return { banks: identity, source: "identity" };
+    log.warn({ kora: { endpoint: "GET /identities/ng/banks?type=basic" } }, "Kora's basic identity bank list is empty; using the payout bank list");
+    const payout = await this.listPayoutBanks();
+    return { banks: payout.data.map((b) => ({ name: b.name, code: b.code })), source: "payout" };
   }
 
   async verifyBankAccountBasic(input: {
@@ -332,7 +346,10 @@ export class KoraClient {
     if (this.simulateIdentity) return this.simulated(spec, "bank-account-basic", `${input.bankCode}-${input.accountNumber}`);
 
     const banks = await this.basicIdentityBanks();
-    if (!banks.some((b) => b.code === input.bankCode)) {
+    if (banks.length === 0) {
+      // Nothing to check against (Kora's sandbox returns []); Kora's own lookup below still rejects a bad code.
+      log.warn({ kora: { endpoint, bankCode: input.bankCode } }, "Kora's basic identity bank list is empty; skipping the bank-code pre-check");
+    } else if (!banks.some((b) => b.code === input.bankCode)) {
       // Premium and basic code lists differ (e.g. GTB is 058 basic / 000013 premium). Never mix.
       throw new KoraValidationError(`bank code ${input.bankCode} is not on Kora's basic identity bank list`, {
         endpoint,

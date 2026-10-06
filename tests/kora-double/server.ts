@@ -329,6 +329,16 @@ export class KoraDouble {
       });
     }
 
+    if (method === "GET" && path === "/misc/banks") {
+      return send(200, {
+        status: true,
+        message: "successful",
+        data: [
+          { name: "Guaranty Trust Bank", slug: "gtb", code: "058", nibss_bank_code: "000013", country: "NG" },
+          { name: "Access Bank", slug: "access", code: "044", nibss_bank_code: "000014", country: "NG" },
+        ],
+      });
+    }
     if (method === "GET" && path === "/balances") {
       return send(200, { status: true, message: "success", data: { NGN: { pending_balance: 0, available_balance: Number(koboToNairaDecimal(this.availableKobo)) } } });
     }
