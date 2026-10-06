@@ -79,8 +79,8 @@ describe("P4 · the full flow, headless", () => {
 
     // A wrong code, then the buyer's code on the vendor's phone → Stage 2.
     const wrong = await d.enterCode(orderId, requestId, "000000" === (await d.buyerCode(orderId)) ? "111111" : "000000");
-    expect(wrong.status).toBe(422);
-    expect(wrong.body.attemptsLeft).toBe(4);
+    expect(wrong.status).toBe(200);
+    expect(wrong.body).toMatchObject({ ok: false, reason: "wrong", attemptsLeft: 4, message: "That code isn't right. 4 attempts left." });
     const right = await d.enterCode(orderId, requestId, await d.buyerCode(orderId));
     expect(right.status).toBe(200);
 

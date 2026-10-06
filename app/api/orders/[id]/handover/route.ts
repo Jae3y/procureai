@@ -37,6 +37,7 @@ export const POST = route<z.output<typeof Body>, { id: string }>(
           : result.reason === "expired"
             ? "This code has expired. Ask the buyer to contact ProcureAI."
             : "This code has already been used.";
-    return { status: 422, body: { error: { code: `code_${result.reason}`, message }, attemptsLeft: result.reason === "wrong" ? result.attemptsLeft : 0 } };
+    // A wrong code is an expected answer, not a failed request: 200 with ok:false.
+    return { status: 200, body: { ok: false, reason: result.reason, message, attemptsLeft: result.reason === "wrong" ? result.attemptsLeft : 0 } };
   },
 );

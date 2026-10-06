@@ -16,7 +16,14 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, them
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en-NG" className={`${bricolage.variable} ${inter.variable} ${jetbrains.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        {process.env.KORA_OFFLINE_DOUBLE === "1" ? (
+          <div role="note" className="offline-banner">
+            OFFLINE · KORA TEST DOUBLE — not connected to Kora. Add your sk_test_ key and run npm run dev.
+          </div>
+        ) : null}
+      </body>
     </html>
   );
 }

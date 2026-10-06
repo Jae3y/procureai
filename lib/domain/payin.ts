@@ -149,7 +149,7 @@ export async function openPayIn(
           kind: "info",
           title: kind === "top-up" ? "Account for the rest is ready" : "One-time account ready",
           detail: isTransfer
-            ? `${payIn.bankName ?? "Bank"} ${payIn.accountNumber ?? ""} · ${formatNaira(payIn.amountExpectedKobo)}`
+            ? `${bankLabel(payIn.bankName)} · ${spaced(payIn.accountNumber ?? "")} · ${formatNaira(payIn.amountExpectedKobo)}`
             : `Kora checkout · ${formatNaira(amountKobo)}`,
           amountKobo: payIn.amountExpectedKobo,
           koraReference: reference,
@@ -284,6 +284,14 @@ async function afterCredit(tx: Tx, order: Order, cause: Cause): Promise<ApplyRes
     amountKobo: shortfallKobo,
   });
   return { changed: true, followUp: { kind: "TOP_UP", shortfallKobo }, orderId: order.id };
+}
+
+/** Kora returns bank names like "wema"; show them as people say them. */
+export function bankLabel(name: string | null | undefined): string {
+  if (!name) return "Bank";
+  const n = name.trim();
+  const titled = n.charAt(0).toUpperCase() + n.slice(1);
+  return /bank/i.test(titled) ? titled : `${titled} Bank`;
 }
 
 function spaced(account: string): string {

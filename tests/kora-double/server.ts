@@ -43,15 +43,17 @@ export class KoraDouble {
   includeAccepted = true;
   /** Payouts settle immediately on query (sandbox behaviour) unless set false. */
   settlePayoutsOnQuery = true;
+  /** When set (offline dev mode), the double POSTs signed webhooks here, as Kora does. */
+  webhookTarget: string | null = null;
   private overrides = new Map<string, Override[]>();
 
   constructor(secretKey = process.env.KORA_SECRET_KEY ?? "sk_test_procureai_unit_tests_only") {
     this.secretKey = secretKey;
   }
 
-  async start(): Promise<string> {
+  async start(listenPort = 0): Promise<string> {
     this.server = createServer((req, res) => void this.handle(req, res));
-    await new Promise<void>((resolve) => this.server?.listen(0, "127.0.0.1", resolve));
+    await new Promise<void>((resolve) => this.server?.listen(listenPort, "127.0.0.1", resolve));
     const { port } = this.server.address() as AddressInfo;
     this.baseUrl = `http://127.0.0.1:${port}/merchant/api/v1`;
     return this.baseUrl;
@@ -141,6 +143,18 @@ export class KoraDouble {
       currency: "NGN",
       reference,
     });
+  }
+
+  /** Delivers a webhook to webhookTarget after a short delay, like Kora's async notifications. */
+  private push(make: () => { rawBody: string; signature: string }, delayMs: number): void {
+    const target = this.webhookTarget;
+    if (!target) return;
+    setTimeout(() => {
+      const w = make();
+      fetch(target, { method: "POST", headers: { "Content-Type": "application/json", "x-korapay-signature": w.signature }, body: w.rawBody }).catch((err: unknown) =>
+        console.warn(`kora-double: webhook to ${target} failed: ${String(err)}`),
+      );
+    }, delayMs);
   }
 
   // ── HTTP ──
@@ -251,7 +265,8 @@ export class KoraDouble {
     if (method === "POST" && path === "/virtual-bank-account/sandbox/credit") {
       const c = [...this.charges.values()].find((x) => x.accountNumber === str(body.account_number));
       if (!c) return send(400, { status: false, message: "account not found", data: null });
-      this.pay(c.reference, decimalToKobo(String(body.amount)));
+      const after = this.pay(c.reference, decimalToKobo(String(body.amount)));
+      if (after.status === "success") this.push(() => this.chargeWebhook(c.reference), 800);
       return send(200, { status: true, message: "Virtual bank account credited successfully", data: null });
     }
 
@@ -272,6 +287,14 @@ export class KoraDouble {
         bank: dest.bank_account.bank,
         account: dest.bank_account.account,
       });
+      this.push(() => {
+        const p = this.payouts.get(reference);
+        if (p && p.status === "processing") {
+          p.status = fails ? "failed" : "success";
+          if (fails) this.availableKobo += p.amountKobo;
+        }
+        return this.transferWebhook(reference, fails ? "failed" : "success");
+      }, 1500);
       return send(200, {
         status: true,
         message: "transfer initiated successfully",

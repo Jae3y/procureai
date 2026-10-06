@@ -53,7 +53,11 @@ export async function buildRecordView(orderId: string): Promise<RecordView> {
 
   const quotes = request.vendors
     .filter((v) => v.quote)
-    .sort((a, b) => Number((a.quote?.totalKobo ?? 0n) - (b.quote?.totalKobo ?? 0n)))
+    .sort((a, b) => {
+      const x = a.quote?.totalKobo ?? 0n;
+      const y = b.quote?.totalKobo ?? 0n;
+      return x < y ? -1 : x > y ? 1 : 0;
+    })
     .map((v) => {
       const ver = latest.get(v.id);
       const chosen = v.id === order.vendorId;
@@ -72,7 +76,7 @@ export async function buildRecordView(orderId: string): Promise<RecordView> {
     const ver = latest.get(v.id);
     if (!ver) continue;
     if (ver.verdict === "VERIFIED") {
-      checks.push({ text: `${ver.registeredName ?? v.name ?? v.label} · ${ver.rcNumber} · ${ver.companyStatus ? ver.companyStatus.charAt(0) + ver.companyStatus.slice(1).toLowerCase() : ""}`, ref: ver.cacReference ?? "", tone: "green" });
+      checks.push({ text: `${v.label.replace("Vendor ", "")} · ${ver.registeredName ?? v.name ?? v.label} · ${ver.rcNumber} · ${ver.companyStatus ? ver.companyStatus.charAt(0) + ver.companyStatus.slice(1).toLowerCase() : ""}`, ref: ver.cacReference ?? "", tone: "green" });
       if (v.id === order.vendorId) {
         checks.push({
           text: ver.matchMethod === "COMPANY" ? "Payout account is in the company's name" : "Payout account owner is a director",
@@ -81,7 +85,7 @@ export async function buildRecordView(orderId: string): Promise<RecordView> {
         });
       }
     } else {
-      checks.push({ text: `${v.name ?? v.label} · ${ver.failureReason ?? "not verified"}`, ref: ver.cacReference ?? ver.rcNumber, tone: "red" });
+      checks.push({ text: `${v.label.replace("Vendor ", "")} · ${v.name ?? v.label} · ${ver.failureReason ?? "not verified"}`, ref: ver.cacReference ?? ver.rcNumber, tone: "red" });
     }
   }
 

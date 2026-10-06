@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { NotFoundError } from "@/lib/domain/errors";
 import { revealHandoverCode } from "@/lib/domain/handover";
+import { bankLabel } from "@/lib/domain/payin";
 import { env } from "@/lib/env";
 import type { OrderStatus, Payout, PayoutStage } from "@/lib/generated/prisma/client";
 import { signRecordId } from "@/lib/crypto";
@@ -271,7 +272,7 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
       state: payState,
       amountDue: formatNaira(payState === "short" ? shortfall : (shown?.amountExpectedKobo ?? order.amountKobo)),
       accountNumber: spacedAccount(shown?.accountNumber),
-      bankName: shown?.bankName ? shown.bankName.charAt(0).toUpperCase() + shown.bankName.slice(1) : null,
+      bankName: shown?.bankName ? bankLabel(shown.bankName) : null,
       accountName: shown?.accountName ?? null,
       expiresAt: shown?.expiresAt?.toISOString() ?? null,
       reference: shown?.reference ?? null,
