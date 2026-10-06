@@ -100,3 +100,28 @@ If Docker Desktop is down: start it (`Start-Process "C:\Program Files\Docker\Doc
 - Dev mode first-hit compile can take ~10 s per route — not an app bug.
 - Docker Desktop restarts can briefly drop the DB/network (a run of DB-connection failures → just re-run).
 - Kora sandbox `pay` in dev: use admin "Pay the account (sandbox)" or the sandbox strip on the pay screen (real `POST /virtual-bank-account/sandbox/credit` with a test key).
+
+## 10. Working across machines (local ⇄ cloud ⇄ Antigravity) — read before starting
+
+**GitHub `main` is the single source of truth.** Nothing syncs by itself: every tool (Claude Code local, Claude Code cloud,
+Antigravity) works on its own copy and only meets the others through GitHub.
+
+**The one rule that prevents conflicts: only one agent works at a time.**
+1. Before you start: `git pull origin main` (or, in a cloud session, start from the latest `main`).
+2. While working: commit + push small and often.
+3. When you stop: commit + push everything. Check `git status` is clean.
+4. The next agent starts at step 1.
+
+**Cloud sessions (claude.ai/code):**
+- Open claude.ai/code → choose repo `Jae3y/procureai` → first message: "Read HANDOFF.md and continue from §6".
+- Cloud sessions usually push to their own branch (e.g. `claude/…`) and may open a pull request. To bring that work back:
+  merge the PR on GitHub (or `git merge origin/<branch>` locally), then on the laptop: `git checkout main && git pull`.
+- No Docker there: install Postgres in the session (`apt-get install -y postgresql` + create `procureai`/`procureai_test`) or use a free hosted Postgres (Neon/Supabase) and set `DATABASE_URL` / `DATABASE_URL_TEST`.
+- Secrets: set `KORA_SECRET_KEY`, `KORA_PUBLIC_KEY`, `AI_API_KEY`, `RECORD_SIGNING_SECRET` as environment variables in the cloud environment settings. `.env` is never in git.
+- Kora can't reach a cloud session for webhooks; the poller and Re-check still complete every payment.
+
+**Antigravity (local):** open the folder `C:\Users\HP\Documents\jaeys-projects\procureai`, run `git pull origin main` first,
+point it at this file. Start Docker Desktop, then `npm run db:up`.
+
+**If git ever reports a conflict:** stop, don't force-push. `git status` shows the files; keep both changes where they're
+independent, run `npm test`, commit. Never use `git push --force` on `main`.
