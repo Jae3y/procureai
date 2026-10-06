@@ -132,6 +132,7 @@ function QuoteForm({ token, v }: { token: string; v: VendorView }) {
             ))}
           </select>
           {v.banksError ? <span className="form-error">{v.banksError}</span> : null}
+          {v.banksNote ? <p className="note" style={{ fontSize: 14, marginTop: 8 }}>{v.banksNote}</p> : null}
           {issues.bankCode ? <span className="form-error">{issues.bankCode}</span> : null}
         </div>
         {field("accountNumber", "Business account number", { inputMode: "numeric", pattern: "[0-9]*", maxLength: 10, autoComplete: "off" })}
