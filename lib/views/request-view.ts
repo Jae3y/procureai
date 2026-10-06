@@ -226,7 +226,8 @@ export async function buildRequestView(requestId: string, opts: { includeInvites
     lastEventId: events.at(-1)?.id.toString() ?? "0",
     orderId: request.order?.id ?? null,
     orderRef: request.order ? orderRef(request.order.number) : null,
-    invites: opts.includeInvites
+    // In DEMO_MODE the vendors are scripted, so the buyer may open their phones too.
+    invites: opts.includeInvites || env().DEMO_MODE
       ? request.vendors.map((v) => ({
           label: v.label,
           phone: v.contactPhone,

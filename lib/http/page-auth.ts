@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { verifySession } from "@/lib/crypto";
 import { db } from "@/lib/db";
-import { env } from "@/lib/env";
+import { adminOpenToAll, env } from "@/lib/env";
 import { ADMIN_COOKIE, BUYER_COOKIE } from "./session";
 
 /** Session checks for server-rendered pages (route handlers use lib/http/session.ts). */
@@ -12,7 +12,7 @@ export async function pageBuyerId(): Promise<string | null> {
 }
 
 export async function pageIsAdmin(): Promise<boolean> {
-  if (env().DEMO_MODE) return true;
+  if (adminOpenToAll(env())) return true;
   const c = await cookies();
   return verifySession("admin-session", c.get(ADMIN_COOKIE)?.value) === "admin";
 }

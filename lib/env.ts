@@ -58,10 +58,20 @@ const EnvSchema = z
         path: ["ADMIN_TOKEN"],
         message: "required (24+ chars) when DEMO_MODE=false, otherwise /admin is unprotected",
       });
+    } else if (env.ADMIN_TOKEN && env.ADMIN_TOKEN.length < 24) {
+      ctx.addIssue({ code: "custom", path: ["ADMIN_TOKEN"], message: "use at least 24 random characters" });
     }
   });
 
 export type Env = z.infer<typeof EnvSchema> & { koraMode: "test" | "live" };
+
+/**
+ * Admin is open to everyone only in DEMO_MODE *without* an ADMIN_TOKEN (a local demo). A shared
+ * deployment sets ADMIN_TOKEN, so visitors can buy but can't reset the demo or see others' orders.
+ */
+export function adminOpenToAll(e: Pick<Env, "DEMO_MODE" | "ADMIN_TOKEN">): boolean {
+  return e.DEMO_MODE && !e.ADMIN_TOKEN;
+}
 
 export class EnvError extends Error {
   constructor(readonly problems: string[]) {

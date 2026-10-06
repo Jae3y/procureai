@@ -98,6 +98,25 @@ background; where they disagree with §0, **§0 wins** (e.g. "222 passing" and "
    - Verify on the live URL: `/api/health`, a full purchase from `/buy` to the record page, the PNG at `/r/<id>/image`,
      a webhook arriving (admin page), the cron tick.
 
+### 0.3a Progress — cloud session, 6 Oct 2026 (late)
+Steps 1–6 are **done**, and step 7's code part is done. Branch `main-0lkoc1` (draft PR into `main`).
+- Step 1–3: tests updated to the instalment behaviour; Kora double returns the real 422 above ₦1M and reverses an
+  overpayment under "Return all"; new instalment tests (₦1.26m in 2 transfers, ₦2.5m in 3, short instalment = real
+  underpayment, poller self-heal opens the lost next account). `charge.overpaid` event added for "Return all".
+- Step 4: empty basic bank list handled (pre-check skipped; picker falls back to `/misc/banks`, labelled). **Found:**
+  `/misc/banks` needs the **public** key (KORA_FEEDBACK §11) and the client sent the secret key — fixed (`auth: "public"`).
+- Step 5: DECISIONS D-36–D-39, BLOCKERS (B-01/02/03/07 resolved; new B-08), KORA_FEEDBACK §12, README preflight table
+  (from the recorded real responses) and deploy section.
+- Step 6: `tsc`, `lint`, `verify:banned`, **237 tests**, `build`, `verify:bundle`, Playwright **2/2** (happy path now
+  pays "Transfer 1 of 2" then ₦260,000) — all green.
+- Step 7 (code): `vercel-build` applies migrations; cron daily + external pinger documented; shared-demo rules (D-39):
+  admin needs `ADMIN_TOKEN` when set, a buyer per visitor, buyer-scoped sandbox buttons, "Open vendor's phone" link.
+- Also fixed: preflight counted a proxy 403 as PASS on "invalid account" and overwrote recorded fixtures with proxy
+  pages; now only Kora's own JSON answers count or get recorded.
+- **Left for the owner:** README "Deploy → Owner steps" 1–7 (Vercel project, Neon, env vars, Kora webhook URL, seed,
+  pinger, live checks), then a fresh `npm run preflight` from a network that can reach Kora (the cloud container can't,
+  BLOCKERS B-08).
+
 ### 0.4 Owner context
 - Owner: Jackson (GitHub `Jae3y`). Judges will **use the deployed site themselves**.
 - No money for paid AI — keep the free OpenAI-compatible provider + deterministic fallback.

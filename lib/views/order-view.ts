@@ -4,7 +4,7 @@ import { revealHandoverCode } from "@/lib/domain/handover";
 import { bankLabel } from "@/lib/domain/payin";
 import { env } from "@/lib/env";
 import type { OrderStatus, Payout, PayoutStage } from "@/lib/generated/prisma/client";
-import { signRecordId } from "@/lib/crypto";
+import { inviteTokenFor, signRecordId } from "@/lib/crypto";
 import { instalmentsFor } from "@/lib/kora/limits";
 import { formatNaira, splitStages } from "@/lib/money";
 import { itemPhrase, lagosDay, lagosTime, longOrderRef, orderRef, spacedAccount, spacedCode } from "./format";
@@ -78,6 +78,8 @@ export type OrderView = {
   sandboxRoute: string | null;
   testMode: boolean;
   demoMode: boolean;
+  /** DEMO_MODE only: the chosen vendor's phone screen, so a visitor can play the vendor too. */
+  vendorPhoneLink: string | null;
 };
 
 function latestOf(payouts: Payout[], stage: PayoutStage): Payout | undefined {
@@ -339,5 +341,6 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
     sandboxRoute: routeNote ? `${routeNote.destinationBankCode}/${routeNote.destinationAccount}` : null,
     testMode: e.KORA_SECRET_KEY.startsWith("sk_test_"),
     demoMode: e.DEMO_MODE,
+    vendorPhoneLink: e.DEMO_MODE && audience !== "vendor" ? `${e.APP_BASE_URL}/v/${inviteTokenFor(order.requestId, order.vendor.label)}` : null,
   };
 }

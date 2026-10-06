@@ -10,6 +10,7 @@
     "dev": "next dev --port 3000",
     "dev:offline": "tsx scripts/dev-offline.ts",
     "build": "prisma generate && next build",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
