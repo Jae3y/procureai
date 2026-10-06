@@ -109,3 +109,13 @@ describe("demo · the tracker links to the vendor's phone", () => {
     expect((await buildOrderView(f.order.id, "buyer")).vendorPhoneLink).toBeNull();
   });
 });
+
+describe("shared demo · /api/health", () => {
+  it("tells anyone up/down; the balance and details only the admin", async () => {
+    const { GET } = await import("@/app/api/health/route");
+    const anon = (await (await GET(new Request("http://localhost:3000/api/health"))).json()) as Record<string, unknown>;
+    expect(anon).toEqual({ status: "ok", db: { ok: true }, kora: { ok: true } });
+    const admin = (await (await GET(new Request("http://localhost:3000/api/health", { headers: bearer }))).json()) as { kora: { available: string } };
+    expect(admin.kora.available).toBe("₦10,000,000");
+  });
+});
