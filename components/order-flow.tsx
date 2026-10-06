@@ -245,7 +245,7 @@ function Tracker({ v, connection }: { v: OrderView; connection: "live" | "reconn
               </div>
               <div className="code-big">{t.code}</div>
               <p className="note" style={{ marginTop: 20, maxWidth: "52ch" }}>
-                Give this code to {v.vendorName} only when all {v.itemLine.replace(/^[\d,]+\s/, "")} are in your hands. When they enter it,{" "}
+                Give this code to {v.vendorName} only when all {v.itemLine} are in your hands. When they enter it,{" "}
                 {v.stage2Amount} is released to them.
               </p>
             </div>

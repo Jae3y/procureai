@@ -155,15 +155,18 @@ function QuoteForm({ token, v }: { token: string; v: VendorView }) {
 
 function CodeEntry({ orderId, token, enabled, attemptsLeft, locked }: { orderId: string; token: string; enabled: boolean; attemptsLeft: number; locked: boolean }) {
   const [code, setCode] = useState("");
-  const submit = useAction<{ token: string; code: string }>(`/api/orders/${orderId}/handover`);
+  const submit = useAction<{ token: string; code: string }, { ok: boolean; message?: string }>(`/api/orders/${orderId}/handover`);
+  const [answer, setAnswer] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const disabled = !enabled || locked || submit.pending;
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
+        setAnswer(null);
         void submit.run({ token, code }).then((r) => {
-          if (!r.ok) setCode("");
+          if (!r.ok || !r.data.ok) setCode("");
+          if (r.ok && !r.data.ok) setAnswer(r.data.message ?? "That code isn't right.");
         });
       }}
     >
@@ -192,8 +195,8 @@ function CodeEntry({ orderId, token, enabled, attemptsLeft, locked }: { orderId:
       <div aria-live="polite">
         {locked ? (
           <p className="form-error">This code is locked after 5 wrong attempts. Ask the buyer to contact ProcureAI.</p>
-        ) : submit.error ? (
-          <p className="form-error">{submit.error.message}</p>
+        ) : submit.error || answer ? (
+          <p className="form-error">{answer ?? submit.error?.message}</p>
         ) : attemptsLeft < 5 ? (
           <p className="note" style={{ fontSize: 13 }}>
             {attemptsLeft} attempt{attemptsLeft === 1 ? "" : "s"} left.
@@ -305,6 +308,13 @@ function Paid({ v }: { v: VendorView }) {
           </div>
         ) : null}
       </div>
+      {o.recordPath ? (
+        <div style={{ paddingBottom: 16 }}>
+          <a className="btn-2" href={o.recordPath} style={{ borderColor: "var(--paper)", color: "var(--paper)", justifyContent: "center" }}>
+            View record
+          </a>
+        </div>
+      ) : null}
     </main>
   );
 }

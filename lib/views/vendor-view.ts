@@ -17,7 +17,7 @@ export type VendorView = {
   quote: { raw: string; total: string; parsedBy: "AI" | "FALLBACK" } | null;
   banks: Array<{ name: string; code: string }>;
   banksError: string | null;
-  order: (Pick<OrderView, "ref" | "status" | "stage1Amount" | "stage2Amount" | "amount" | "vendor" | "events" | "lastEventId"> & { id: string; heldAmount: string }) | null;
+  order: (Pick<OrderView, "ref" | "status" | "stage1Amount" | "stage2Amount" | "amount" | "vendor" | "events" | "lastEventId"> & { id: string; heldAmount: string; recordPath: string | null }) | null;
   closed: boolean;
 };
 
@@ -56,6 +56,7 @@ export async function buildVendorView(token: string): Promise<VendorView> {
       events: v.events.filter((e) => e.name.startsWith("transfer.")),
       lastEventId: v.lastEventId,
       heldAmount: heldLine,
+      recordPath: v.track.recordPath,
     };
   }
 

@@ -4,7 +4,13 @@ const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   // Recorded identity fixtures are read from disk at runtime (SIMULATE_IDENTITY); ship them with the server.
-  outputFileTracingIncludes: { "/**": ["./lib/kora/fixtures/**/*.json"] },
+  outputFileTracingIncludes: {
+    "/**": ["./lib/kora/fixtures/**/*.json"],
+    // The record PNG embeds Inter (it has the ₦ glyph the image renderer's default font lacks).
+    "/r/[signedId]/image": ["./node_modules/@fontsource/inter/files/inter-latin*-normal.woff"],
+  },
+  // This repo is the workspace root (silences the lockfile-outside-repo warning).
+  turbopack: { root: import.meta.dirname },
   serverExternalPackages: ["pino", "pg"],
   async headers() {
     return [

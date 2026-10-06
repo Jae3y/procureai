@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "next dev --port 3000",
+    "dev:offline": "tsx scripts/dev-offline.ts",
     "build": "prisma generate && next build",
     "start": "next start --port 3000",
     "typecheck": "tsc --noEmit",
@@ -31,6 +32,7 @@
     "verify:bundle": "tsx scripts/verify-client-bundle.ts"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.3.0",
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
     "next": "16.3.8",

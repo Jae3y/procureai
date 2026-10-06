@@ -1,6 +1,26 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { ImageResponse } from "next/og";
 import { verifyRecordId } from "@/lib/crypto";
 import { buildRecordView } from "@/lib/views/record-view";
+
+/**
+ * The renderer's built-in font has no naira sign, so Inter is embedded: the latin-ext subset
+ * carries ₦ (U+20A6); Satori falls back glyph by glyph across the fonts listed.
+ */
+type FontWeight = 400 | 600;
+let fontsCache: Array<{ name: string; data: ArrayBuffer; weight: FontWeight; style: "normal" }> | undefined;
+async function fonts() {
+  if (!fontsCache) {
+    const dir = path.join(process.cwd(), "node_modules", "@fontsource", "inter", "files");
+    const load = async (subset: string, weight: FontWeight) => {
+      const buf = await readFile(path.join(dir, `inter-${subset}-${weight}-normal.woff`));
+      return { name: subset === "latin" ? "Inter" : "InterExt", data: buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer, weight, style: "normal" as const };
+    };
+    fontsCache = await Promise.all([load("latin", 400), load("latin", 600), load("latin-ext", 400), load("latin-ext", 600)]);
+  }
+  return fontsCache;
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,7 +48,7 @@ export async function GET(_req: Request, ctx: { params: Promise<{ signedId: stri
 
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", background: "#F6F3EC", padding: 40 }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", background: "#F6F3EC", padding: 40, fontFamily: "Inter, InterExt" }}>
         <div style={{ display: "flex", flexDirection: "column", flex: 1, background: "#FBF9F4", border: `1px solid ${LINE}`, borderRadius: 12, padding: 48, color: INK }}>
           <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: 24, borderBottom: `2px solid ${INK}` }}>
             <div style={{ display: "flex", flexDirection: "column" }}>
@@ -53,6 +73,16 @@ export async function GET(_req: Request, ctx: { params: Promise<{ signedId: stri
               </div>
             )),
           )}
+          {r.why.length
+            ? row(
+                `3 · Why ${r.quotes.find((q) => q.status === "Chosen")?.label ?? ""}`,
+                r.why.map((w) => (
+                  <span key={w} style={{ fontSize: 15, lineHeight: 1.5 }}>
+                    {w}
+                  </span>
+                )),
+              )
+            : null}
           {row(
             "4 · Checks",
             r.checks.map((c) => (
@@ -86,6 +116,6 @@ export async function GET(_req: Request, ctx: { params: Promise<{ signedId: stri
         </div>
       </div>
     ),
-    { width: 1200, height: 1500, headers: { "Content-Disposition": `attachment; filename="procureai-${r.ref}.png"` } },
+    { width: 1200, height: 1500, fonts: await fonts(), headers: { "Content-Disposition": `attachment; filename="procureai-${r.ref}.png"` } },
   );
 }
