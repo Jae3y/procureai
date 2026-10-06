@@ -38,7 +38,10 @@ export async function simulatedIdentityResponse(
   try {
     const text = await readFile(path.join(process.cwd(), "lib", "kora", "fixtures", "recorded", `${name}.json`), "utf8");
     const recorded = Fixture.parse(JSON.parse(text));
-    return { httpStatus: recorded.httpStatus, body: recorded.body, source: "recorded" };
+    const body = recorded.body as { data?: unknown };
+    if (!Array.isArray(body?.data) || body.data.length > 0) {
+      return { httpStatus: recorded.httpStatus, body: recorded.body, source: "recorded" };
+    }
   } catch (e) {
     const notFound = e instanceof Error && "code" in e && (e as NodeJS.ErrnoException).code === "ENOENT";
     if (!notFound) throw e;

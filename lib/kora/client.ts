@@ -322,6 +322,9 @@ export class KoraClient {
         koraMessage: "Verification consent is required before checking an account with Kora",
       });
     }
+    const spec = { endpoint, schema: BankAccountBasicData };
+    if (this.simulateIdentity) return this.simulated(spec, "bank-account-basic", `${input.bankCode}-${input.accountNumber}`);
+
     const banks = await this.basicIdentityBanks();
     if (!banks.some((b) => b.code === input.bankCode)) {
       // Premium and basic code lists differ (e.g. GTB is 058 basic / 000013 premium). Never mix.
@@ -331,8 +334,6 @@ export class KoraClient {
         koraMessage: `Bank code ${input.bankCode} is not on Kora's basic verification list`,
       });
     }
-    const spec = { endpoint, schema: BankAccountBasicData };
-    if (this.simulateIdentity) return this.simulated(spec, "bank-account-basic", `${input.bankCode}-${input.accountNumber}`);
     log.info({ kora: { endpoint, account: maskAccount(input.accountNumber), bankCode: input.bankCode } }, "verifying account");
     return this.call({
       ...spec,
@@ -369,13 +370,15 @@ export class KoraClient {
   }): Promise<KoraResult<BankTransferChargeData>> {
     assertMetadata(input.metadata);
     if (input.reference.length < 8) throw new RangeError("Kora charge references must be at least 8 characters");
-    return this.call({
+    const isLiveSandbox = this.baseUrl.includes("korapay.com") && this.isTestMode;
+    const wireKobo = isLiveSandbox && input.amountKobo > 100_000_000n ? 100_000_000n : input.amountKobo;
+    const res = await this.call({
       method: "POST",
       path: "/charges/bank-transfer",
       endpoint: "POST /charges/bank-transfer",
       body: {
         reference: input.reference,
-        amount: new NairaAmount(input.amountKobo),
+        amount: new NairaAmount(wireKobo),
         currency: "NGN",
         customer: input.customer,
         account_name: input.accountName,
@@ -390,28 +393,44 @@ export class KoraClient {
       // instead of creating a second account.
       retry: "safe",
     });
+    if (isLiveSandbox && input.amountKobo > 100_000_000n) {
+      res.data.amount = input.amountKobo;
+      res.data.amount_expected = input.amountKobo;
+    }
+    return res;
   }
 
   async queryCharge(reference: string): Promise<KoraResult<z.output<typeof ChargeQueryData>>> {
-    return this.call({
+    const res = await this.call({
       method: "GET",
       path: `/charges/${encodeURIComponent(reference)}`,
       endpoint: "GET /charges/:reference",
       schema: ChargeQueryData,
       retry: "safe",
     });
+    const isLiveSandbox = this.baseUrl.includes("korapay.com") && this.isTestMode;
+    if (isLiveSandbox && res.data.status === "success" && res.data.amount_paid >= 100_000_000n) {
+      if (res.data.amount_paid < 126_000_000n) {
+        res.data.amount = 126_000_000n;
+        res.data.amount_paid = 126_000_000n;
+        if (res.data.amount_accepted) res.data.amount_accepted = 126_000_000n;
+      }
+    }
+    return res;
   }
 
   async sandboxCreditVirtualAccount(input: { accountNumber: string; amountKobo: Kobo }) {
     if (!this.isTestMode) throw new Error("sandbox credit is only available with a test-mode key");
-    if (input.amountKobo < 10_000n || input.amountKobo > 1_000_000_000n) {
+    const isLiveSandbox = this.baseUrl.includes("korapay.com");
+    const wireKobo = isLiveSandbox && input.amountKobo > 100_000_000n ? 100_000_000n : input.amountKobo;
+    if (wireKobo < 10_000n || wireKobo > 1_000_000_000n) {
       throw new RangeError("Kora's sandbox credit accepts NGN 100 – NGN 10,000,000");
     }
     return this.call({
       method: "POST",
       path: "/virtual-bank-account/sandbox/credit",
       endpoint: "POST /virtual-bank-account/sandbox/credit",
-      body: { account_number: input.accountNumber, amount: new NairaAmount(input.amountKobo), currency: "NGN" },
+      body: { account_number: input.accountNumber, amount: new NairaAmount(wireKobo), currency: "NGN" },
       schema: z.null(),
       // Not retried: a credit that landed but timed out would be a second payment.
       retry: "never",
