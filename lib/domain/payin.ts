@@ -401,7 +401,7 @@ export async function runFollowUp(result: ApplyResult, cause: Cause): Promise<vo
 }
 
 /** Opens a new account only if the order has no PROCESSING pay-in already. */
-export async function ensureOpenPayIn(orderId: string, amountKobo: Kobo, kind: Exclude<PayInKind, "initial">, cause: Cause): Promise<PayIn | null> {
+export async function ensureOpenPayIn(orderId: string, amountKobo: Kobo, kind: PayInKind, cause: Cause): Promise<PayIn | null> {
   const open = await db().payIn.findFirst({ where: { orderId, status: "PROCESSING" } });
   if (open) return null;
   return openPayIn(orderId, amountKobo, kind, cause);

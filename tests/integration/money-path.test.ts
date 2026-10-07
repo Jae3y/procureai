@@ -215,6 +215,25 @@ describe("instalments — Kora takes at most ₦1,000,000 per one-time account",
   });
 });
 
+describe("an approval whose Kora call failed", () => {
+  it("is retried by the poller instead of leaving the buyer on 'opening' forever", async () => {
+    const f = await makeOrderFixture({ amountKobo: 84_000_000n });
+    for (let i = 0; i < 3; i++) double.next("POST /charges/bank-transfer", { status: 503 }); // every try fails, like a network blip
+    await expect(openPayIn(f.order.id, f.order.amountKobo, "initial", user)).rejects.toBeDefined();
+    expect(await status(f.order.id)).toBe("CREATED");
+    expect(await db().payIn.count({ where: { orderId: f.order.id } })).toBe(0);
+
+    await pollOnce(); // just approved: an approve may still be in flight, so leave it alone
+    expect(await db().payIn.count({ where: { orderId: f.order.id } })).toBe(0);
+
+    await pollOnce(new Date(Date.now() + 2 * 60_000));
+    const opened = await db().payIn.findFirstOrThrow({ where: { orderId: f.order.id, status: "PROCESSING" } });
+    expect(opened.amountRequestedKobo).toBe(84_000_000n);
+    expect(await status(f.order.id)).toBe("AWAITING_PAYMENT");
+    await expectMoneyInvariants(f.order.id);
+  });
+});
+
 describe("Kora's 'return all' preference reverses an overpayment too", () => {
   it("nothing is held and the buyer is told", async () => {
     double.preference = "return_all";

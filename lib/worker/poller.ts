@@ -20,6 +20,7 @@ const CHARGE_AGE_MS = 20_000;
 const PAYOUT_AGE_MS = 30_000;
 const REQUERY_GAP_MS = 10_000;
 const SELF_HEAL_GAP_MS = 60_000;
+const APPROVE_GRACE_MS = 30_000;
 
 export type PollReport = { charges: number; payouts: number; refunds: number; healed: number; errors: number };
 
@@ -113,6 +114,17 @@ async function selfHeal(now: Date): Promise<number> {
     select: { id: true },
     take: 10,
   });
+  // Approved, but Kora never gave us an account (a network blip during approve). The buyer would
+  // wait on "opening" forever, so open it again. The age gap keeps this off an approve still in flight.
+  const approvedNoAccount = await db().order.findMany({
+    where: {
+      status: "CREATED",
+      createdAt: { lt: new Date(now.getTime() - APPROVE_GRACE_MS) },
+      payIns: { none: { status: "PROCESSING" } },
+    },
+    select: { id: true, amountKobo: true },
+    take: 10,
+  });
   const instalmentNoAccount = await db().order.findMany({
     where: { status: "AWAITING_PAYMENT", amountAcceptedKobo: { gt: 0 }, payIns: { none: { status: "PROCESSING" } } },
     select: { id: true, amountKobo: true, amountAcceptedKobo: true },
@@ -125,6 +137,10 @@ async function selfHeal(now: Date): Promise<number> {
   });
 
   const jobs: Array<{ orderId: string; run: () => Promise<unknown> }> = [
+    ...approvedNoAccount.map((o) => ({
+      orderId: o.id,
+      run: () => ensureOpenPayIn(o.id, o.amountKobo, "initial", cause),
+    })),
     ...heldNoStage1.map((o) => ({ orderId: o.id, run: () => dispatchStage(o.id, "STAGE_1", cause) })),
     ...codeNoStage2.map((o) => ({ orderId: o.id, run: () => dispatchStage(o.id, "STAGE_2", cause) })),
     ...instalmentNoAccount.map((o) => ({
