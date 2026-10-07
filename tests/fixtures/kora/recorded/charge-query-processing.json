@@ -1,12 +1,12 @@
 {
   "httpStatus": 200,
-  "recordedAt": "2026-10-06T15:14:03.346Z",
+  "recordedAt": "2026-10-07T18:14:22.263Z",
   "source": "npm run preflight",
   "body": {
     "status": true,
     "message": "Charge retrieved successfully",
     "data": {
-      "reference": "PF-20261006fad98a-PA",
+      "reference": "PF-20261007f5b1e8-PA",
       "status": "processing",
       "amount": "100.00",
       "amount_paid": "0.00",
@@ -18,7 +18,7 @@
         "email": "preflight@procureai.com"
       },
       "metadata": {
-        "preflight": "20261006fad98a"
+        "preflight": "20261007f5b1e8"
       }
     }
   }

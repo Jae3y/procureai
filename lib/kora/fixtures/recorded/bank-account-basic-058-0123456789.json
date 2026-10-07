@@ -1,0 +1,23 @@
+{
+  "httpStatus": 200,
+  "recordedAt": "2026-10-07T18:13:38.738Z",
+  "source": "npm run preflight",
+  "body": {
+    "status": true,
+    "message": "Bank account verified successfully",
+    "data": {
+      "reference": "BA-ThxSKtb0nJ0jaPwj7",
+      "id": "0123456789",
+      "id_type": "ng_bank_account_basic",
+      "bank_details": {
+        "name": "Guaranty Trust Bank",
+        "code": "058"
+      },
+      "account_details": {
+        "number": "0123456789",
+        "name": "JOHN MICHAEL DOE"
+      },
+      "requested_by": "API User"
+    }
+  }
+}

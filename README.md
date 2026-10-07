@@ -51,26 +51,44 @@ The app validates the environment at boot and lists everything missing at once.
 
 ## Preflight (real Kora sandbox)
 
-`npm run preflight` runs every critical Kora call with the test key in `.env` and prints a table. The last full run
-against the real sandbox (owner's test key, 6 Oct 2026) is recorded response by response in
-`tests/fixtures/kora/recorded/` and `lib/kora/fixtures/recorded/`:
+`npm run preflight` runs every critical Kora call with the test key in `.env` and prints a table. Below is the
+unedited output of a run against the real sandbox, from the owner's laptop (every row is Kora's own answer; keys are
+never printed):
 
-| Check | Real sandbox answer |
-|---|---|
-| CAC valid (`00000011`, type `RC`) | 200 "CAC verified successfully" |
-| CAC invalid (`11111111`) | 404 "CAC data not found" |
-| Identity banks (basic) | 200 with `data: []` (empty in sandbox; see DECISIONS D-38) |
-| Balance | 200 (`available_balance` in naira) |
-| Payout 033/0000000000 (₦1,000) | 200 processing → query: success |
-| Payout 035/0000000000 (₦1,000) | 200 processing → query: failed |
-| Payout 011/9999999999 | 409 "Invalid account." |
-| Payout to identity account 058/0123456789 | 409 "Invalid account." (DECISIONS D-36) |
-| Payout below ₦1,000 | 409 "You can only transfer an amount between NGN 1000 and NGN 10000000" |
-| Bank-transfer charge (≤ ₦1,000,000) | 200 processing; query: processing |
-| Bank-transfer charge > ₦1,000,000 | 422 `amount must be less than or equal to 1000000` (DECISIONS D-37) |
+```
+ProcureAI preflight · 2026-10-07T18:13:35.485Z · run 20261007f5b1e8
+Base URL: https://api.korapay.com/merchant/api/v1
+```
+
+| Check                                            | Result | HTTP |   ms | Detail                                                                                                                   |
+|--------------------------------------------------|--------|------|------|--------------------------------------------------------------------------------------------------------------------------|
+| Kora reachable (no key → expect 401)             | PASS   | 401  |  909 | {"status":false,"error":"not_authenticated","message":"no authorization token found","data":null}                        |
+| CAC valid (RC00000011)                           | PASS   | 200  |  852 | John Doe Inc · ACTIVE · 6 key personnel · VR-TCGSjd4tgYaquSE20                                                           |
+| CAC invalid (RC11111111)                         | PASS   | 404  |  280 | rejected as expected: KoraNotFoundError "CAC data not found"                                                             |
+| Identity banks (basic)                           | FAIL   | 200  |  230 | 0 banks; 058 MISSING                                                                                                     |
+| Payout banks (/misc/banks, public key)           | PASS   | 200  |  418 | 253 banks; 058 present                                                                                                   |
+| Bank account basic (058/0123456789)              | PASS   | 200  |  269 | JOHN MICHAEL DOE · BA-ThxSKtb0nJ0jaPwj7                                                                                  |
+| Balance                                          | PASS   | 200  |  224 | NGN available ₦4,737,949.50 · pending ₦0                                                                                 |
+| Payout failure (035/0000000000)                  | PASS   | 200  |  365 | initiated, status=processing                                                                                             |
+| Payout success (033/0000000000)                  | PASS   | 200  |  383 | initiated, status=processing                                                                                             |
+| Payout invalid account (011/9999999999)          | PASS   | 409  | 1795 | rejected at initiation as expected: Invalid account.                                                                     |
+| Payout to identity test account (058/0123456789) | PASS   | 409  | 1796 | KoraValidationError: Invalid account. body={"status":false,"error":"conflict","message":"Invalid account.","data":{"stat |
+| Bank-transfer charge                             | PASS   | 200  |  488 | test_bank_transfer 1110036143 · expected ₦100 · processing                                                               |
+| Query charge                                     | PASS   | 200  |  235 | status=processing paid=₦0                                                                                                |
+
+Identity status: DEGRADED — see the failing identity rows above.
+
+The one FAIL is Kora's, not ours: in sandbox `GET /identities/ng/banks?type=basic` answers 200 with `data: []`, so
+there is no list to check bank `058` against. The app handles this on purpose: it skips its bank-code pre-check
+(logging that it did), lets Kora's own account lookup decide, and fills the vendor bank picker from the payout bank list
+(DECISIONS D-38). The preflight keeps reporting it as a FAIL so the sandbox gap stays visible.
+
+Two limits the preflight doesn't probe, recorded from real responses on 6 Oct 2026 (`lib/kora/fixtures/recorded/`):
+a payout below ₦1,000 is rejected with 409 "You can only transfer an amount between NGN 1000 and NGN 10000000", and a
+bank-transfer charge above ₦1,000,000 with 422 `amount must be less than or equal to 1000000` (DECISIONS D-37).
 
 Re-run it after any key or account change and paste the new table here. It can't run from a network that blocks
-`api.korapay.com` (BLOCKERS B-08); it then reports every row as FAIL and records nothing.
+`api.korapay.com` (BLOCKERS B-08); it then reports Kora as unreachable and records nothing.
 
 ## What's where
 

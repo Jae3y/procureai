@@ -1,6 +1,6 @@
 {
   "httpStatus": 200,
-  "recordedAt": "2026-10-06T15:13:20.558Z",
+  "recordedAt": "2026-10-07T18:13:39.363Z",
   "source": "npm run preflight",
   "body": {
     "status": true,
@@ -10,7 +10,7 @@
       "fee": "30.00",
       "currency": "NGN",
       "status": "processing",
-      "reference": "PF-20261006fad98a-PO033",
+      "reference": "PF-20261007f5b1e8-PO033",
       "message": "Payout processing",
       "customer": {
         "name": "ProcureAI Preflight",

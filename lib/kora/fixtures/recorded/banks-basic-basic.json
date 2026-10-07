@@ -1,0 +1,10 @@
+{
+  "httpStatus": 200,
+  "recordedAt": "2026-10-07T18:13:37.793Z",
+  "source": "npm run preflight",
+  "body": {
+    "status": true,
+    "message": "Banks fetched successfully",
+    "data": []
+  }
+}

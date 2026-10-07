@@ -1,6 +1,6 @@
 {
   "httpStatus": 200,
-  "recordedAt": "2026-10-06T15:13:20.207Z",
+  "recordedAt": "2026-10-07T18:13:38.975Z",
   "source": "npm run preflight",
   "body": {
     "status": true,
@@ -20,7 +20,7 @@
       },
       "NGN": {
         "pending_balance": 0,
-        "available_balance": 4999520
+        "available_balance": 4737949.5
       },
       "TZS": {
         "pending_balance": 0,
