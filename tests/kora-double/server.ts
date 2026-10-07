@@ -48,6 +48,8 @@ export class KoraDouble {
   /** When set (offline dev mode), the double POSTs signed webhooks here, as Kora does. */
   webhookTarget: string | null = null;
   private overrides = new Map<string, Override[]>();
+  /** Bumped by reset(); a request that was delayed across a reset belongs to a finished test and is dropped. */
+  private generation = 0;
 
   constructor(secretKey = process.env.KORA_SECRET_KEY ?? "sk_test_procureai_unit_tests_only", publicKey = "pk_test_procureai_unit_tests_only") {
     this.secretKey = secretKey;
@@ -71,6 +73,7 @@ export class KoraDouble {
     this.charges.clear();
     this.payouts.clear();
     this.overrides.clear();
+    this.generation += 1;
     this.availableKobo = 1_000_000_000n;
     this.preference = "accept_all";
     this.includeAccepted = true;
@@ -192,15 +195,29 @@ export class KoraDouble {
       return send(401, { status: false, error: "not_authenticated", message: "no authorization token found", data: null });
     }
 
+    // Pick (and consume) the override synchronously: sleeping while iterating the live Map would let a
+    // request from a finished test steal an override queued by the next one.
+    let hit: Override | undefined;
     for (const [route, list] of this.overrides) {
       const [m, prefix] = route.split(" ") as [string, string];
       const o = list[0];
       if (o && m === method && path.startsWith(prefix)) {
         o.times = (o.times ?? 1) - 1;
         if (o.times <= 0) list.shift();
-        if (o.delayMs) await new Promise((r) => setTimeout(r, o.delayMs));
-        if (o.status !== undefined) return send(o.status, o.body ?? { status: false, message: "Internal server error", data: null });
+        hit = o;
+        break;
       }
+    }
+    if (hit) {
+      if (hit.delayMs) {
+        const generation = this.generation;
+        await new Promise((r) => setTimeout(r, hit.delayMs));
+        if (generation !== this.generation) {
+          res.destroy();
+          return;
+        }
+      }
+      if (hit.status !== undefined) return send(hit.status, hit.body ?? { status: false, message: "Internal server error", data: null });
     }
 
     try {
