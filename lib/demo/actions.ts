@@ -91,13 +91,15 @@ export async function retryStage(orderId: string) {
  * (submitQuote → normalizeQuote → Quote row), a beat apart so they arrive one by one.
  */
 export async function deliverScriptedReplies(requestId: string, opts: { spacingMs?: number } = {}): Promise<void> {
+  const request = await db().request.findUniqueOrThrow({ where: { id: requestId }, select: { item: true, quantity: true, budgetKobo: true } });
+  const ask = { item: request.item, quantity: request.quantity, budgetKobo: request.budgetKobo };
   const vendors = await db().vendor.findMany({ where: { requestId }, include: { contact: true }, orderBy: { label: "asc" } });
   for (const v of vendors) {
     const script = DEMO_VENDORS.find((d) => d.phone === v.contactPhone);
     if (!script) continue;
     if (opts.spacingMs) await new Promise((r) => setTimeout(r, opts.spacingMs));
     await submitQuote(inviteTokenFor(requestId, v.label), {
-      reply: script.reply,
+      reply: script.reply(ask),
       businessName: script.businessName,
       rcNumber: script.rcNumber,
       bankCode: script.bankCode,

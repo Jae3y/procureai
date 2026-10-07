@@ -59,10 +59,11 @@ export class FlowDriver {
     const requestId = String(created.body.id);
 
     expect((await this.call(inviteRoute, `/api/requests/${requestId}/invite`, { id: requestId }, { body: {} })).status).toBe(201);
+    const ask = { item: "Branded T-shirts", quantity: 300, budgetKobo: 150_000_000n };
     for (const [i, v] of DEMO_VENDORS.entries()) {
       const token = inviteTokenFor(requestId, `Vendor ${String.fromCharCode(65 + i)}`);
       const r = await this.call(quoteRoute, `/api/vendors/${token}/quote`, { token }, {
-        body: { reply: v.reply, businessName: v.businessName, rcNumber: v.rcNumber, bankCode: v.bankCode, accountNumber: v.accountNumber, email: v.email, consent: true },
+        body: { reply: v.reply(ask), businessName: v.businessName, rcNumber: v.rcNumber, bankCode: v.bankCode, accountNumber: v.accountNumber, email: v.email, consent: true },
       });
       expect(r.status).toBe(201);
     }

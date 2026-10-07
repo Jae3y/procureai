@@ -25,7 +25,7 @@ const EnvSchema = z
     DATABASE_URL: z.string().startsWith("postgres"),
     AI_API_KEY: z.string().default(""),
     AI_BASE_URL: z.url().default("https://generativelanguage.googleapis.com/v1beta/openai"),
-    AI_MODEL: z.string().min(1).default("gemini-2.5-flash"),
+    AI_MODEL: z.string().min(1).default("gemini-3.8-flash"),
     APP_BASE_URL: z.url(),
     RECORD_SIGNING_SECRET: z.string().min(32, "use at least 32 random characters"),
     ADMIN_TOKEN: z.string().default(""),

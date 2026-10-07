@@ -37,11 +37,11 @@ export async function parseRequestText(rawText: string, now = new Date()) {
 
 /**
  * A fresh demo deployment starts with an empty vendor directory, which would leave "Ask vendors"
- * disabled. In DEMO_MODE only, seed the three demo vendors the first time one is needed.
+ * disabled, and a redeploy may change the demo vendors. In DEMO_MODE only, make sure the three demo
+ * vendors exist with their current details (idempotent upserts by phone).
  */
-async function seedDemoDirectoryIfEmpty(): Promise<void> {
-  if (!env().DEMO_MODE) return;
-  if ((await db().vendorContact.count()) === 0) await ensureDemoDirectory();
+async function seedDemoDirectory(): Promise<void> {
+  if (env().DEMO_MODE) await ensureDemoDirectory();
 }
 
 export async function createRequest(input: { rawText: string; buyerId: string }): Promise<Request> {
@@ -52,7 +52,7 @@ export async function createRequest(input: { rawText: string; buyerId: string })
   const d = parsed.draft;
   if (!d.item || !d.quantity || !d.budgetKobo || !d.deadline) throw new IncompleteSpecError(d, parsed.parsedBy);
 
-  await seedDemoDirectoryIfEmpty();
+  await seedDemoDirectory();
   const request = await db().request.create({
     data: {
       buyerId: input.buyerId,
@@ -81,7 +81,7 @@ export async function inviteVendors(requestId: string): Promise<Invite[]> {
   const request = await db().request.findUnique({ where: { id: requestId }, include: { vendors: true } });
   if (!request) throw new NotFoundError("Request");
   if (request.status !== "DRAFT") throw new DomainError("already_invited", "Vendors have already been asked for this request.", 409);
-  await seedDemoDirectoryIfEmpty();
+  await seedDemoDirectory();
   const contacts = await db().vendorContact.findMany({ orderBy: { createdAt: "asc" } });
   if (contacts.length === 0) throw new DomainError("no_vendors", "There are no vendors in the directory to ask yet.", 409);
 

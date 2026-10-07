@@ -49,8 +49,13 @@ export async function chatJson<S extends z.ZodType>(opts: {
   if (!e.AI_API_KEY) throw new AiUnavailableError("disabled", "AI_API_KEY is not set; using the rule-based parser");
 
   const url = `${e.AI_BASE_URL.replace(/\/+$/, "")}/chat/completions`;
+  // Gemini's current models "think" before answering (26 s vs 3 s here), which blows the request timeout
+  // and silently pushes every call to the fallback. Google's OpenAI-compatible endpoint takes
+  // reasoning_effort "none"; other providers may reject unknown fields, so it is sent to Google only.
+  const thinking = new URL(url).hostname === "generativelanguage.googleapis.com" ? { reasoning_effort: "none" } : {};
   const body = JSON.stringify({
     model: e.AI_MODEL,
+    ...thinking,
     temperature: 0,
     response_format: { type: "json_object" },
     messages: [
