@@ -35,6 +35,15 @@ export async function parseRequestText(rawText: string, now = new Date()) {
   return extractSpec(rawText.trim(), lagosDate(now));
 }
 
+/**
+ * A fresh demo deployment starts with an empty vendor directory, which would leave "Ask vendors"
+ * disabled. In DEMO_MODE only, seed the three demo vendors the first time one is needed.
+ */
+async function seedDemoDirectoryIfEmpty(): Promise<void> {
+  if (!env().DEMO_MODE) return;
+  if ((await db().vendorContact.count()) === 0) await ensureDemoDirectory();
+}
+
 export async function createRequest(input: { rawText: string; buyerId: string }): Promise<Request> {
   const rawText = input.rawText.replace(/\s+/g, " ").trim();
   if (rawText.length < 5) throw new DomainError("too_short", "Say what, how many, how much, and by when.", 400);
@@ -43,6 +52,7 @@ export async function createRequest(input: { rawText: string; buyerId: string })
   const d = parsed.draft;
   if (!d.item || !d.quantity || !d.budgetKobo || !d.deadline) throw new IncompleteSpecError(d, parsed.parsedBy);
 
+  await seedDemoDirectoryIfEmpty();
   const request = await db().request.create({
     data: {
       buyerId: input.buyerId,
@@ -71,11 +81,8 @@ export async function inviteVendors(requestId: string): Promise<Invite[]> {
   const request = await db().request.findUnique({ where: { id: requestId }, include: { vendors: true } });
   if (!request) throw new NotFoundError("Request");
   if (request.status !== "DRAFT") throw new DomainError("already_invited", "Vendors have already been asked for this request.", 409);
-  let contacts = await db().vendorContact.findMany({ orderBy: { createdAt: "asc" } });
-  if (contacts.length === 0 && env().DEMO_MODE) {
-    await ensureDemoDirectory(); // a fresh demo deployment starts with an empty directory
-    contacts = await db().vendorContact.findMany({ orderBy: { createdAt: "asc" } });
-  }
+  await seedDemoDirectoryIfEmpty();
+  const contacts = await db().vendorContact.findMany({ orderBy: { createdAt: "asc" } });
   if (contacts.length === 0) throw new DomainError("no_vendors", "There are no vendors in the directory to ask yet.", 409);
 
   const expires = new Date(request.deadline.getTime() + 14 * 86_400_000);
