@@ -2,7 +2,9 @@ import { lagosDate } from "@/lib/ai/dates";
 import { extractSpec } from "@/lib/ai/extract";
 import type { Spec, SpecDraft } from "@/lib/ai/fallback";
 import { inviteTokenFor, sha256Hex } from "@/lib/crypto";
+import { ensureDemoDirectory } from "@/lib/demo/directory";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import type { Request } from "@/lib/generated/prisma/client";
 import { DomainError, NotFoundError } from "./errors";
 import { requestEvent } from "./timeline";
@@ -69,7 +71,11 @@ export async function inviteVendors(requestId: string): Promise<Invite[]> {
   const request = await db().request.findUnique({ where: { id: requestId }, include: { vendors: true } });
   if (!request) throw new NotFoundError("Request");
   if (request.status !== "DRAFT") throw new DomainError("already_invited", "Vendors have already been asked for this request.", 409);
-  const contacts = await db().vendorContact.findMany({ orderBy: { createdAt: "asc" } });
+  let contacts = await db().vendorContact.findMany({ orderBy: { createdAt: "asc" } });
+  if (contacts.length === 0 && env().DEMO_MODE) {
+    await ensureDemoDirectory(); // a fresh demo deployment starts with an empty directory
+    contacts = await db().vendorContact.findMany({ orderBy: { createdAt: "asc" } });
+  }
   if (contacts.length === 0) throw new DomainError("no_vendors", "There are no vendors in the directory to ask yet.", 409);
 
   const expires = new Date(request.deadline.getTime() + 14 * 86_400_000);

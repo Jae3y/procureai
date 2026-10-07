@@ -11,6 +11,7 @@
 import "dotenv/config";
 import { db, disconnectDb } from "@/lib/db";
 import { deliverScriptedReplies } from "@/lib/demo/actions";
+import { ensureDemoDirectory } from "@/lib/demo/directory";
 import { DEMO_BUYER, DEMO_REQUEST_TEXT, DEMO_VENDORS } from "@/lib/demo/script";
 import { createRequest, inviteVendors } from "@/lib/domain/requests";
 import { setSetting } from "@/lib/domain/settings";
@@ -26,13 +27,7 @@ async function main() {
   if (!e.DEMO_MODE) throw new Error("DEMO_MODE must be true to reset the demo");
 
   // Directory: exactly the three demo vendors.
-  for (const v of DEMO_VENDORS) {
-    await db().vendorContact.upsert({
-      where: { phone: v.phone },
-      create: { businessName: v.businessName, phone: v.phone, category: v.category, city: v.city },
-      update: { businessName: v.businessName, category: v.category, city: v.city },
-    });
-  }
+  await ensureDemoDirectory();
   const unused = await db().vendorContact.findMany({ where: { phone: { notIn: DEMO_VENDORS.map((v) => v.phone) }, vendors: { none: {} } } });
   if (unused.length) await db().vendorContact.deleteMany({ where: { id: { in: unused.map((u) => u.id) } } });
 
