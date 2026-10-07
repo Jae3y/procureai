@@ -96,7 +96,7 @@ export async function chatJson<S extends z.ZodType>(opts: {
     } catch (err) {
       if (err instanceof AiUnavailableError) throw err;
       const timedOut = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
-      last = new AiUnavailableError(timedOut ? "timeout" : "http", `${opts.task}: ${timedOut ? "AI timed out" : `AI request failed: ${String(err)}`}`);
+      last = new AiUnavailableError(timedOut ? "timeout" : "http", `${opts.task}: ${timedOut ? "AI timed out" : `AI request failed: ${String(err)}${err instanceof Error && err.cause instanceof Error ? ` (${err.cause.message})` : ""}`}`);
       log.warn({ ai: { task: opts.task, attempt, error: last.message } }, "ai request failed");
     }
     if (attempt < 3) await new Promise((r) => setTimeout(r, 300 * attempt + randomInt(0, 200)));

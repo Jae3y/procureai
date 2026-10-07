@@ -117,6 +117,16 @@ const SuccessEnvelope = z.object({ status: z.literal(true), message: z.string().
 
 const ACCESS_HINT =/not (been )?(enabled|activated|available|permitted|allowed)|no access|access denied|permission|not authori[sz]ed for|upgrade/i;
 
+/** `fetch failed` alone hides the cause (DNS, refused, reset, TLS); name it so a log line is enough to diagnose. */
+function describeNetworkError(e: unknown): string {
+  const cause = e instanceof Error ? e.cause : undefined;
+  if (cause instanceof Error) {
+    const code = "code" in cause && typeof cause.code === "string" ? `${cause.code}: ` : "";
+    return `${String(e)} (${code}${cause.message})`;
+  }
+  return String(e);
+}
+
 export class KoraClient {
   private readonly baseUrl: string;
   private readonly secretKey: string;
@@ -189,7 +199,7 @@ export class KoraClient {
         const latencyMs = Math.round(performance.now() - started);
         const timedOut = e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError");
         lastError = new KoraTimeoutError(
-          timedOut ? `${spec.endpoint} timed out after ${this.timeoutMs}ms` : `${spec.endpoint} network error: ${String(e)}`,
+          timedOut ? `${spec.endpoint} timed out after ${this.timeoutMs}ms` : `${spec.endpoint} network error: ${describeNetworkError(e)}`,
           errInit(),
         );
         log.warn({ kora: { koraCallId, endpoint: spec.endpoint, attempt, latencyMs, error: lastError.message } }, "kora network failure");
