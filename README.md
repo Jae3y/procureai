@@ -1,137 +1,83 @@
 # ProcureAI
 
-Buy in bulk with one sentence. **The AI chooses; Kora makes the choice safe.**
+**Buy in bulk with one sentence. The AI chooses; Kora makes the choice safe.**
 
-A buyer types *"300 branded T-shirts, under ₦1.5m, delivered by 23 October"*. Vendors reply in their own words; ProcureAI turns
-messy replies into comparable rows. **Kora** verifies every vendor is a real registered business **and** that its payout account
-belongs to that business or one of its directors — unverified vendors can't be recommended or paid. The buyer approves once and
-pays into a one-time Kora account; the money is **held**; the vendor gets **30%** when it's held and **70%** when the buyer's
-6-digit handover code is entered at delivery. Every purchase ends in a shareable record carrying real Kora references.
+**Try it live → [procureai-six.vercel.app/buy](https://procureai-six.vercel.app/buy)** (runs on Kora's sandbox, so every naira is test money)
 
-Remove Kora and there is no product: Kora gates the recommendation (identity), holds the money (bank-transfer pay-in) and
-releases it (payouts), and every state change is confirmed against Kora (webhooks + re-query).
+> *"300 branded T-shirts, under ₦1.5m, delivered by 23 October."*
 
-> Handing over to another agent? Start with **[HANDOFF.md](HANDOFF.md)**.
+That one sentence is the whole interface. ProcureAI asks vendors for quotes, reads their messy replies into one comparable
+table, checks every vendor with Kora, recommends one, takes the payment, holds the money, and pays the vendor only as the
+goods arrive. It ends in a record anyone can verify.
 
-## Quick start
+## The problem
 
-Requirements: Node ≥ 20.11, Docker Desktop.
+Bulk buying in Nigeria runs on WhatsApp voice notes, "send half now", and trust. A buyer compares prices that arrive in
+different shapes, pays a stranger up front, and has no proof afterwards. The cheapest quote is often the one that isn't real.
 
-```bash
-npm install
-cp .env.example .env          # then fill in the Kora/AI keys (see below)
-npm run db:up                 # Postgres 16 on localhost:5434 (+ a procureai_test database)
-npx prisma migrate deploy && npx prisma generate
-npm test                      # 222 unit + integration tests (real Postgres, Kora test double)
-```
+## What happens
 
-### Run it
-
-| Command | What it does |
-|---|---|
-| `npm run dev:offline` | No keys needed. App + a **Kora test double** (replays Kora's documented responses and sends signed webhooks), demo data reset. A red **OFFLINE** banner is on every page. |
-| `npm run dev` | The real thing: talks to the **Kora sandbox** with your test key. |
-| `npm run demo:reset` | Prepares the demo scenario in < 1 s and prints the buyer, admin and vendor-phone URLs. |
-| `npm run preflight` | Calls every Kora endpoint ProcureAI uses with your test key; prints PASS/FAIL/SKIPPED with latency. |
-| `npm run test:sandbox` | The full purchase against the real Kora sandbox (skips loudly without a key). |
-
-Open `http://localhost:3000/demo` (buyer), `/admin` (controls, events, reconciliation), and the vendor link on a phone.
-
-### Keys (`.env`)
-
-| Variable | Where from |
-|---|---|
-| `KORA_SECRET_KEY`, `KORA_PUBLIC_KEY` | Kora dashboard → **Test mode** → Settings → API Configuration (`sk_test_…`, `pk_test_…`) |
-| `KORA_WEBHOOK_URL` | Your public HTTPS URL + `/api/webhooks/kora` (e.g. ngrok static domain). Paste the same URL into Kora dashboard → API Configuration → Webhook URL. |
-| `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` | Any OpenAI-compatible API. Free: Google AI Studio (Gemini) or Groq. Leave the key empty to use the rule-based parser (UI shows "read by rules"). |
-| `DATABASE_URL`, `RECORD_SIGNING_SECRET`, `APP_BASE_URL` | Pre-filled for local use. |
-| `DEMO_MODE`, `SIMULATE_IDENTITY`, `ENABLE_CHECKOUT_REDIRECT`, `ADMIN_TOKEN` | Flags. `ADMIN_TOKEN` is required when `DEMO_MODE=false`. |
-
-The app validates the environment at boot and lists everything missing at once.
-
-## Preflight (real Kora sandbox)
-
-`npm run preflight` runs every critical Kora call with the test key in `.env` and prints a table. Below is the
-unedited output of a run against the real sandbox, from the owner's laptop (every row is Kora's own answer; keys are
-never printed):
-
-```
-ProcureAI preflight · 2026-10-07T18:13:35.485Z · run 20261007f5b1e8
-Base URL: https://api.korapay.com/merchant/api/v1
-```
-
-| Check                                            | Result | HTTP |   ms | Detail                                                                                                                   |
-|--------------------------------------------------|--------|------|------|--------------------------------------------------------------------------------------------------------------------------|
-| Kora reachable (no key → expect 401)             | PASS   | 401  |  909 | {"status":false,"error":"not_authenticated","message":"no authorization token found","data":null}                        |
-| CAC valid (RC00000011)                           | PASS   | 200  |  852 | John Doe Inc · ACTIVE · 6 key personnel · VR-TCGSjd4tgYaquSE20                                                           |
-| CAC invalid (RC11111111)                         | PASS   | 404  |  280 | rejected as expected: KoraNotFoundError "CAC data not found"                                                             |
-| Identity banks (basic)                           | FAIL   | 200  |  230 | 0 banks; 058 MISSING                                                                                                     |
-| Payout banks (/misc/banks, public key)           | PASS   | 200  |  418 | 253 banks; 058 present                                                                                                   |
-| Bank account basic (058/0123456789)              | PASS   | 200  |  269 | JOHN MICHAEL DOE · BA-ThxSKtb0nJ0jaPwj7                                                                                  |
-| Balance                                          | PASS   | 200  |  224 | NGN available ₦4,737,949.50 · pending ₦0                                                                                 |
-| Payout failure (035/0000000000)                  | PASS   | 200  |  365 | initiated, status=processing                                                                                             |
-| Payout success (033/0000000000)                  | PASS   | 200  |  383 | initiated, status=processing                                                                                             |
-| Payout invalid account (011/9999999999)          | PASS   | 409  | 1795 | rejected at initiation as expected: Invalid account.                                                                     |
-| Payout to identity test account (058/0123456789) | PASS   | 409  | 1796 | KoraValidationError: Invalid account. body={"status":false,"error":"conflict","message":"Invalid account.","data":{"stat |
-| Bank-transfer charge                             | PASS   | 200  |  488 | test_bank_transfer 1110036143 · expected ₦100 · processing                                                               |
-| Query charge                                     | PASS   | 200  |  235 | status=processing paid=₦0                                                                                                |
-
-Identity status: DEGRADED — see the failing identity rows above.
-
-The one FAIL is Kora's, not ours: in sandbox `GET /identities/ng/banks?type=basic` answers 200 with `data: []`, so
-there is no list to check bank `058` against. The app handles this on purpose: it skips its bank-code pre-check
-(logging that it did), lets Kora's own account lookup decide, and fills the vendor bank picker from the payout bank list
-(DECISIONS D-38). The preflight keeps reporting it as a FAIL so the sandbox gap stays visible.
-
-Two limits the preflight doesn't probe, recorded from real responses on 6 Oct 2026 (`lib/kora/fixtures/recorded/`):
-a payout below ₦1,000 is rejected with 409 "You can only transfer an amount between NGN 1000 and NGN 10000000", and a
-bank-transfer charge above ₦1,000,000 with 422 `amount must be less than or equal to 1000000` (DECISIONS D-37).
-
-Re-run it after any key or account change and paste the new table here. It can't run from a network that blocks
-`api.korapay.com` (BLOCKERS B-08); it then reports Kora as unreachable and records nothing.
-
-## What's where
-
-- **Product & money path**: `lib/domain/` (state machine, matching rule, pay-in, payouts, handover, refunds), `lib/kora/` (the only Kora client), `lib/webhooks/`, `lib/worker/` (outbox + reconciliation poller).
-- **Invariants in the database**: `prisma/migrations/*_invariants/migration.sql` (I1–I8).
-- **UI**: `app/` + `components/`, built from `ProcureAI design system/design_handoff_procureai/`.
-- **Docs**: [VERIFIED_ENDPOINTS.md](VERIFIED_ENDPOINTS.md) · [ARCHITECTURE.md](ARCHITECTURE.md) · [DEMO.md](DEMO.md) · [DECISIONS.md](DECISIONS.md) · [BLOCKERS.md](BLOCKERS.md) · [KORA_FEEDBACK.md](KORA_FEEDBACK.md)
-
-## Tests
-
-| Suite | Command | What |
+| | Step | What the buyer sees |
 |---|---|---|
-| Unit | `npm run test:unit` | matching table, money split (exhaustive), state machine, signature, Kora client retry/error policy, Zod rejection, AI golden tests |
-| Integration | `npm run test:integration` | every invariant attacked through the DB, money path, webhooks (valid/tampered/duplicate/out-of-order/never-5xx), outbox backoff, concurrency races, property tests, the full headless flow |
-| Sandbox | `npm run test:sandbox` | the same flow against the real Kora sandbox |
+| 1 | **Ask** | One sentence. Vendors reply in their own words; ProcureAI turns "boss good evening, 300 pcs i go do am 3900 per one" into a clean row. Totals are computed in code, never by the model. |
+| 2 | **Check** | Kora confirms each vendor is a registered business **and** that the payout account belongs to that business or one of its directors. A vendor that fails is struck through with Kora's reason, and cannot be approved or paid. |
+| 3 | **Approve** | One click. Kora opens a one-time bank account for this purchase only. |
+| 4 | **Pay** | The buyer transfers from any bank app. ProcureAI re-asks Kora how much actually arrived before crediting a single kobo. Kora caps one account at ₦1,000,000, so a ₦1.26m order is paid as two honest transfers. |
+| 5 | **Hold** | The money sits held. 30% goes to the vendor now, so they can start work. |
+| 6 | **Deliver** | The buyer gets a 6-digit code. The vendor types it on delivery and the remaining 70% is released. |
+| 7 | **Record** | A shareable page lists every naira in and out with its Kora reference, and ends on **Left unaccounted: ₦0**. It saves as an image. |
 
-## Deploy
+## Why Kora is the product, not a plug-in
 
-Runs on Vercel + hosted Postgres with no code changes: `instrumentation.ts` runs the background loop only on long-running
-servers; on Vercel the same `tick()` is driven by `/api/cron/tick` (protected by `CRON_SECRET`), `after()` on webhook
-receipt, and open SSE streams.
+Take Kora out and ProcureAI stops existing: Kora **gates** the recommendation (identity), **holds** the money (one-time
+bank-transfer accounts) and **releases** it (payouts). Every state change is confirmed against Kora twice, by signed
+webhook and by asking Kora directly.
 
-**What the code already does for a shared demo**
-- `npm run vercel-build` (Vercel runs it instead of `build`) = `prisma generate && prisma migrate deploy && next build`, so
-  every deploy applies the migrations, invariant triggers included.
-- `vercel.json` schedules the cron **daily** (Vercel Hobby allows no more). The poller and self-heal want a tick every
-  minute, so add a free external pinger (below). Webhooks and open pages still tick on their own.
-- With `DEMO_MODE=true` **and** `ADMIN_TOKEN` set, the demo is safe to share: `/admin` and the global demo controls
-  need the token; each visitor to `/buy` or `/demo` gets a buyer of their own (scripted vendors reply to every request);
-  the sandbox "Transfer" buttons work on the visitor's own order only; the tracker links to the vendor's phone.
-  Without `ADMIN_TOKEN`, `DEMO_MODE` is the single-presenter local demo (admin open to all).
+| Kora capability | Used for |
+|---|---|
+| CAC business verification | Is this vendor a real, active registered company? |
+| Bank account verification | Does the payout account belong to the company or a director? (name matching rule below) |
+| Bank-transfer charges + charge query | The one-time pay-in account, and the truth about what was paid |
+| Payouts + payout query | Stage 1 (30%) and Stage 2 (70%) to the vendor, each with its own reference |
+| Balances and balance history | Pre-flight funds check, and a reconciliation screen that matches Kora's ledger to ours |
+| Webhooks | Signed events, verified over the raw bytes, stored first, processed after |
+| Refunds | Overpayments and reversals |
 
-**Owner steps (keys are entered by the owner only)**
-1. vercel.com → sign in with GitHub → **Add New → Project** → import `Jae3y/procureai`.
-2. **Storage → Create → Neon Postgres** (free) → connect it to the project (sets `DATABASE_URL`).
-3. **Settings → Environment Variables**: `KORA_SECRET_KEY`, `KORA_PUBLIC_KEY`,
-   `KORA_BASE_URL=https://api.korapay.com/merchant/api/v1`, `KORA_WEBHOOK_URL=https://<project>.vercel.app/api/webhooks/kora`,
-   `APP_BASE_URL=https://<project>.vercel.app`, `RECORD_SIGNING_SECRET` (32+ random chars), `ADMIN_TOKEN` (24+ random
-   chars), `CRON_SECRET` (random), `DEMO_MODE=true`, `SIMULATE_IDENTITY=false`, `ENABLE_CHECKOUT_REDIRECT=false`,
-   `AI_API_KEY` / `AI_BASE_URL` / `AI_MODEL` (optional; empty = rule-based parser). → **Deploy**.
-4. Kora dashboard → Settings → API Configuration → webhook URL = the same `KORA_WEBHOOK_URL`.
-5. Seed the vendor directory once: locally, `DATABASE_URL=<Neon URL> npm run demo:reset`.
-6. Free pinger: cron-job.org → new cron job → URL `https://<project>.vercel.app/api/cron/tick`, every minute,
-   method GET, header `Authorization: Bearer <CRON_SECRET>`.
-7. Check on the live URL: `/api/health` (public: up/down; with `Authorization: Bearer <ADMIN_TOKEN>`, balance and details); a full purchase from `/buy` to the record page; the PNG at `/r/<id>/image`;
-   a webhook arriving (admin page, after signing in with `ADMIN_TOKEN`); the pinger's job history showing 200s.
+The sandbox-verified behaviour of each endpoint, including the parts Kora's docs don't mention, is in
+[VERIFIED_ENDPOINTS.md](VERIFIED_ENDPOINTS.md) and [KORA_FEEDBACK.md](KORA_FEEDBACK.md).
+
+## Built to be trusted with money
+
+- **Rules live in the database, not just the code.** Eight invariants are enforced by Postgres triggers and constraints:
+  an order can't be paid without a verified vendor, the ledger can't go out of balance, a payout can't exceed what is held.
+  Tests attack each one by writing straight to the tables to try to break it.
+- **Truthful amounts.** The buyer is credited only from Kora's re-queried figure, never from a webhook body.
+- **Money is exact.** Integer kobo end to end; there is no floating-point money anywhere on the server.
+- **Safe when things go wrong.** Duplicate, out-of-order, forged and missing webhooks; Kora timeouts; unknown payout
+  outcomes; double-clicks and races. Each has a defined behaviour and a test, and all of them can be triggered on
+  demand from the admin page.
+- **The AI is fenced.** A model reads messy text, but every number it returns must appear in the vendor's message, the
+  ranker never sees vendor free text, and a deterministic parser takes over if the model is down.
+- **Nothing is silently simulated.** Any simulated path shows a visible badge.
+
+**243 automated tests** (unit, integration against a real Postgres, and Playwright end to end), plus a suite that runs the
+full purchase against the real Kora sandbox.
+
+## See it in 90 seconds
+
+1. Open **[/buy](https://procureai-six.vercel.app/buy)**, press Continue, then **Ask vendors**. Three vendors reply.
+2. **Check vendors with Kora.** One is struck through. The cheapest vendor isn't a registered business.
+3. **Approve**, then use the sandbox strip to make the transfer(s).
+4. **Open tracker**, then **Open vendor's phone**, and type the buyer's 6-digit code.
+5. **Open record.** Every reference, and ₦0 unaccounted.
+
+The click-by-click script, with every failure state you can trigger on demand, is in [DEMO.md](DEMO.md).
+
+## How it's built
+
+Next.js (App Router, TypeScript strict) · Postgres + Prisma · Zod on every boundary · server-sent events for live
+screens · Vercel-ready. One module, `lib/kora/`, is the only code that talks to Kora.
+Read [ARCHITECTURE.md](ARCHITECTURE.md) for the state machine, the webhook path and the concurrency rules, and
+[DECISIONS.md](DECISIONS.md) for why each non-obvious choice was made.
+
+To run it yourself, including offline with no keys: [docs/SETUP.md](docs/SETUP.md).
