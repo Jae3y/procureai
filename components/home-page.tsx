@@ -97,7 +97,7 @@ function parseText(t: string): ParsedRequest {
 }
 
 /** Landing tagline: edit here. */
-const TAGLINE = "Your tagline here.";
+const TAGLINE = "Buy like you checked everyone. Because we did.";
 
 export function HomePage() {
   const router = useRouter();
@@ -589,7 +589,7 @@ export function HomePage() {
       {/* Closing Call-to-Action */}
       <section style={{ borderTop: "1px solid var(--hairline)" }}>
         <div style={{ maxWidth: "var(--max)", margin: "0 auto", padding: "clamp(112px, 14vh, 200px) var(--gutter)", boxSizing: "border-box", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
-          <h2 className="headline" style={{ fontSize: "clamp(56px, 8vw, 156px)", lineHeight: 0.88, maxWidth: "11ch" }}>
+          <h2 className="headline" style={{ fontSize: "clamp(44px, 6.4vw, 124px)", lineHeight: 0.92, maxWidth: "15ch" }}>
             {TAGLINE}
           </h2>
           <p className="body-lg" style={{ marginTop: 32, color: "var(--muted)", maxWidth: "40ch" }}>
