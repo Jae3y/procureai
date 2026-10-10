@@ -96,6 +96,9 @@ function parseText(t: string): ParsedRequest {
   };
 }
 
+/** Landing tagline: edit here. */
+const TAGLINE = "Your tagline here.";
+
 export function HomePage() {
   const router = useRouter();
   const [mode, setMode] = useState<"buy" | "sell">("buy");
@@ -587,7 +590,7 @@ export function HomePage() {
       <section style={{ borderTop: "1px solid var(--hairline)" }}>
         <div style={{ maxWidth: "var(--max)", margin: "0 auto", padding: "clamp(112px, 14vh, 200px) var(--gutter)", boxSizing: "border-box", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center" }}>
           <h2 className="headline" style={{ fontSize: "clamp(56px, 8vw, 156px)", lineHeight: 0.88, maxWidth: "11ch" }}>
-            Buy it once. Prove it forever.
+            {TAGLINE}
           </h2>
           <p className="body-lg" style={{ marginTop: 32, color: "var(--muted)", maxWidth: "40ch" }}>
             Every purchase ends on a record you can drop into the group chat.
@@ -610,9 +613,6 @@ export function HomePage() {
           <span style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
             <Link href="/demo" style={{ color: "var(--muted)" }}>
               Demo scenario
-            </Link>
-            <Link href="/admin" style={{ color: "var(--muted)" }}>
-              Admin console
             </Link>
             <span>Payments and identity checks by Kora</span>
           </span>
