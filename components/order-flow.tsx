@@ -84,6 +84,18 @@ function CopyButton({ text, label, done }: { text: string | null; label: string;
 
 function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
   const recheck = useAction(`/api/orders/${v.id}/recheck`);
+  const [checkedNote, setCheckedNote] = useState<string | null>(null);
+  const askKora = async () => {
+    const r = await recheck.run();
+    if (!r.ok) return;
+    const checked = (r.data as { checked?: Array<{ changed: boolean }> }).checked ?? [];
+    const at = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    setCheckedNote(
+      checked.some((c) => c.changed)
+        ? `Kora confirmed a payment at ${at}.`
+        : `Asked Kora at ${at}: no payment has arrived in this account yet. Banks can take a minute; this page updates by itself when it lands.`,
+    );
+  };
   const countdown = useCountdown(v.pay.state === "open" || v.pay.state === "short" ? v.pay.expiresAt : null);
   const p = v.pay;
 
@@ -194,7 +206,7 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
         </div>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <CopyButton text={p.accountNumber} label="Copy number" done="Copied" />
-          <button type="button" className="btn btn-sm" disabled={recheck.pending} onClick={() => void recheck.run()}>
+          <button type="button" className="btn btn-sm" disabled={recheck.pending} onClick={() => void askKora()}>
             {recheck.pending ? <Spinner label="Asking Kora" /> : "I've sent it"}
           </button>
         </div>
@@ -210,7 +222,7 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
         </p>
       ) : null}
       <div aria-live="polite">
-        {recheck.error ? <p className="form-error">{recheck.error.message}</p> : null}
+        {recheck.error ? <p className="form-error">{recheck.error.message}</p> : checkedNote ? <p className="note" style={{ marginTop: 16 }}>{checkedNote}</p> : null}
       </div>
     </section>
   );

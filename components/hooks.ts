@@ -107,5 +107,6 @@ export function useCountdown(iso: string | null): string | null {
   }, [iso]);
   if (!iso || now === null) return null;
   const secs = Math.max(0, Math.floor((Date.parse(iso) - now) / 1000));
+  if (secs >= 3600) return `${Math.floor(secs / 3600)}h ${String(Math.floor((secs % 3600) / 60)).padStart(2, "0")}m`;
   return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
 }

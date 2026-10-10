@@ -6,8 +6,8 @@
 
 > *"300 branded T-shirts, under ₦1.5m, delivered by 23 October."*
 
-That one sentence is the whole interface. ProcureAI asks vendors for quotes, reads their messy replies into one comparable
-table, checks every vendor with Kora, recommends one, takes the payment, holds the money, and pays the vendor only as the
+That one sentence is the whole interface. ProcureAI searches its vendor market for the suppliers that sell what was asked,
+reads their messy replies into one comparable table, checks every vendor with Kora, recommends one, takes the payment, holds the money, and pays the vendor only as the
 goods arrive. It ends in a record anyone can verify.
 
 ## The problem
@@ -19,7 +19,7 @@ different shapes, pays a stranger up front, and has no proof afterwards. The che
 
 | | Step | What the buyer sees |
 |---|---|---|
-| 1 | **Ask** | One sentence. Vendors reply in their own words; ProcureAI turns "boss good evening, 300 pcs i go do am 3900 per one" into a clean row. Totals are computed in code, never by the model. |
+| 1 | **Ask** | One sentence. ProcureAI shortlists up to eight vendors that sell that item and asks them all. They reply in their own words, at their own pace (some decline, some never answer); ProcureAI turns "boss good evening, 300 pcs i go do am 3900 per one" into a clean row. Totals are computed in code, never by the model. |
 | 2 | **Check** | Kora confirms each vendor is a registered business **and** that the payout account belongs to that business or one of its directors. A vendor that fails is struck through with Kora's reason, and cannot be approved or paid. |
 | 3 | **Approve** | One click. Kora opens a one-time bank account for this purchase only. |
 | 4 | **Pay** | The buyer transfers from any bank app. ProcureAI re-asks Kora how much actually arrived before crediting a single kobo. Kora caps one account at ₦1,000,000, so a ₦1.26m order is paid as two honest transfers. |
@@ -43,9 +43,6 @@ webhook and by asking Kora directly.
 | Webhooks | Signed events, verified over the raw bytes, stored first, processed after |
 | Refunds | Overpayments and reversals |
 
-The sandbox-verified behaviour of each endpoint, including the parts Kora's docs don't mention, is in
-[VERIFIED_ENDPOINTS.md](VERIFIED_ENDPOINTS.md) and [KORA_FEEDBACK.md](KORA_FEEDBACK.md).
-
 ## Built to be trusted with money
 
 - **Rules live in the database, not just the code.** Eight invariants are enforced by Postgres triggers and constraints:
@@ -60,24 +57,34 @@ The sandbox-verified behaviour of each endpoint, including the parts Kora's docs
   ranker never sees vendor free text, and a deterministic parser takes over if the model is down.
 - **Nothing is silently simulated.** Any simulated path shows a visible badge.
 
-**243 automated tests** (unit, integration against a real Postgres, and Playwright end to end), plus a suite that runs the
+**252 automated tests** (unit, integration against a real Postgres, and Playwright end to end), plus a suite that runs the
 full purchase against the real Kora sandbox.
 
 ## See it in 90 seconds
 
-1. Open **[/buy](https://procureai-six.vercel.app/buy)**, press Continue, then **Ask vendors**. Three vendors reply.
+1. Open **[/buy](https://procureai-six.vercel.app/buy)**, type anything you'd buy in bulk, press Continue, then **Ask vendors**. Replies arrive one by one.
 2. **Check vendors with Kora.** One is struck through. The cheapest vendor isn't a registered business.
 3. **Approve**, then use the sandbox strip to make the transfer(s).
 4. **Open tracker**, then **Open vendor's phone**, and type the buyer's 6-digit code.
 5. **Open record.** Every reference, and ₦0 unaccounted.
 
-The click-by-click script, with every failure state you can trigger on demand, is in [DEMO.md](DEMO.md).
+The click-by-click script, with every failure state you can trigger on demand, is in [docs/DEMO.md](docs/DEMO.md).
 
 ## How it's built
 
 Next.js (App Router, TypeScript strict) · Postgres + Prisma · Zod on every boundary · server-sent events for live
-screens · Vercel-ready. One module, `lib/kora/`, is the only code that talks to Kora.
-Read [ARCHITECTURE.md](ARCHITECTURE.md) for the state machine, the webhook path and the concurrency rules, and
-[DECISIONS.md](DECISIONS.md) for why each non-obvious choice was made.
+screens · deployed on Vercel. One module, `lib/kora/`, is the only code that talks to Kora.
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) covers the state machine, the webhook path and the concurrency rules.
 
-To run it yourself, including offline with no keys: [docs/SETUP.md](docs/SETUP.md).
+## Run it yourself
+
+Needs Node 20+ and Docker. No keys required: the offline mode replays Kora's documented responses and shows a
+red **OFFLINE** banner on every page.
+
+```bash
+npm install
+npm run db:up                         # Postgres in Docker
+npx prisma migrate deploy
+npm run dev:offline                   # http://localhost:3000/demo
+npm test                              # 252 unit + integration tests
+```

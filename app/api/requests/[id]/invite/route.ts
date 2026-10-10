@@ -8,8 +8,9 @@ import { requireBuyerOfRequest } from "@/lib/http/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // scripted replies are parsed (AI) after the response
 
-/** POST /api/requests/:id/invite — ask every vendor in the directory. */
+/** POST /api/requests/:id/invite — ask the directory vendors that match the item. */
 export const POST = route<undefined, { id: string }>({ name: "requests.invite", input: Empty, idempotent: true }, async ({ params, req }) => {
   await requireBuyerOfRequest(req, params.id);
   const invites = await inviteVendors(params.id);

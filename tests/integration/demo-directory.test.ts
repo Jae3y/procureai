@@ -20,13 +20,14 @@ async function draftRequest() {
 }
 
 describe("a fresh deployment's empty vendor directory", () => {
-  it("in demo mode the first invite seeds the three demo vendors", async () => {
+  it("in demo mode the first invite seeds the demo vendor directory and asks a shortlist", async () => {
     setDemoMode(true);
     await db().vendorContact.deleteMany();
     const request = await draftRequest();
     const invites = await inviteVendors(request.id);
-    expect(invites.map((i) => i.businessName).sort()).toEqual(DEMO_VENDORS.map((v) => v.businessName).sort());
-    expect(await db().vendorContact.count()).toBe(DEMO_VENDORS.length);
+    expect(await db().vendorContact.count()).toBe(DEMO_VENDORS.length); // the whole market is in the directory
+    expect(invites.length).toBeLessThanOrEqual(8); // only the shortlist for this item is asked
+    expect(invites.map((i) => i.businessName)).toEqual(expect.arrayContaining(["Mama Tobi Trading", "Kwik Supplies", "Imole Wholesale Ltd"]));
   });
 
   it("in demo mode creating a request seeds them too, so the page can offer 'Ask vendors'", async () => {

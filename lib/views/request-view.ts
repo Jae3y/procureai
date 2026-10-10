@@ -1,5 +1,6 @@
 import { FLAG_COPY, type QuoteFlag } from "@/lib/ai/fallback";
 import { inviteTokenFor } from "@/lib/crypto";
+import { shortlist } from "@/lib/domain/sourcing";
 import { db } from "@/lib/db";
 import { NotFoundError } from "@/lib/domain/errors";
 import { latestVerifications } from "@/lib/domain/recommend";
@@ -60,6 +61,7 @@ export type RequestView = {
   spec: { item: string; quantity: string; budget: string; deadline: string };
   specParsedBy: "AI" | "FALLBACK";
   directoryCount: number;
+  directoryTotal: number;
   invitedAt: string | null;
   invitedCount: number;
   repliedCount: number;
@@ -113,8 +115,8 @@ export async function buildRequestView(requestId: string, opts: { includeInvites
     },
   });
   if (!request) throw new NotFoundError("Request");
-  const [directoryCount, events, latest] = await Promise.all([
-    db().vendorContact.count(),
+  const [directory, events, latest] = await Promise.all([
+    db().vendorContact.findMany({ select: { id: true, category: true, createdAt: true } }),
     db().requestEvent.findMany({ where: { requestId }, orderBy: { id: "asc" } }),
     latestVerifications(request.vendors.map((v) => v.id)),
   ]);
@@ -201,7 +203,8 @@ export async function buildRequestView(requestId: string, opts: { includeInvites
       deadline: civilDay(request.deadline),
     },
     specParsedBy: request.specParsedBy,
-    directoryCount,
+    directoryCount: shortlist(directory, request.item).length,
+    directoryTotal: directory.length,
     invitedAt: invitedEvent ? lagosTime(invitedEvent.createdAt) : null,
     invitedCount: request.vendors.length,
     repliedCount: quotes.length,

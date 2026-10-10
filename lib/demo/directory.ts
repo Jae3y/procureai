@@ -10,8 +10,8 @@ export async function ensureDemoDirectory(): Promise<void> {
   for (const v of DEMO_VENDORS) {
     await db().vendorContact.upsert({
       where: { phone: v.phone },
-      create: { businessName: v.businessName, phone: v.phone, category: v.category, city: v.city },
-      update: { businessName: v.businessName, category: v.category, city: v.city },
+      create: { businessName: v.businessName, phone: v.phone, category: v.tags, city: v.city },
+      update: { businessName: v.businessName, category: v.tags, city: v.city },
     });
   }
 }

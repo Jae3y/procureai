@@ -74,11 +74,13 @@ function scriptedModel(answer: (task: string, user: string) => unknown, counter?
 
 beforeEach(() => {
   process.env.AI_API_KEY = "";
+  process.env.AI_BACKUP_API_KEY = "";
   resetEnvCache();
 });
 afterEach(() => {
   setAiFetchForTests(undefined);
   process.env.AI_API_KEY = "";
+  process.env.AI_BACKUP_API_KEY = "";
   resetEnvCache();
 });
 
@@ -108,6 +110,7 @@ describe("golden — deterministic fallback (no AI key)", () => {
 describe("golden — AI path, fenced by the server", () => {
   beforeEach(() => {
     process.env.AI_API_KEY = "test-key";
+    process.env.AI_BACKUP_API_KEY = "";
     resetEnvCache();
   });
 
@@ -200,6 +203,7 @@ describe("reviewAndRank — the AI chooses, Kora makes the choice safe", () => {
 
   it("a model that picks the unverified vendor is overruled", async () => {
     process.env.AI_API_KEY = "test-key";
+    process.env.AI_BACKUP_API_KEY = "";
     resetEnvCache();
     scriptedModel(() => ({ rankedQuoteIds: ["qa", "qb", "qc"], chosenQuoteId: "qa", reasoning: "Vendor A is cheapest." }));
     const r = await reviewAndRank(spec, quotes);
@@ -210,6 +214,7 @@ describe("reviewAndRank — the AI chooses, Kora makes the choice safe", () => {
 
   it("a valid model choice is kept, but unverified vendors are forced below verified ones", async () => {
     process.env.AI_API_KEY = "test-key";
+    process.env.AI_BACKUP_API_KEY = "";
     resetEnvCache();
     scriptedModel(() => ({ rankedQuoteIds: ["qa", "qc", "qb", "zzz"], chosenQuoteId: "qb", reasoning: "Vendor B is the cheapest verified vendor and ready by Thursday." }));
     const r = await reviewAndRank(spec, quotes);
@@ -220,6 +225,7 @@ describe("reviewAndRank — the AI chooses, Kora makes the choice safe", () => {
 
   it("an over-budget choice is rejected unless the reasoning names the trade-off", async () => {
     process.env.AI_API_KEY = "test-key";
+    process.env.AI_BACKUP_API_KEY = "";
     resetEnvCache();
     const tight: Spec = { ...spec, budgetKobo: 130_000_000n };
     scriptedModel(() => ({ rankedQuoteIds: ["qc", "qb"], chosenQuoteId: "qc", reasoning: "Vendor C has two-colour print." }));
@@ -232,6 +238,7 @@ describe("reviewAndRank — the AI chooses, Kora makes the choice safe", () => {
 
   it("never sends vendor free text to the ranker", async () => {
     process.env.AI_API_KEY = "test-key";
+    process.env.AI_BACKUP_API_KEY = "";
     resetEnvCache();
     let seen = "";
     scriptedModel((_t, user) => {

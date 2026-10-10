@@ -15,3 +15,16 @@ npm-debug.log*
 
 # Design source files: kept on the owner's laptop, not part of the repo
 ProcureAI design system/
+
+# Internal notes and agent config live in the private notes repo (Jae3y/procureai-notes)
+/docs/internal/
+/docs/kora-snapshots/
+/docs/SETUP.md
+/BLOCKERS.md
+/DECISIONS.md
+/KORA_FEEDBACK.md
+/VERIFIED_ENDPOINTS.md
+/AGENTS.md
+/CLAUDE.md
+/.claude/
+/.env.example

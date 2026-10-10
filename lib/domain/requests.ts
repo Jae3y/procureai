@@ -4,6 +4,7 @@ import type { Spec, SpecDraft } from "@/lib/ai/fallback";
 import { inviteTokenFor, sha256Hex } from "@/lib/crypto";
 import { ensureDemoDirectory } from "@/lib/demo/directory";
 import { db } from "@/lib/db";
+import { shortlist } from "./sourcing";
 import { env } from "@/lib/env";
 import type { Request } from "@/lib/generated/prisma/client";
 import { DomainError, NotFoundError } from "./errors";
@@ -82,7 +83,8 @@ export async function inviteVendors(requestId: string): Promise<Invite[]> {
   if (!request) throw new NotFoundError("Request");
   if (request.status !== "DRAFT") throw new DomainError("already_invited", "Vendors have already been asked for this request.", 409);
   await seedDemoDirectory();
-  const contacts = await db().vendorContact.findMany({ orderBy: { createdAt: "asc" } });
+  const directory = await db().vendorContact.findMany({ orderBy: { createdAt: "asc" } });
+  const contacts = shortlist(directory, request.item);
   if (contacts.length === 0) throw new DomainError("no_vendors", "There are no vendors in the directory to ask yet.", 409);
 
   const expires = new Date(request.deadline.getTime() + 14 * 86_400_000);
@@ -103,6 +105,6 @@ export async function inviteVendors(requestId: string): Promise<Invite[]> {
     invites.push({ vendorId: vendor.id, label, phone: c.phone, businessName: c.businessName, token });
   }
   await db().request.update({ where: { id: requestId }, data: { status: "COLLECTING" } });
-  await requestEvent(requestId, { kind: "info", title: `Asked ${contacts.length} vendors`, detail: contacts.map((c) => c.businessName).join(", ") });
+  await requestEvent(requestId, { kind: "info", title: `Asked ${contacts.length} vendors`, detail: `Searched ${directory.length} in the directory and matched ${contacts.length} to "${request.item}": ${contacts.map((c) => c.businessName).join(", ")}` });
   return invites;
 }

@@ -70,7 +70,7 @@ function SubmittedRequest({ v }: { v: RequestView }) {
           <span className="body-lg muted" style={{ fontSize: 18 }}>
             {v.status === "CANCELLED"
               ? "This request was closed."
-              : `ProcureAI will ask ${v.directoryCount} vendor${v.directoryCount === 1 ? "" : "s"} for quotes.`}
+              : `ProcureAI searched ${v.directoryTotal} vendors and will ask the ${v.directoryCount} that match this order.`}
             <span className="parsed-by">read by {v.specParsedBy === "AI" ? "AI" : "rules"}</span>
           </span>
           <Link className="btn-text" href={`/buy?text=${encodeURIComponent(v.rawText)}`}>

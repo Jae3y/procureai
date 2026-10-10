@@ -94,18 +94,22 @@ export async function deliverScriptedReplies(requestId: string, opts: { spacingM
   const request = await db().request.findUniqueOrThrow({ where: { id: requestId }, select: { item: true, quantity: true, budgetKobo: true } });
   const ask = { item: request.item, quantity: request.quantity, budgetKobo: request.budgetKobo };
   const vendors = await db().vendor.findMany({ where: { requestId }, include: { contact: true }, orderBy: { label: "asc" } });
-  for (const v of vendors) {
-    const script = DEMO_VENDORS.find((d) => d.phone === v.contactPhone);
-    if (!script) continue;
-    if (opts.spacingMs) await new Promise((r) => setTimeout(r, opts.spacingMs));
-    await submitQuote(inviteTokenFor(requestId, v.label), {
-      reply: script.reply(ask),
-      businessName: script.businessName,
-      rcNumber: script.rcNumber,
-      bankCode: script.bankCode,
-      accountNumber: script.accountNumber,
-      email: script.email,
-      consent: true,
-    });
-  }
+  // Vendors answer when they like, not in a queue: start each a beat apart and let them run side by side.
+  await Promise.all(
+    vendors.map(async (v, i) => {
+      const script = DEMO_VENDORS.find((d) => d.phone === v.contactPhone);
+      const reply = script?.reply(ask);
+      if (!script || reply === null || reply === undefined) return; // a silent vendor never writes back
+      if (opts.spacingMs) await new Promise((r) => setTimeout(r, i * opts.spacingMs!));
+      await submitQuote(inviteTokenFor(requestId, v.label), {
+        reply,
+        businessName: script.businessName,
+        rcNumber: script.rcNumber,
+        bankCode: script.bankCode,
+        accountNumber: script.accountNumber,
+        email: script.email,
+        consent: true,
+      });
+    }),
+  );
 }
