@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import type { KoraRow } from "@/lib/views/request-view";
 import type { TrailNode } from "@/lib/views/order-view";
 
@@ -92,7 +93,13 @@ function SigBadge({ signature }: { signature: KoraRow["signature"] }) {
 }
 
 /** The Kora events panel — the only dark surface. Newest at the bottom, rows rise in. */
+const COLLAPSED_ROWS = 3;
+
 export function KoraPanel({ rows, connection }: { rows: KoraRow[]; connection: "live" | "reconnecting" }) {
+  // Collapsed: only the newest few events, so the panel never pushes the main action off a shared screen.
+  const [expanded, setExpanded] = useState(false);
+  const hidden = Math.max(0, rows.length - COLLAPSED_ROWS);
+  const shown = expanded ? rows : rows.slice(-COLLAPSED_ROWS);
   return (
     <aside className="kora" aria-label="Kora events">
       <div className="kora-head">
@@ -105,8 +112,8 @@ export function KoraPanel({ rows, connection }: { rows: KoraRow[]; connection: "
       {rows.length === 0 ? (
         <div className="kora-empty">Nothing from Kora yet. Events appear here as Kora reports them.</div>
       ) : (
-        <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
-          {rows.map((e) => (
+        <ol className={expanded ? "kora-list expanded" : "kora-list"} style={{ listStyle: "none", margin: 0, padding: 0 }}>
+          {shown.map((e) => (
             <li key={e.id} className={`krow${e.signature === "INVALID" ? " invalid" : ""}`}>
               <span className="krow-time">{e.time}</span>
               <div>
@@ -124,6 +131,11 @@ export function KoraPanel({ rows, connection }: { rows: KoraRow[]; connection: "
           ))}
         </ol>
       )}
+      {hidden > 0 ? (
+        <button type="button" className="kora-toggle" aria-expanded={expanded} onClick={() => setExpanded((x) => !x)}>
+          {expanded ? "Show fewer events" : `Show all ${rows.length} events (${hidden} earlier)`}
+        </button>
+      ) : null}
     </aside>
   );
 }

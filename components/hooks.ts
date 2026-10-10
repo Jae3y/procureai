@@ -21,11 +21,15 @@ export function useLive<T>(url: string, initial: T): { data: T; connection: "liv
         console.warn("ProcureAI: unreadable live update ignored", err);
       }
     };
+    // The server couldn't refresh this once (a slow Kora/database reply): keep the last good view and say so.
+    const onProblem = () => setConnection("reconnecting");
     es.addEventListener("snapshot", onSnapshot as EventListener);
+    es.addEventListener("problem", onProblem as EventListener);
     es.onopen = () => setConnection("live");
     es.onerror = () => setConnection("reconnecting");
     return () => {
       es.removeEventListener("snapshot", onSnapshot as EventListener);
+      es.removeEventListener("problem", onProblem as EventListener);
       es.close();
     };
   }, [url]);

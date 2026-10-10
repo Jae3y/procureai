@@ -595,6 +595,9 @@ export function HomePage() {
           <p className="body-lg" style={{ marginTop: 32, color: "var(--muted)", maxWidth: "40ch" }}>
             Every purchase ends on a record you can drop into the group chat.
           </p>
+          <p className="body-lg" style={{ marginTop: 16, maxWidth: "40ch", fontWeight: 600 }}>
+            30% on acceptance, 70% on delivery.
+          </p>
           <div style={{ marginTop: 56, display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center" }}>
             <Link href="/buy" className="btn btn-lg">
               Start a purchase
@@ -613,6 +616,9 @@ export function HomePage() {
           <span style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
             <Link href="/demo" style={{ color: "var(--muted)" }}>
               Demo scenario
+            </Link>
+            <Link href="/sample" style={{ color: "var(--muted)" }}>
+              See a completed record
             </Link>
             <span>Payments and identity checks by Kora</span>
           </span>
