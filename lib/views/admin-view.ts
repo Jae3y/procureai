@@ -28,6 +28,7 @@ export type AdminView = {
     updated: string;
     trackerPath: string;
     requestId: string;
+    isSample: boolean;
     /** Per-order reconciliation: everything Kora accepted is paid out, refunded or held. */
     money: { paidIn: string; paidOut: string; refunded: string; held: string; unaccounted: string; balanced: boolean };
   }>;
@@ -41,7 +42,7 @@ export type AdminView = {
 export async function buildAdminView(): Promise<AdminView> {
   const e = env();
   const base = e.APP_BASE_URL.replace(/\/+$/, "");
-  const [orders, requests, events, pending, parked, payoutRoute, suppress] = await Promise.all([
+  const [orders, requests, events, pending, parked, payoutRoute, suppress, sampleOrderId] = await Promise.all([
     db().order.findMany({ orderBy: { updatedAt: "desc" }, take: 40, include: { request: true, vendor: true, payouts: true, refunds: true, ledger: true } }),
     db().request.findMany({ orderBy: { createdAt: "desc" }, take: 6, include: { vendors: { include: { quote: { select: { id: true } } }, orderBy: { label: "asc" } } } }),
     db().koraEvent.findMany({ orderBy: { receivedAt: "desc" }, take: 60, include: { order: { select: { number: true } } } }),
@@ -49,6 +50,7 @@ export async function buildAdminView(): Promise<AdminView> {
     db().outbox.count({ where: { doneAt: { not: null }, lastError: { not: null } } }),
     getSetting("payoutRoute"),
     getSetting("suppressNextWebhook"),
+    getSetting("sampleOrderId"),
   ]);
   return {
     mode: {
@@ -71,6 +73,7 @@ export async function buildAdminView(): Promise<AdminView> {
       updated: `${lagosDay(o.updatedAt)} ${lagosTime(o.updatedAt)}`,
       trackerPath: `/orders/${o.id}`,
       requestId: o.requestId,
+      isSample: o.id === sampleOrderId,
       money: (() => {
         const m = moneySummary(o);
         return {

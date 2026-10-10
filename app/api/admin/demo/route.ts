@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { corruptSignature, payAccount, recheckNow, replayWebhook, retryStage, setPayoutRoute, suppressNextWebhook, underpay } from "@/lib/demo/actions";
 import { koraHealth, latestReplayableEvent, prepareShowcase, resetDemo } from "@/lib/demo/presenter";
+import { db } from "@/lib/db";
+import { setSetting } from "@/lib/domain/settings";
 import { DomainError } from "@/lib/domain/errors";
 import { runAfterResponse } from "@/lib/http/after";
 import { env } from "@/lib/env";
@@ -25,6 +27,7 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("tick") }),
   z.object({ action: z.literal("reset"), scenario: z.enum(["full", "short"]) }),
   z.object({ action: z.literal("showcase") }),
+  z.object({ action: z.literal("pin-sample"), orderId: z.string().min(1) }),
   z.object({ action: z.literal("health") }),
   z.object({ action: z.literal("replay-latest") }),
   z.object({ action: z.literal("corrupt-latest") }),
@@ -71,6 +74,13 @@ export const POST = route<z.output<typeof Body>>({ name: "admin.demo", input: Bo
     case "reset": {
       const r = await resetDemo(input.scenario);
       return { body: { message: `Demo reset: "${r.text}". Replies are in; open /demo. (${r.cancelled} earlier demo request${r.cancelled === 1 ? "" : "s"} cancelled.)` } };
+    }
+    case "pin-sample": {
+      const order = await db().order.findUnique({ where: { id: input.orderId }, select: { status: true, number: true } });
+      if (!order) throw new DomainError("not_found", "No such order.", 404);
+      if (order.status !== "COMPLETE") throw new DomainError("not_complete", "Only a completed purchase can be the sample record.", 409);
+      await setSetting("sampleOrderId", input.orderId);
+      return { body: { message: `PA-${String(order.number).padStart(4, "0")} is now the sample record behind "See a completed record".` } };
     }
     case "showcase":
       runAfterResponse("presenter-showcase", prepareShowcase);

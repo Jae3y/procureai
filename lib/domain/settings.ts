@@ -14,6 +14,8 @@ const SETTINGS = {
   suppressNextWebhook: z.enum(["true", "false"]).default("false"),
   /** Pointer to the request demo:reset prepared. */
   currentDemoRequestId: z.string().default(""),
+  /** The completed order the public "See a completed record" link opens. Empty = newest completed. */
+  sampleOrderId: z.string().default(""),
 } as const;
 
 type Settings = typeof SETTINGS;

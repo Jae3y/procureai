@@ -228,12 +228,13 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
                 <th>Held</th>
                 <th>Unaccounted</th>
                 <th>Updated</th>
+                <th>Sample</th>
               </tr>
             </thead>
             <tbody>
               {v.orders.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="muted">
+                  <td colSpan={11} className="muted">
                     No orders yet.
                   </td>
                 </tr>
@@ -252,6 +253,17 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
                     <td className="mono">{o.money.held}</td>
                     <td className={`mono ${o.money.balanced ? "green" : "red"}`}>{o.money.balanced ? "₦0 ✓" : o.money.unaccounted}</td>
                     <td className="mono">{o.updated}</td>
+                    <td>
+                      {o.status === "COMPLETE" ? (
+                        o.isSample ? (
+                          <span className="pill green">Sample record</span>
+                        ) : (
+                          <button type="button" className="btn-text" disabled={demo.pending} onClick={() => void act({ action: "pin-sample", orderId: o.id })}>
+                            Use as sample
+                          </button>
+                        )
+                      ) : null}
+                    </td>
                   </tr>
                 ))
               )}
