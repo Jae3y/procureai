@@ -54,7 +54,7 @@ export function nextWeekday(from: CivilDate, target: number): CivilDate {
 
 /**
  * "next <weekday>": the occurrence in the following Monday–Sunday week. Said on Monday 5 October,
- * "Tuesday" is 6 October but "next Tuesday" is 13 October (DECISIONS.md D-29).
+ * "Tuesday" is 6 October but "next Tuesday" is 13 October.
  */
 export function nextWeekWeekday(from: CivilDate, target: number): CivilDate {
   const plain = nextWeekday(from, target);

@@ -81,7 +81,7 @@ export class EnvError extends Error {
     super(
       `Environment is not valid (${problems.length} problem${problems.length === 1 ? "" : "s"}):\n` +
         problems.map((p) => `  • ${p}`).join("\n") +
-        "\nCopy .env.example to .env and fill these in.",
+        "\nSet these in .env (see the README section \"Run it yourself\").",
     );
     this.name = "EnvError";
   }

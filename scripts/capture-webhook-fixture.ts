@@ -1,7 +1,7 @@
 /**
  * npm run capture:webhook-fixture — copies the most recent REAL, signature-valid Kora webhook from
  * the database into tests/fixtures/kora/captured-webhook.json, so the signature test runs against a
- * payload Kora actually sent (BLOCKERS.md B-06). The fixture stores the raw body and header only.
+ * payload Kora actually sent. The fixture stores the raw body and header only.
  */
 import "dotenv/config";
 import { mkdir, writeFile } from "node:fs/promises";

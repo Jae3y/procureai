@@ -71,7 +71,7 @@ enum PayoutStatus {
 
 /// Where a payout is sent. VERIFIED_ACCOUNT = the account on the VendorVerification row.
 /// SANDBOX_TEST_ACCOUNT = one of Kora's documented test-mode payout accounts, used only with a
-/// test key to force a sandbox outcome (DECISIONS.md D-03). A DB CHECK pins the allowed accounts.
+/// test key to force a sandbox outcome. A DB CHECK pins the allowed accounts.
 enum PayoutRoute {
   VERIFIED_ACCOUNT
   SANDBOX_TEST_ACCOUNT

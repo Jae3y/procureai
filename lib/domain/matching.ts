@@ -9,8 +9,7 @@
  * Normalisation: uppercase → strip punctuation, collapse whitespace → drop legal suffixes →
  * tokenise. Matching is order-insensitive token containment, and matchScore is |A∩B| / |A∪B|.
  *
- * Two deliberate tightenings of "every token of the shorter name appears in the longer"
- * (DECISIONS.md D-02), both needed for the required cases and both safer:
+ * Two deliberate tightenings of "every token of the shorter name appears in the longer", both needed for the required cases and both safer:
  *   1. COMPANY is one-directional: every account-name token must be in the registered name. A
  *      personal account "MICHAEL JOHN DOE" contains company "JOHN DOE (INC)" but is not the
  *      company's account — with the symmetric rule it would verify as COMPANY, and anyone whose

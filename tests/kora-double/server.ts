@@ -10,7 +10,7 @@ import { signLikeKora } from "@/lib/kora/signature";
 
 /**
  * TEST-ONLY stand-in for api.korapay.com, used by the unit/integration suites so they are fast and
- * deterministic. Every response body copies a shape from Kora's docs (docs/kora-snapshots/); the
+ * deterministic. Every response body copies a shape from Kora's docs (Kora developer docs); the
  * sandbox suite (tests/sandbox) runs the same flows against the real Kora sandbox.
  *
  * Never imported by application code — tests/unit/boundaries.test.ts asserts that.
@@ -96,7 +96,7 @@ export class KoraDouble {
 
   /**
    * Sandbox credit, as Kora would apply it given the merchant's preference
-   * (docs/kora-snapshots/handling-underpayments-and-overpayments.md):
+   * (Kora docs: handling underpayments and overpayments):
    *  • Accept All    — any amount is processed; amount_accepted = amount_paid.
    *  • Return Excess — overpayments only: the excess is reversed, amount_accepted = amount expected.
    *                    (Underpayments fall back to Kora's default for them, Return All.)

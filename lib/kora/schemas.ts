@@ -3,7 +3,7 @@ import { decimalToKobo, jsonNumberToKobo, MoneyError } from "@/lib/money";
 
 /**
  * Zod schemas for every Kora payload we read. Field names and shapes come from
- * VERIFIED_ENDPOINTS.md (Kora docs, 5 Oct 2026). Unknown fields are stripped from the parsed view;
+ * Kora's docs (checked against the sandbox, 5 Oct 2026). Unknown fields are stripped from the parsed view;
  * the untouched raw JSON is stored alongside for I8.
  */
 
@@ -191,7 +191,7 @@ export const BalanceHistoryEntry = z
 export type BalanceHistoryEntry = z.infer<typeof BalanceHistoryEntry>;
 
 /**
- * Kora documents two shapes for balance history (VERIFIED_ENDPOINTS.md #13):
+ * Kora documents two shapes for balance history :
  *   Postman: { status, message, data: { has_more, history: [...] } }
  *   Guide:   { has_more, data: { ...one entry } }
  */

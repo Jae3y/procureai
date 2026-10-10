@@ -3,7 +3,7 @@ import { extractRawDataSpan, hmacHex, signLikeKora, verifyKoraSignature } from "
 
 const SECRET = "sk_test_procureai_unit_tests_only";
 
-/** Kora's documented "Pay-in (Cards, Bank Transfer, Mobile Money)" webhook (docs/kora-snapshots/webhooks.md). */
+/** Kora's documented "Pay-in (Cards, Bank Transfer, Mobile Money)" webhook (Kora webhook docs). */
 const documented = {
   event: "charge.success",
   data: {

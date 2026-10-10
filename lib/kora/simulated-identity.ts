@@ -14,7 +14,7 @@ import cacValid from "./fixtures/documented/cac-RC00000011.json";
  *      `npm run preflight` with the owner's test key.
  *   2. lib/kora/fixtures/documented/… — Kora's documented sandbox example for that exact test input.
  *   3. Otherwise a not-found response. Kora does not document the error body for an invalid
- *      CAC/account lookup (BLOCKERS.md B-07), so this message says plainly that it is simulated.
+ *      CAC/account lookup, so this message says plainly that it is simulated.
  */
 
 const Fixture = z.object({ httpStatus: z.number().int(), body: z.unknown(), source: z.string().optional() });

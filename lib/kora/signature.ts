@@ -2,7 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 /**
  * Kora signs webhooks with HMAC-SHA256 over ONLY the `data` object, keyed with the secret key,
- * delivered hex-encoded in `x-korapay-signature` (docs/kora-snapshots/webhooks.md).
+ * delivered hex-encoded in `x-korapay-signature` (Kora webhook docs).
  *
  * Kora's own Node sample hashes `JSON.stringify(req.body.data)` — a re-serialisation. Re-serialising
  * is fragile (an amount sent as 150.00 re-serialises as 150; unicode and slash escaping can differ),

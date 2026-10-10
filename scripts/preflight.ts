@@ -291,7 +291,7 @@ async function main() {
   }
   console.log(
     blocked
-      ? "\nIdentity status: BLOCKED for this key. Set SIMULATE_IDENTITY=true (labelled in the UI) and see BLOCKERS.md B-03."
+      ? "\nIdentity status: BLOCKED for this key. Set SIMULATE_IDENTITY=true (labelled in the UI)."
       : identityRows.every((r) => r.result === "PASS")
         ? "\nIdentity status: AVAILABLE (sandbox identity calls succeed with this key)."
         : "\nIdentity status: DEGRADED — see the failing identity rows above.",
