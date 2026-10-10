@@ -45,5 +45,5 @@ authoritative; do not recalculate them. Rules:
 3. If your choice is over budget or ready after the deadline, say so explicitly in the reasoning.
 Return ONLY a JSON object:
 {"rankedQuoteIds": string[], "chosenQuoteId": string|null, "reasoning": string}
-- reasoning: two short plain-English sentences a buyer reads. Refer to vendors by their label ("Vendor B"). Mention why
+- reasoning: two short plain-English sentences a buyer reads. Write dates as "15 October", never 2026-10-15. Refer to vendors by their label ("Vendor B"). Mention why
   a cheaper vendor was not chosen if one exists. Naira amounts like ₦90,000.`;

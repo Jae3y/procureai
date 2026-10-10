@@ -127,3 +127,17 @@ export function formatCivilDate(d: CivilDate): string {
 }
 
 export { WEEKDAYS };
+
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/**
+ * Models like to write dates as "2026-10-15" (sometimes with non-breaking hyphens). Buyers read
+ * "15 October". Rewrites every ISO calendar date in free text; anything that isn't a real date is left alone.
+ */
+export function humanizeDates(text: string): string {
+  return text.replace(/\b(\d{4})[-‐-–](\d{2})[-‐-–](\d{2})\b/g, (whole, _y: string, m: string, d: string) => {
+    const month = MONTH_NAMES[Number(m) - 1];
+    const day = Number(d);
+    return month && day >= 1 && day <= 31 ? `${day} ${month}` : whole;
+  });
+}

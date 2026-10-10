@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { AiUnavailableError, chatJson, setAiFetchForTests } from "@/lib/ai/client";
+import { humanizeDates } from "@/lib/ai/dates";
 import { resetEnvCache } from "@/lib/env";
 
 const schema = z.object({ answer: z.string() });
@@ -64,5 +65,13 @@ describe("AI request lanes", () => {
     const results = await Promise.all(Array.from({ length: 6 }, () => ask()));
     expect(results.every((r) => r.data.answer === "ok")).toBe(true);
     expect(peak).toBe(2);
+  });
+});
+
+describe("dates in AI reasoning", () => {
+  it("reads like a person wrote it", () => {
+    expect(humanizeDates("can deliver by 2026-10-15.")).toBe("can deliver by 15 October.");
+    expect(humanizeDates("ready 2026‑10‑08, before 2026-10-20")).toBe("ready 8 October, before 20 October");
+    expect(humanizeDates("order 2026-13-40 stays")).toBe("order 2026-13-40 stays");
   });
 });

@@ -57,7 +57,7 @@ webhook and by asking Kora directly.
   ranker never sees vendor free text, and a deterministic parser takes over if the model is down.
 - **Nothing is silently simulated.** Any simulated path shows a visible badge.
 
-**253 automated tests** (unit, integration against a real Postgres, and Playwright end to end), plus a suite that runs the
+**254 automated tests** (unit, integration against a real Postgres, and Playwright end to end), plus a suite that runs the
 full purchase against the real Kora sandbox.
 
 ## See it in 90 seconds
@@ -86,5 +86,5 @@ npm install
 npm run db:up                         # Postgres in Docker
 npx prisma migrate deploy
 npm run dev:offline                   # http://localhost:3000/demo
-npm test                              # 253 unit + integration tests
+npm test                              # 254 unit + integration tests
 ```

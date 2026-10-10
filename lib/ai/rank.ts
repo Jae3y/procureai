@@ -1,3 +1,4 @@
+import { humanizeDates } from "./dates";
 import { z } from "zod";
 import { formatNaira, koboToNairaDecimal, type Kobo } from "@/lib/money";
 import { AiUnavailableError, chatJson } from "./client";
@@ -152,7 +153,7 @@ export async function reviewAndRank(spec: Spec, quotes: RankQuote[]): Promise<Ra
       verifiedFirst.splice(verifiedFirst.indexOf(chosen.id), 1);
       verifiedFirst.unshift(chosen.id);
     }
-    return { rankedQuoteIds: verifiedFirst, chosenQuoteId: chosen?.id ?? null, reasoning: data.reasoning.trim(), parsedBy: "AI", model, note: null };
+    return { rankedQuoteIds: verifiedFirst, chosenQuoteId: chosen?.id ?? null, reasoning: humanizeDates(data.reasoning.trim()), parsedBy: "AI", model, note: null };
   } catch (err) {
     if (!(err instanceof AiUnavailableError)) throw err;
     return { ...fallback, parsedBy: "FALLBACK", model: null, note: err.message };
