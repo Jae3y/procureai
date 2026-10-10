@@ -2,7 +2,7 @@ import { inviteTokenFor } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { DomainError, NotFoundError } from "@/lib/domain/errors";
 import { reconcileCharge } from "@/lib/domain/payin";
-import { dispatchStage } from "@/lib/domain/payouts";
+import { dispatchStage, retryPayout } from "@/lib/domain/payouts";
 import { setSetting } from "@/lib/domain/settings";
 import { submitQuote } from "@/lib/domain/vendors";
 import { kora } from "@/lib/kora/client";
@@ -83,6 +83,11 @@ export async function retryStage(orderId: string) {
   if (!o) throw new NotFoundError("Order");
   if (o.status === "HELD") return dispatchStage(orderId, "STAGE_1", { type: "ADMIN", id: "admin-retry" });
   if (o.status === "CODE_VERIFIED") return dispatchStage(orderId, "STAGE_2", { type: "ADMIN", id: "admin-retry" });
+  if (o.status === "PAYOUT_FAILED") {
+    // The failure demo forced Kora's failing test account; retry to the succeeding one, with a new reference.
+    await setSetting("payoutRoute", "SANDBOX_SUCCESS_033");
+    return retryPayout(orderId, { type: "ADMIN", id: "admin-retry" });
+  }
   throw new DomainError("nothing_to_send", "There is no stage waiting to be sent on this order.", 409);
 }
 

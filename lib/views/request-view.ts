@@ -1,3 +1,4 @@
+import { KORA_MAX_CHARGE_KOBO } from "@/lib/kora/limits";
 import { FLAG_COPY, type QuoteFlag } from "@/lib/ai/fallback";
 import { inviteTokenFor } from "@/lib/crypto";
 import { shortlist } from "@/lib/domain/sourcing";
@@ -79,6 +80,8 @@ export type RequestView = {
     reasoning: string[];
     parsedBy: "AI" | "FALLBACK";
     model: string | null;
+    /** Kora's one-time accounts take up to ₦1,000,000 each; a larger total is paid in parts. */
+    split: { transfers: number; parts: string[] } | null;
   } | null;
   events: KoraRow[];
   lastEventId: string;
@@ -86,6 +89,8 @@ export type RequestView = {
   orderRef: string | null;
   invites: Array<{ label: string; phone: string; businessName: string; link: string }> | null;
   simulatedIdentity: boolean;
+  /** Test key: verified identities are Kora's sandbox test company, labelled as such. */
+  koraSandbox: boolean;
   aiEnabled: boolean;
 };
 
@@ -229,6 +234,13 @@ export async function buildRequestView(requestId: string, opts: { includeInvites
           reasoning: splitSentences(rec.reasoning),
           parsedBy: rec.parsedBy,
           model: rec.model,
+          split: (() => {
+            const total = chosenQuote?.totalKobo;
+            if (total == null || total <= KORA_MAX_CHARGE_KOBO) return null;
+            const parts: string[] = [];
+            for (let left = total; left > 0n; left -= KORA_MAX_CHARGE_KOBO) parts.push(formatNaira(left > KORA_MAX_CHARGE_KOBO ? KORA_MAX_CHARGE_KOBO : left));
+            return { transfers: parts.length, parts };
+          })(),
         }
       : null,
     events: events
@@ -247,6 +259,7 @@ export async function buildRequestView(requestId: string, opts: { includeInvites
         }))
       : null,
     simulatedIdentity: env().SIMULATE_IDENTITY,
+    koraSandbox: env().koraMode === "test",
     aiEnabled: Boolean(env().AI_API_KEY),
   };
 }

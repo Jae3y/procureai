@@ -10,6 +10,16 @@ export const DEMO_BUYER = { name: "Tolu Adebayo", email: "tolu.adebayo@example.c
 
 export const DEMO_REQUEST_TEXT = "300 branded T-shirts, under ₦1.5m, delivered by 23 October";
 
+/**
+ * Two pitches. "full" (₦1,260,000) shows Kora's ₦1,000,000-per-account cap as two transfers; "short"
+ * (₦840,000) is one transfer for a quick demo. Both make the cheapest vendor fail Kora's check.
+ */
+export const DEMO_SCENARIOS = {
+  full: DEMO_REQUEST_TEXT,
+  short: "200 branded T-shirts, under ₦1m, delivered by 23 October",
+} as const;
+export type DemoScenario = keyof typeof DEMO_SCENARIOS;
+
 /** What the buyer asked for; the scripted vendors answer *this*, whatever it is. */
 export type DemoAsk = { item: string; quantity: number; budgetKobo: bigint };
 

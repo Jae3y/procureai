@@ -215,8 +215,8 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
         This account exists for this purchase only and closes after one payment. Send from any Nigerian bank app.
       </p>
       {p.instalment ? (
-        <p className="note" style={{ marginTop: 12, maxWidth: "60ch" }}>
-          Kora accepts up to ₦1,000,000 per one-time account, so {v.amount} is paid in {p.instalment.of} transfers.
+        <p className="split-note">
+          <strong>Transfer {p.instalment.part} of {p.instalment.of}.</strong> Kora accepts up to ₦1,000,000 per one-time account, so {v.amount} is paid in {p.instalment.of} transfers.
           {p.instalment.receivedSoFar ? ` Received so far: ${p.instalment.receivedSoFar}.` : ""}
           {p.instalment.part < p.instalment.of ? " The next account appears here as soon as Kora confirms this one." : ""}
         </p>

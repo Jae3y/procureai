@@ -21,3 +21,12 @@ export function instalmentsFor(totalKobo: Kobo): number {
   const accounts = (totalKobo + KORA_MAX_CHARGE_KOBO - 1n) / KORA_MAX_CHARGE_KOBO; // a count, not money
   return Number(accounts);
 }
+
+/**
+ * Kora's sandbox verifies one documented test business. Every vendor that passes a sandbox check
+ * therefore comes back as this company; the UI says so instead of presenting it as the vendor's own record.
+ */
+export const KORA_SANDBOX_TEST_COMPANY = { rcNumber: "RC00000011", name: "John Doe Inc" } as const;
+export function isSandboxTestCompany(rcNumber: string | null | undefined): boolean {
+  return (rcNumber ?? "").toUpperCase().replace(/\s+/g, "") === KORA_SANDBOX_TEST_COMPANY.rcNumber;
+}

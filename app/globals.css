@@ -339,3 +339,11 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 .payout-steps li.done { color: var(--green); }
 .payout-steps li.done::before { content: "✓"; }
 .payout-steps li.now { color: var(--ink); font-weight: 500; }
+
+/* Presenter: stage jump links */
+.stage-links { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
+.stage-links li { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; border-bottom: 1px solid var(--hairline); padding-bottom: 6px; }
+
+/* Kora ₦1m-per-account split, explained before approval */
+.split-note { margin-top: 16px; max-width: 46ch; padding: 14px 16px; border: 1px solid var(--hairline); border-left: 3px solid var(--amber); font: 400 15px/1.5 var(--font-body); }
+.sandbox-badge { display: inline-block; padding: 4px 10px; border: 1px dashed var(--amber); color: var(--ink); font: 500 12px/1.4 var(--font-mono); letter-spacing: 0.02em; }

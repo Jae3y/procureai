@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { corruptSignature, payAccount, recheckNow, replayWebhook, retryStage, setPayoutRoute, suppressNextWebhook, underpay } from "@/lib/demo/actions";
+import { koraHealth, latestReplayableEvent, prepareShowcase, resetDemo } from "@/lib/demo/presenter";
 import { DomainError } from "@/lib/domain/errors";
+import { runAfterResponse } from "@/lib/http/after";
 import { env } from "@/lib/env";
 import { route } from "@/lib/http/route";
 import { requireAdmin, requireBuyerOfOrder } from "@/lib/http/session";
@@ -9,6 +11,7 @@ import { tick } from "@/lib/worker/tick";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300; // "showcase" drives three real sandbox purchases after responding
 
 const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("pay"), orderId: z.string().min(1) }),
@@ -20,6 +23,11 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("recheck"), orderId: z.string().min(1) }),
   z.object({ action: z.literal("retry-stage"), orderId: z.string().min(1) }),
   z.object({ action: z.literal("tick") }),
+  z.object({ action: z.literal("reset"), scenario: z.enum(["full", "short"]) }),
+  z.object({ action: z.literal("showcase") }),
+  z.object({ action: z.literal("health") }),
+  z.object({ action: z.literal("replay-latest") }),
+  z.object({ action: z.literal("corrupt-latest") }),
 ]);
 
 /** The sandbox buttons on an order page; its buyer may press them. Everything else is admin-only. */
@@ -59,6 +67,26 @@ export const POST = route<z.output<typeof Body>>({ name: "admin.demo", input: Bo
     case "retry-stage": {
       const r = await retryStage(input.orderId);
       return { body: { message: r.kind === "blocked" ? r.message : `Stage dispatch: ${r.kind}.` } };
+    }
+    case "reset": {
+      const r = await resetDemo(input.scenario);
+      return { body: { message: `Demo reset: "${r.text}". Replies are in; open /demo. (${r.cancelled} earlier demo request${r.cancelled === 1 ? "" : "s"} cancelled.)` } };
+    }
+    case "showcase":
+      runAfterResponse("presenter-showcase", prepareShowcase);
+      return { body: { message: "Preparing 3 orders (waiting for payment, held, complete) with real sandbox calls. Takes about 2 minutes; press Refresh." } };
+    case "health":
+      return { body: { message: await koraHealth() } };
+    case "replay-latest":
+    case "corrupt-latest": {
+      const eventId = await latestReplayableEvent();
+      if (!eventId) throw new DomainError("no_webhook", "No signed Kora webhook has arrived yet. Pay an order first.", 409);
+      if (input.action === "replay-latest") {
+        const r = await replayWebhook(eventId);
+        return { body: { message: r.duplicate ? "Duplicate webhook: recognised, nothing changed." : `Replayed: ${r.note}.` } };
+      }
+      const r = await corruptSignature(eventId);
+      return { body: { message: r.signatureValid ? "Unexpected: signature still valid." : "Invalid signature: stored in red, nothing changed." } };
     }
     case "tick": {
       const r = await tick();

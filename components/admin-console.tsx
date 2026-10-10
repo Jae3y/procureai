@@ -6,7 +6,7 @@ import type { AdminView } from "@/lib/views/admin-view";
 import { useAction } from "./hooks";
 import { Logo, Spinner } from "./ui";
 
-type DemoBody = { action: string; orderId?: string; eventId?: string; route?: string };
+type DemoBody = { action: string; orderId?: string; eventId?: string; route?: string; scenario?: string };
 
 /** Admin: demo controls, every Kora event (invalid signatures in red), outbox health. */
 export function AdminConsole({ initial }: { initial: AdminView }) {
@@ -69,6 +69,69 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
 
         {v.mode.demoMode ? (
           <>
+            <h2>Presenter</h2>
+            <div className="grid-2">
+              <div className="panel">
+                <div className="label" style={{ marginBottom: 12 }}>Start the pitch</div>
+                <div className="ctl-row">
+                  <button type="button" className="btn-2" disabled={demo.pending} onClick={() => void act({ action: "reset", scenario: "full" })}>
+                    Reset: ₦1.26m (2 transfers)
+                  </button>
+                  <button type="button" className="btn-2" disabled={demo.pending} onClick={() => void act({ action: "reset", scenario: "short" })}>
+                    Reset: ₦840k (1 transfer)
+                  </button>
+                  <a className="btn-text" href="/demo" target="_blank" rel="noreferrer">
+                    Open buyer view
+                  </a>
+                  <button type="button" className="btn-2" disabled={demo.pending} onClick={() => void act({ action: "health" })}>
+                    Kora health check
+                  </button>
+                </div>
+                <div className="label" style={{ margin: "20px 0 12px" }}>Jump to an order at each stage</div>
+                <ul className="stage-links">
+                  {v.stageLinks.map((l) => (
+                    <li key={l.stage}>
+                      <span>{l.stage}</span>
+                      {l.path ? (
+                        <Link href={l.path} className="mono">
+                          {l.ref} →
+                        </Link>
+                      ) : (
+                        <span className="muted">none yet</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <button type="button" className="btn-text" disabled={demo.pending} onClick={() => void act({ action: "showcase" })}>
+                  Prepare one order at each stage (≈2 min, real sandbox)
+                </button>
+              </div>
+              <div className="panel">
+                <div className="label" style={{ marginBottom: 12 }}>Failure demos, one click each</div>
+                <div className="ctl-row">
+                  <button type="button" className="btn-2" disabled={!liveOrder || demo.pending} onClick={() => liveOrder && void act({ action: "underpay", orderId: liveOrder.id })}>
+                    Underpay the open order
+                  </button>
+                  <button type="button" className="btn-2" disabled={demo.pending} onClick={() => void act({ action: "route", route: "SANDBOX_FAIL_035" })}>
+                    Next payout fails (035)
+                  </button>
+                  <button type="button" className="btn-2" disabled={!liveOrder || demo.pending} onClick={() => liveOrder && void act({ action: "retry-stage", orderId: liveOrder.id })}>
+                    Retry the failed payout
+                  </button>
+                  <button type="button" className="btn-2" disabled={demo.pending} onClick={() => void act({ action: "corrupt-latest" })}>
+                    Invalid signature
+                  </button>
+                  <button type="button" className="btn-2" disabled={demo.pending} onClick={() => void act({ action: "replay-latest" })}>
+                    Duplicate webhook
+                  </button>
+                </div>
+                <p className="note" style={{ fontSize: 14 }}>
+                  Payout failure: press &quot;Next payout fails&quot;, pay an order, watch Stage 1 fail at Kora, then &quot;Retry the failed payout&quot; (it switches back to Kora&apos;s
+                  success account first). Signature demos use the newest real Kora webhook.
+                </p>
+              </div>
+            </div>
+
             <h2>Demo controls</h2>
             <div className="grid-2">
               <div className="panel">
@@ -160,13 +223,17 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
                 <th>Vendor</th>
                 <th>Amount</th>
                 <th>Status</th>
+                <th>Paid in</th>
+                <th>Paid out</th>
+                <th>Held</th>
+                <th>Unaccounted</th>
                 <th>Updated</th>
               </tr>
             </thead>
             <tbody>
               {v.orders.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="muted">
+                  <td colSpan={10} className="muted">
                     No orders yet.
                   </td>
                 </tr>
@@ -180,6 +247,10 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
                     <td>{o.vendor}</td>
                     <td className="mono">{o.amount}</td>
                     <td className="mono">{o.status}</td>
+                    <td className="mono">{o.money.paidIn}</td>
+                    <td className="mono">{o.money.paidOut}</td>
+                    <td className="mono">{o.money.held}</td>
+                    <td className={`mono ${o.money.balanced ? "green" : "red"}`}>{o.money.balanced ? "₦0 ✓" : o.money.unaccounted}</td>
                     <td className="mono">{o.updated}</td>
                   </tr>
                 ))

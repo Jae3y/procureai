@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { CheckRow, RequestView } from "@/lib/views/request-view";
+import { isSandboxTestCompany } from "@/lib/kora/limits";
 import { useAction, useLive } from "./hooks";
 import { Header, type Step, Spinner } from "./ui";
 
@@ -213,7 +214,7 @@ function Quotes({ v }: { v: RequestView }) {
   );
 }
 
-function VendorRow({ c, index, simulated }: { c: CheckRow; index: number; simulated: boolean }) {
+function VendorRow({ c, index, simulated, sandbox }: { c: CheckRow; index: number; simulated: boolean; sandbox: boolean }) {
   const failed = c.verdict === "FAILED";
   const num = String(index + 1).padStart(2, "0");
   return (
@@ -270,6 +271,7 @@ function VendorRow({ c, index, simulated }: { c: CheckRow; index: number; simula
               KORA · {c.cacReference} · Verified
             </span>
             {simulated || c.simulated ? <span className="sim-badge">SIMULATED IDENTITY</span> : null}
+            {sandbox && isSandboxTestCompany(c.rcNumber) ? <span className="sandbox-badge">Kora sandbox test company</span> : null}
           </div>
         </div>
       ) : c.verdict === "VERIFIED" ? (
@@ -363,8 +365,14 @@ function Decision({ v }: { v: RequestView }) {
               {approve.pending ? <Spinner label="Opening your account" /> : `Approve ${rec.chosenLabel}`}
             </button>
             <div className="note" style={{ marginTop: 20, fontSize: 15 }}>
-              You approve once. Your money is held until delivery.
+              You approve once. Your money is held until delivery: 30% goes to {rec.chosenLabel} once it&apos;s held, 70% when you confirm delivery.
             </div>
+            {rec.split ? (
+              <div className="split-note" role="note">
+                <strong>Paid in {rec.split.transfers} transfers.</strong> Kora&apos;s one-time accounts take up to ₦1,000,000 each, so {rec.chosenTotal} goes in as{" "}
+                {rec.split.parts.join(" + ")}. Each account is checked with Kora before the next one opens.
+              </div>
+            ) : null}
             <div className="parsed-by" style={{ marginLeft: 0, marginTop: 16, display: "block" }}>
               {rec.parsedBy === "AI" ? `Ranked by AI (${rec.model ?? "model"}); every vendor checked by Kora.` : "Ranked by ProcureAI’s rules; every vendor checked by Kora."}
             </div>
@@ -399,9 +407,15 @@ function Decision({ v }: { v: RequestView }) {
           <span>{v.checkedAt ? `Checked by Kora · ${v.checkedAt}` : "Checking with Kora…"}</span>
         </div>
         {v.lateReplies > 0 ? <LateReplies v={v} /> : null}
+        {v.koraSandbox ? (
+          <p className="note" style={{ fontSize: 14, marginTop: 0 }}>
+            Sandbox: Kora&apos;s test data verifies one business, John Doe Inc (RC00000011), so every vendor that passes shows it. With live keys each vendor&apos;s own CAC
+            record appears here.
+          </p>
+        ) : null}
         <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {v.checks.map((c, i) => (
-            <VendorRow key={c.vendorId} c={c} index={i} simulated={v.simulatedIdentity} />
+            <VendorRow key={c.vendorId} c={c} index={i} simulated={v.simulatedIdentity} sandbox={v.koraSandbox} />
           ))}
         </ol>
       </div>

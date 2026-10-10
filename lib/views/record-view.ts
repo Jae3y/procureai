@@ -1,3 +1,5 @@
+import { isSandboxTestCompany } from "@/lib/kora/limits";
+import { moneySummary } from "./money-summary";
 import { db } from "@/lib/db";
 import { NotFoundError } from "@/lib/domain/errors";
 import { latestVerifications } from "@/lib/domain/recommend";
@@ -76,7 +78,7 @@ export async function buildRecordView(orderId: string): Promise<RecordView> {
     const ver = latest.get(v.id);
     if (!ver) continue;
     if (ver.verdict === "VERIFIED") {
-      checks.push({ text: `${v.label.replace("Vendor ", "")} · ${ver.registeredName ?? v.name ?? v.label} · ${ver.rcNumber} · ${ver.companyStatus ? ver.companyStatus.charAt(0) + ver.companyStatus.slice(1).toLowerCase() : ""}`, ref: ver.cacReference ?? "", tone: "green" });
+      checks.push({ text: `${v.label.replace("Vendor ", "")} · ${ver.registeredName ?? v.name ?? v.label} · ${ver.rcNumber} · ${ver.companyStatus ? ver.companyStatus.charAt(0) + ver.companyStatus.slice(1).toLowerCase() : ""}${isSandboxTestCompany(ver.rcNumber) ? " · Kora sandbox test company" : ""}`, ref: ver.cacReference ?? "", tone: "green" });
       if (v.id === order.vendorId) {
         checks.push({
           text: ver.matchMethod === "COMPANY" ? "Payout account is in the company's name" : "Payout account owner is a director",
@@ -102,14 +104,8 @@ export async function buildRecordView(orderId: string): Promise<RecordView> {
     money.push({ label: `Refunded to buyer · ${lagosDay(r.resolvedAt ?? r.createdAt)}`, amount: formatNaira(r.amountKobo), ref: r.reference, tone: "ink" });
   }
 
-  const held = order.ledger
-    .filter((l) => l.account === "HELD")
-    .reduce((a, l) => a + (l.direction === "CREDIT" ? l.amountKobo : -l.amountKobo), 0n);
+  const { held, unaccounted } = moneySummary(order);
   const excess = order.amountAcceptedKobo > order.amountKobo ? order.amountAcceptedKobo - order.amountKobo : 0n;
-  const paidOut = order.payouts.filter((p) => p.status === "SUCCESS").reduce((a, p) => a + p.amountKobo, 0n);
-  const refunded = order.refunds.filter((r) => r.status === "SUCCESS").reduce((a, r) => a + r.amountKobo, 0n);
-  // Every kobo Kora accepted is paid out, refunded, or still held. Anything else is a defect.
-  const unaccounted = order.amountAcceptedKobo - paidOut - refunded - held;
   if (held > 0n && order.status !== "COMPLETE") {
     money.push({ label: "Still held", amount: formatNaira(held), ref: "", tone: "ink" });
   }

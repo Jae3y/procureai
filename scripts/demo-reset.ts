@@ -1,8 +1,8 @@
 /**
- * npm run demo:reset — idempotently prepares the §12 scenario in a few seconds:
- *   Request "300 branded T-shirts, under ₦1.5m, delivered by 23 October", three invited vendors
- *   with their messy replies already in (A ₦3,900 RC11111111 — will FAIL; B ₦4,200 RC00000011 —
- *   will verify via the director path and be recommended; C ₦4,500 — verified, not chosen).
+ * npm run demo:reset [-- --short] — idempotently prepares a demo request in a few seconds:
+ *   "300 branded T-shirts, under ₦1.5m" (₦1,260,000: two Kora transfers) or, with --short,
+ *   "200 branded T-shirts, under ₦1m" (₦840,000: one transfer). The shortlisted vendors' replies are
+ *   already in; Vendor A (cheapest) fails Kora's check and Vendor B is recommended.
  *
  * Nothing is deleted: earlier demo orders stay in the ledger so the reconciliation screen can still
  * match Kora's balance history. Unfinished earlier demo requests are cancelled; the new one becomes
@@ -10,11 +10,7 @@
  */
 import "dotenv/config";
 import { db, disconnectDb } from "@/lib/db";
-import { deliverScriptedReplies } from "@/lib/demo/actions";
-import { ensureDemoDirectory } from "@/lib/demo/directory";
-import { DEMO_BUYER, DEMO_REQUEST_TEXT, DEMO_VENDORS } from "@/lib/demo/script";
-import { createRequest, inviteVendors } from "@/lib/domain/requests";
-import { setSetting } from "@/lib/domain/settings";
+import { resetDemo } from "@/lib/demo/presenter";
 import { env } from "@/lib/env";
 import { inviteTokenFor } from "@/lib/crypto";
 import { log } from "@/lib/log";
@@ -26,29 +22,14 @@ async function main() {
   const e = env();
   if (!e.DEMO_MODE) throw new Error("DEMO_MODE must be true to reset the demo");
 
-  // Directory: exactly the three demo vendors.
-  await ensureDemoDirectory();
-  const unused = await db().vendorContact.findMany({ where: { phone: { notIn: DEMO_VENDORS.map((v) => v.phone) }, vendors: { none: {} } } });
-  if (unused.length) await db().vendorContact.deleteMany({ where: { id: { in: unused.map((u) => u.id) } } });
-
-  const buyer = (await db().buyer.findFirst({ where: { email: DEMO_BUYER.email }, orderBy: { createdAt: "asc" } })) ?? (await db().buyer.create({ data: { ...DEMO_BUYER } }));
-  const cancelled = await db().request.updateMany({
-    where: { buyerId: buyer.id, status: { in: ["DRAFT", "COLLECTING", "VERIFYING", "RECOMMENDED"] } },
-    data: { status: "CANCELLED" },
-  });
-
-  await setSetting("payoutRoute", "SANDBOX_SUCCESS_033");
-  await setSetting("suppressNextWebhook", "false");
-
-  const request = await createRequest({ rawText: DEMO_REQUEST_TEXT, buyerId: buyer.id });
-  await inviteVendors(request.id);
-  await deliverScriptedReplies(request.id);
-  await setSetting("currentDemoRequestId", request.id);
-
+  const scenario = process.argv.includes("--short") ? "short" : "full";
+  const { requestId, cancelled } = await resetDemo(scenario);
+  const request = await db().request.findUniqueOrThrow({ where: { id: requestId } });
+  const cancelledCount = cancelled;
   const quotes = await db().quote.findMany({ where: { requestId: request.id }, include: { vendor: true }, orderBy: { vendor: { label: "asc" } } });
   const base = e.APP_BASE_URL.replace(/\/+$/, "");
   const ms = Math.round(performance.now() - started);
-  console.log(`\nProcureAI demo reset in ${ms} ms  (cancelled ${cancelled.count} earlier demo request${cancelled.count === 1 ? "" : "s"})`);
+  console.log(`\nProcureAI demo reset in ${ms} ms  (cancelled ${cancelledCount} earlier demo request${cancelledCount === 1 ? "" : "s"})`);
   console.log(`Kora: ${e.koraMode} mode · identity ${e.SIMULATE_IDENTITY ? "SIMULATED" : "live sandbox"} · AI ${e.AI_API_KEY ? e.AI_MODEL : "off (rule-based parser)"}`);
   console.log(`\nRequest  "${request.rawText}"`);
   for (const q of quotes) console.log(`  ${q.vendor.label}  ${q.vendor.name}  total ${q.totalKobo === null ? "—" : formatNaira(q.totalKobo)}  parsed by ${q.parsedBy}`);
