@@ -49,3 +49,20 @@ describe("backup AI provider", () => {
     await expect(ask()).rejects.toBeInstanceOf(AiUnavailableError);
   });
 });
+
+describe("AI request lanes", () => {
+  it("never runs more than two calls to one provider at the same time", async () => {
+    let active = 0;
+    let peak = 0;
+    setAiFetchForTests(async () => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((r) => setTimeout(r, 40));
+      active -= 1;
+      return ok();
+    });
+    const results = await Promise.all(Array.from({ length: 6 }, () => ask()));
+    expect(results.every((r) => r.data.answer === "ok")).toBe(true);
+    expect(peak).toBe(2);
+  });
+});

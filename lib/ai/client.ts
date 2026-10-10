@@ -57,7 +57,31 @@ export async function chatJson<S extends z.ZodType>(opts: ChatOpts<S>): Promise<
   }
 }
 
-async function callProvider<S extends z.ZodType>(p: Provider, opts: ChatOpts<S>): Promise<AiResult<z.output<S>>> {
+/**
+ * Free tiers allow a handful of requests at once: eight vendor replies parsed together got mostly
+ * 429/503 from Gemini. Keep at most MAX_IN_FLIGHT calls per provider running; the rest wait their turn.
+ */
+const MAX_IN_FLIGHT = 2;
+const lanes = new Map<string, { active: number; queue: Array<() => void> }>();
+
+async function withLane<T>(key: string, run: () => Promise<T>): Promise<T> {
+  const lane = lanes.get(key) ?? { active: 0, queue: [] };
+  lanes.set(key, lane);
+  if (lane.active >= MAX_IN_FLIGHT) await new Promise<void>((resolve) => lane.queue.push(resolve));
+  lane.active += 1;
+  try {
+    return await run();
+  } finally {
+    lane.active -= 1;
+    lane.queue.shift()?.();
+  }
+}
+
+function callProvider<S extends z.ZodType>(p: Provider, opts: ChatOpts<S>): Promise<AiResult<z.output<S>>> {
+  return withLane(p.baseUrl, () => callProviderNow(p, opts));
+}
+
+async function callProviderNow<S extends z.ZodType>(p: Provider, opts: ChatOpts<S>): Promise<AiResult<z.output<S>>> {
   const url = `${p.baseUrl.replace(/\/+$/, "")}/chat/completions`;
   // Gemini's current models "think" before answering (26 s vs 3 s here), which blows the request timeout
   // and silently pushes every call to the fallback. Google's OpenAI-compatible endpoint takes
@@ -114,7 +138,11 @@ async function callProvider<S extends z.ZodType>(p: Provider, opts: ChatOpts<S>)
       last = new AiUnavailableError(timedOut ? "timeout" : "http", `${opts.task}: ${timedOut ? "AI timed out" : `AI request failed: ${String(err)}${err instanceof Error && err.cause instanceof Error ? ` (${err.cause.message})` : ""}`}`);
       log.warn({ ai: { task: opts.task, attempt, error: last.message } }, "ai request failed");
     }
-    if (attempt < 3) await new Promise((r) => setTimeout(r, 300 * attempt + randomInt(0, 200)));
+    if (attempt < 3) {
+      // "Too many requests" / "overloaded" need a real pause; anything else retries quickly.
+      const busy = last?.message.includes("HTTP 429") || last?.message.includes("HTTP 503");
+      await new Promise((r) => setTimeout(r, (busy ? 1_500 : 300) * attempt + randomInt(0, 200)));
+    }
   }
   throw last ?? new AiUnavailableError("http", `${opts.task}: AI unavailable`);
 }
