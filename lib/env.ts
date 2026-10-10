@@ -1,3 +1,4 @@
+import { databaseUrl } from "@/lib/database-url";
 import { z } from "zod";
 
 /**
@@ -112,7 +113,7 @@ export function parseEnv(source: Record<string, string | undefined>): Env {
 let cached: Env | undefined;
 
 export function env(): Env {
-  if (!cached) cached = parseEnv(process.env);
+  if (!cached) cached = parseEnv({ ...process.env, DATABASE_URL: databaseUrl() });
   return cached;
 }
 

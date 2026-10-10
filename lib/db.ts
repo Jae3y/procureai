@@ -1,4 +1,5 @@
 import { PrismaPg } from "@prisma/adapter-pg";
+import { databaseUrl } from "@/lib/database-url";
 import { Prisma, PrismaClient } from "@/lib/generated/prisma/client";
 
 /**
@@ -12,7 +13,7 @@ export { Prisma };
 const globalForDb = globalThis as unknown as { procureaiDb?: PrismaClient; procureaiDbUrl?: string };
 
 export function db(): PrismaClient {
-  const url = process.env.DATABASE_URL;
+  const url = databaseUrl();
   if (!url) throw new Error("DATABASE_URL is missing");
   if (!globalForDb.procureaiDb || globalForDb.procureaiDbUrl !== url) {
     const adapter = new PrismaPg({ connectionString: url, max: 10 });

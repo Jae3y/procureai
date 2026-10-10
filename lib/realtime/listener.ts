@@ -1,3 +1,4 @@
+import { databaseUrl } from "@/lib/database-url";
 import { EventEmitter } from "node:events";
 import pg from "pg";
 import { log } from "@/lib/log";
@@ -27,7 +28,7 @@ async function ensureConnected(): Promise<void> {
   if (b.client) return;
   if (b.connecting) return b.connecting;
   b.connecting = (async () => {
-    const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+    const client = new pg.Client({ connectionString: databaseUrl() });
     client.on("notification", (msg) => {
       if (msg.payload) b.emitter.emit(msg.payload, msg.payload);
     });

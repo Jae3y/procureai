@@ -10,10 +10,13 @@ import { jsonText } from "./idempotency";
  * a (re)connected client receives is a fresh snapshot, so missed events are always backfilled and
  * the timeline is never left with a gap.
  *
- * Push comes from Postgres NOTIFY. A 5s safety check re-reads the cursor in case a notification was
+ * Push comes from Postgres NOTIFY. A 15 s safety check re-reads the cursor in case a notification was
  * missed, and — where no in-process worker runs (Vercel) — drives a background tick while someone is
  * watching, so the reconciliation poller keeps working.
  */
+
+const SAFETY_RECHECK_MS = 15_000;
+const STREAM_TICK_MS = 60_000;
 
 export function sseResponse(opts: {
   req: Request;
@@ -63,14 +66,15 @@ export function sseResponse(opts: {
       await push(true);
       unsubscribe = await subscribe(opts.channel, () => void push());
 
+      // Kora's webhooks and NOTIFY push changes immediately; these timers are only a safety net, kept
+      // slow on purpose: every open page used to cost ~20 queries every 5 s and exhausted a free
+      // database plan in days.
       const inProcessWorker = !process.env.VERCEL;
       timers.push(
-        setInterval(() => {
-          if (!inProcessWorker) {
-            tick().catch((err: unknown) => log.warn({ err: String(err) }, "stream-driven tick failed"));
-          }
-          void push();
-        }, 5_000),
+        setInterval(() => void push(), SAFETY_RECHECK_MS),
+        ...(inProcessWorker
+          ? []
+          : [setInterval(() => void tick().catch((err: unknown) => log.warn({ err: String(err) }, "stream-driven tick failed")), STREAM_TICK_MS)]),
         setInterval(() => write(`: keep-alive ${Date.now()}\n\n`), 15_000),
       );
     },
