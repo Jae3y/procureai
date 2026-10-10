@@ -17,7 +17,7 @@ import { log } from "@/lib/log";
  */
 
 const CHARGE_AGE_MS = 20_000;
-const PAYOUT_AGE_MS = 30_000;
+const PAYOUT_AGE_MS = 5_000; // ask Kora about a payout 5 s after sending it; the webhook usually beats us
 const REQUERY_GAP_MS = 10_000;
 const SELF_HEAL_GAP_MS = 60_000;
 const APPROVE_GRACE_MS = 30_000;

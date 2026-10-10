@@ -192,6 +192,9 @@ function Quotes({ v }: { v: RequestView }) {
           <div className="qfoot">
             <p className="note" style={{ margin: 0, maxWidth: "62ch" }}>
               Prices are for {v.spec.quantity} pieces. Whatever a vendor asks upfront, ProcureAI pays 30% once your money is held and 70% on delivery.
+              {v.repliedCount < v.invitedCount
+                ? ` ${v.invitedCount - v.repliedCount} vendor${v.invitedCount - v.repliedCount === 1 ? " hasn't" : "s haven't"} replied yet: you can check these ${v.repliedCount} now and add later replies.`
+                : ""}
             </p>
             <button type="button" className="btn" disabled={busy} onClick={() => void check()}>
               {phase === "checking" ? (
@@ -199,7 +202,7 @@ function Quotes({ v }: { v: RequestView }) {
               ) : phase === "ranking" ? (
                 <Spinner label="Comparing quotes" />
               ) : (
-                <>Check vendors with Kora <span className="arrow">→</span></>
+                <>Check {v.repliedCount === 1 ? "this vendor" : `these ${v.repliedCount} vendors`} with Kora <span className="arrow">→</span></>
               )}
             </button>
           </div>
@@ -290,6 +293,30 @@ function VendorRow({ c, index, simulated }: { c: CheckRow; index: number; simula
   );
 }
 
+function LateReplies({ v }: { v: RequestView }) {
+  const verify = useAction(`/api/requests/${v.id}/verify`);
+  const recommend = useAction(`/api/requests/${v.id}/recommend`);
+  const busy = verify.pending || recommend.pending;
+  return (
+    <div className="alert" style={{ marginBottom: 20, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+      <span style={{ flex: 1, minWidth: "24ch" }}>
+        {v.lateReplies} more repl{v.lateReplies === 1 ? "y" : "ies"} arrived after the check. The ranking below doesn&apos;t include {v.lateReplies === 1 ? "it" : "them"} yet.
+      </span>
+      <button
+        type="button"
+        className="btn btn-sm"
+        disabled={busy}
+        onClick={async () => {
+          const a = await verify.run();
+          if (a.ok) await recommend.run();
+        }}
+      >
+        {busy ? <Spinner label="Checking with Kora" /> : `Check ${v.lateReplies === 1 ? "it" : "them"} too`}
+      </button>
+    </div>
+  );
+}
+
 function Decision({ v }: { v: RequestView }) {
   const router = useRouter();
   const approve = useAction<Record<string, never>, { orderId: string }>(`/api/requests/${v.id}/approve`);
@@ -371,6 +398,7 @@ function Decision({ v }: { v: RequestView }) {
           <span>Sorted by price</span>
           <span>{v.checkedAt ? `Checked by Kora · ${v.checkedAt}` : "Checking with Kora…"}</span>
         </div>
+        {v.lateReplies > 0 ? <LateReplies v={v} /> : null}
         <ol style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {v.checks.map((c, i) => (
             <VendorRow key={c.vendorId} c={c} index={i} simulated={v.simulatedIdentity} />

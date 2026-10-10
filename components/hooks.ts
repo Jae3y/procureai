@@ -110,3 +110,17 @@ export function useCountdown(iso: string | null): string | null {
   if (secs >= 3600) return `${Math.floor(secs / 3600)}h ${String(Math.floor((secs % 3600) / 60)).padStart(2, "0")}m`;
   return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
 }
+
+/** "0:23" since an ISO instant, ticking every second; null until mounted (hydration-safe). */
+export function useElapsed(iso: string | null): string | null {
+  const [now, setNow] = useState<number | null>(null);
+  useEffect(() => {
+    if (!iso) return;
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [iso]);
+  if (!iso || now === null) return null;
+  const secs = Math.max(0, Math.floor((now - Date.parse(iso)) / 1000));
+  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+}

@@ -158,17 +158,39 @@ function CodeEntry({ orderId, token, enabled, attemptsLeft, locked }: { orderId:
   const [code, setCode] = useState("");
   const submit = useAction<{ token: string; code: string }, { ok: boolean; message?: string }>(`/api/orders/${orderId}/handover`);
   const [answer, setAnswer] = useState<string | null>(null);
+  const [sending, setSending] = useState(false); // set synchronously on tap, so the button reacts instantly
+  const sent = useRef<string | null>(null); // the code already on its way; a second tap never resends it
   const inputRef = useRef<HTMLInputElement>(null);
-  const disabled = !enabled || locked || submit.pending;
+  const busy = sending || submit.pending;
+  const disabled = !enabled || locked || busy;
+
+  const send = (value: string) => {
+    if (value.length !== 6 || sent.current === value || !enabled || locked) return;
+    sent.current = value;
+    setSending(true);
+    setAnswer(null);
+    void submit.run({ token, code: value }).then((r) => {
+      setSending(false);
+      if (r.ok && r.data.ok) return; // the page moves on by itself
+      sent.current = null;
+      setCode("");
+      if (r.ok) setAnswer(r.data.message ?? "That code isn't right.");
+      inputRef.current?.focus();
+    });
+  };
+
+  // Typed or pasted ("928 762", "Code: 928762"): keep the digits, and send as soon as all six are in.
+  const accept = (raw: string) => {
+    const digits = raw.replace(/\D/g, "").slice(0, 6);
+    setCode(digits);
+    if (digits.length === 6) send(digits);
+  };
+
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        setAnswer(null);
-        void submit.run({ token, code }).then((r) => {
-          if (!r.ok || !r.data.ok) setCode("");
-          if (r.ok && !r.data.ok) setAnswer(r.data.message ?? "That code isn't right.");
-        });
+        send(code);
       }}
     >
       <div className="code-boxes" onClick={() => inputRef.current?.focus()}>
@@ -181,20 +203,27 @@ function CodeEntry({ orderId, token, enabled, attemptsLeft, locked }: { orderId:
           ref={inputRef}
           className="code-input"
           aria-label="Delivery code, 6 digits"
+          type="text"
           inputMode="numeric"
           pattern="[0-9]*"
           autoComplete="one-time-code"
-          maxLength={6}
+          enterKeyHint="done"
           value={code}
           disabled={disabled}
-          onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+          onChange={(e) => accept(e.target.value)}
+          onPaste={(e) => {
+            e.preventDefault();
+            accept(e.clipboardData.getData("text"));
+          }}
         />
       </div>
-      <button type="submit" className="btn" style={{ marginTop: 20 }} disabled={disabled || code.length !== 6}>
-        {submit.pending ? <Spinner label="Checking code" /> : "Confirm delivery"}
+      <button type="submit" className="btn" style={{ marginTop: 20 }} disabled={disabled || code.length !== 6} aria-busy={busy}>
+        {busy ? <Spinner label="Checking code with ProcureAI" /> : "Confirm delivery"}
       </button>
       <div aria-live="polite">
-        {locked ? (
+        {busy ? (
+          <p className="note" style={{ fontSize: 13 }}>Checking the code…</p>
+        ) : locked ? (
           <p className="form-error">This code is locked after 5 wrong attempts. Ask the buyer to contact ProcureAI.</p>
         ) : submit.error || answer ? (
           <p className="form-error">{answer ?? submit.error?.message}</p>

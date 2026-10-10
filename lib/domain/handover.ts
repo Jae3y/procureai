@@ -40,7 +40,7 @@ export function revealHandoverCode(order: Pick<Order, "id" | "handoverCodeCipher
 }
 
 export type CodeAttemptResult =
-  | { ok: true }
+  | { ok: true; repeat?: boolean }
   | { ok: false; reason: "wrong"; attemptsLeft: number }
   | { ok: false; reason: "locked" | "expired" | "used" };
 
@@ -50,7 +50,11 @@ export async function submitHandoverCode(orderId: string, candidate: string, act
   const result = await transaction(async (tx): Promise<CodeAttemptResult> => {
     const order = await lockOrder(tx, orderId);
     if (!order.handoverCodeHash) throw new DomainError("no_code", "This order has no delivery code yet.", 409);
-    if (order.codeUsedAt) return { ok: false, reason: "used" };
+    // The right code arriving twice (a double tap, a retried request) is the same success, not an error,
+    // and must never send Stage 2 again.
+    if (order.codeUsedAt) {
+      return order.handoverCodeHash && checkHandoverCode(orderId, candidate, order.handoverCodeHash) ? { ok: true, repeat: true } : { ok: false, reason: "used" };
+    }
     if (order.codeExpiresAt && order.codeExpiresAt < new Date()) return { ok: false, reason: "expired" };
     if (order.codeAttempts >= MAX_CODE_ATTEMPTS) return { ok: false, reason: "locked" };
     if (order.status !== "STAGE_1_PAID") {
@@ -75,6 +79,6 @@ export async function submitHandoverCode(orderId: string, candidate: string, act
     return { ok: true };
   });
 
-  if (result.ok) await dispatchStage(orderId, "STAGE_2", { type: "USER", id: actor });
+  if (result.ok && !result.repeat) await dispatchStage(orderId, "STAGE_2", { type: "USER", id: actor });
   return result;
 }

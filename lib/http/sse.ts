@@ -1,3 +1,4 @@
+import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 import { subscribe } from "@/lib/realtime/listener";
@@ -17,6 +18,8 @@ import { jsonText } from "./idempotency";
 
 const SAFETY_RECHECK_MS = 15_000;
 const STREAM_TICK_MS = 60_000;
+const URGENT_TICK_MS = 10_000;
+let lastTick = 0;
 
 export function sseResponse(opts: {
   req: Request;
@@ -74,7 +77,17 @@ export function sseResponse(opts: {
         setInterval(() => void push(), SAFETY_RECHECK_MS),
         ...(inProcessWorker
           ? []
-          : [setInterval(() => void tick().catch((err: unknown) => log.warn({ err: String(err) }, "stream-driven tick failed")), STREAM_TICK_MS)]),
+          : [
+              setInterval(() => {
+                // Every 60 s normally; every 10 s while a payout is waiting for Kora, so Stage 1/2 confirm fast.
+                void (async () => {
+                  const urgent = Date.now() - lastTick >= STREAM_TICK_MS || (await db().payout.count({ where: { status: "PENDING" } })) > 0;
+                  if (!urgent) return;
+                  lastTick = Date.now();
+                  await tick();
+                })().catch((err: unknown) => log.warn({ err: String(err) }, "stream-driven tick failed"));
+              }, URGENT_TICK_MS),
+            ]),
         setInterval(() => write(`: keep-alive ${Date.now()}\n\n`), 15_000),
       );
     },

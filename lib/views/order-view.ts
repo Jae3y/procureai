@@ -59,6 +59,8 @@ export type OrderView = {
     failure: { stage: string; title: string; detail: string; reference: string; canRetry: boolean } | null;
     blocked: { title: string; detail: string } | null;
     pendingNote: string | null;
+    /** A payout Kora hasn't confirmed yet: drives the live progress panel. */
+    payoutInFlight: { stage: string; amount: string; reference: string; sentAt: string } | null;
     complete: boolean;
     disputed: { title: string; detail: string; refund: string | null } | null;
     recordPath: string | null;
@@ -318,6 +320,10 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
           : null,
       blocked: lastError ? { title: lastError.title, detail: lastError.detail ?? "" } : null,
       pendingNote: pendingInfo?.detail ?? null,
+      payoutInFlight: (() => {
+        const p = [s2, s1].find((x) => x?.status === "PENDING");
+        return p ? { stage: p.stage === "STAGE_1" ? "Stage 1" : "Stage 2", amount: formatNaira(p.amountKobo), reference: p.reference, sentAt: p.createdAt.toISOString() } : null;
+      })(),
       complete,
       disputed:
         order.status === "DISPUTED" || order.status === "REFUNDED"

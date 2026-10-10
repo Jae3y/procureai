@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { OrderView } from "@/lib/views/order-view";
-import { useAction, useCountdown, useLive } from "./hooks";
+import { useAction, useCountdown, useElapsed, useLive } from "./hooks";
 import { Header, KoraPanel, MoneyTrail, type Step, Spinner } from "./ui";
 
 /** 04 · Pay and 05 · Tracker for one order, driven entirely by Kora-confirmed state over SSE. */
@@ -276,6 +276,8 @@ function Tracker({ v, connection }: { v: OrderView; connection: "live" | "reconn
             </div>
           ) : null}
 
+          {t.payoutInFlight && !t.failure ? <PayoutProgress p={t.payoutInFlight} /> : null}
+
           {t.pendingNote && !t.failure ? (
             <div className="block">
               <div className="label" style={{ marginBottom: 12 }}>
@@ -431,5 +433,27 @@ function DemoStrip({ v }: { v: OrderView }) {
         </div>
       ) : null}
     </>
+  );
+}
+
+/** Live progress while Kora confirms a payout: sandbox payouts usually confirm within about a minute. */
+function PayoutProgress({ p }: { p: NonNullable<OrderView["track"]["payoutInFlight"]> }) {
+  const elapsed = useElapsed(p.sentAt);
+  return (
+    <div className="block" role="status" aria-live="polite">
+      <div className="label" style={{ marginBottom: 12 }}>
+        {p.stage} · {p.amount} on its way
+      </div>
+      <ol className="payout-steps">
+        <li className="done">Sent to Kora <span className="mono muted">{p.reference}</span></li>
+        <li className="now">
+          <span className="dot breathe" aria-hidden="true" /> Bank processing{elapsed ? ` · ${elapsed}` : ""}
+        </li>
+        <li>Confirmed by Kora</li>
+      </ol>
+      <p className="note" style={{ margin: "12px 0 0" }}>
+        Kora usually confirms within a minute. This page updates by itself the moment it does.
+      </p>
+    </div>
   );
 }

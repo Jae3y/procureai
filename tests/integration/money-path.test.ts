@@ -445,8 +445,10 @@ describe("payouts — two stages, failures, retries, unknown outcomes", () => {
     expect(await status(f.order.id)).toBe("COMPLETE");
     expect(await heldBalance(f.order.id)).toBe(0n);
     await expectMoneyInvariants(f.order.id);
-    // The code is single-use.
-    expect(await submitHandoverCode(f.order.id, code ?? "", "vendor")).toEqual({ ok: false, reason: "used" });
+    // The code is single-use: entering it again is acknowledged but sends nothing; another code is refused.
+    expect(await submitHandoverCode(f.order.id, code ?? "", "vendor")).toEqual({ ok: true, repeat: true });
+    expect(await db().payout.count({ where: { orderId: f.order.id, stage: "STAGE_2" } })).toBe(1);
+    expect(await submitHandoverCode(f.order.id, wrong, "vendor")).toEqual({ ok: false, reason: "used" });
   });
 
   it("locks the code after 5 wrong attempts", async () => {

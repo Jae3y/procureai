@@ -101,8 +101,10 @@ describe("racing money actions", () => {
     await reconcilePayout(s1.reference, { type: "POLLER", id: "t" });
     const code = revealHandoverCode(await db().order.findUniqueOrThrow({ where: { id: order.id } })) ?? "";
     const results = await Promise.allSettled([1, 2, 3].map(() => submitHandoverCode(order.id, code, "vendor")));
-    const ok = results.filter((r) => r.status === "fulfilled" && r.value.ok);
-    expect(ok).toHaveLength(1);
+    // A double tap is the same success for the vendor, but only the first one sends money.
+    const values = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
+    expect(values.filter((v) => v.ok)).toHaveLength(3);
+    expect(values.filter((v) => v.ok && !("repeat" in v && v.repeat))).toHaveLength(1);
     expect(await db().payout.count({ where: { orderId: order.id, stage: "STAGE_2" } })).toBe(1);
     expect(await db().orderTransition.count({ where: { orderId: order.id, toState: "CODE_VERIFIED" } })).toBe(1);
   });

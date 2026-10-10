@@ -67,6 +67,8 @@ export type RequestView = {
   repliedCount: number;
   quotes: QuoteRow[];
   checks: CheckRow[];
+  /** Replies that arrived after the Kora check: not on the Decision list until they are checked too. */
+  lateReplies: number;
   checkedAt: string | null;
   checkErrors: string[];
   recommendation: {
@@ -184,6 +186,11 @@ export async function buildRequestView(requestId: string, opts: { includeInvites
       return qa < qb ? -1 : qa > qb ? 1 : 0;
     });
 
+  // Once a check has run, the Decision list is exactly what was checked and ranked; replies that
+  // landed afterwards are counted separately instead of sitting there as "Checking…" forever.
+  const settled = request.status !== "VERIFYING" && checks.some((c) => c.verdict !== "UNCHECKED");
+  const shownChecks = settled ? checks.filter((c) => c.verdict !== "UNCHECKED") : checks;
+  const lateReplies = settled ? checks.length - shownChecks.length : 0;
   const verifiedRows = [...latest.values()];
   const checkedAt = verifiedRows.length ? lagosTime(new Date(Math.max(...verifiedRows.map((v) => v.checkedAt.getTime())))) : null;
   const lastCheckError = events.filter((e) => e.kind === "error" && e.title.startsWith("Couldn't check"));
@@ -209,7 +216,8 @@ export async function buildRequestView(requestId: string, opts: { includeInvites
     invitedCount: request.vendors.length,
     repliedCount: quotes.length,
     quotes,
-    checks,
+    checks: shownChecks,
+    lateReplies,
     checkedAt,
     checkErrors: lastCheckError.map((e) => `${e.title}: ${e.detail ?? ""}`),
     recommendation: rec
