@@ -354,16 +354,16 @@ function Decision({ v }: { v: RequestView }) {
                 {rec.chosenTotal}
               </span>
             </div>
-            <div style={{ marginTop: 48, display: "grid", gap: 20, maxWidth: "46ch" }}>
+            <button type="button" className="btn btn-lg" style={{ marginTop: 32 }} disabled={approve.pending} onClick={() => void onApprove()}>
+              {approve.pending ? <Spinner label="Opening your account" /> : `Approve ${rec.chosenLabel}`}
+            </button>
+            <div style={{ marginTop: 32, display: "grid", gap: 20, maxWidth: "46ch" }}>
               {rec.reasoning.map((s) => (
                 <p key={s} className="body-lg" style={{ margin: 0 }}>
                   {s}
                 </p>
               ))}
             </div>
-            <button type="button" className="btn btn-lg" style={{ marginTop: 56 }} disabled={approve.pending} onClick={() => void onApprove()}>
-              {approve.pending ? <Spinner label="Opening your account" /> : `Approve ${rec.chosenLabel}`}
-            </button>
             <div className="note" style={{ marginTop: 20, fontSize: 15 }}>
               You approve once. Your money is held until delivery: 30% goes to {rec.chosenLabel} once it&apos;s held, 70% when you confirm delivery.
             </div>
