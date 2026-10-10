@@ -110,7 +110,7 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
                 <div className="label" style={{ marginBottom: 12 }}>Failure demos, one click each</div>
                 <div className="ctl-row">
                   <button type="button" className="btn-2" disabled={!liveOrder || demo.pending} onClick={() => liveOrder && void act({ action: "underpay", orderId: liveOrder.id })}>
-                    Underpay the open order
+                    Underpay (Kora reverses it)
                   </button>
                   <button type="button" className="btn-2" disabled={demo.pending} onClick={() => void act({ action: "route", route: "SANDBOX_FAIL_035" })}>
                     Next payout fails (035)
@@ -125,6 +125,11 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
                     Duplicate webhook
                   </button>
                 </div>
+                <p className="note" style={{ fontSize: 14 }}>
+                  Underpay: this Kora account is set to &quot;Return all&quot; for short payments (Kora only changes that with a signed letter and its own approval). Kora therefore
+                  sends the short payment straight back and the order keeps waiting: a real safety behaviour, but not the &quot;₦ short&quot; screen. Show it as &quot;Kora refuses to
+                  let a short payment count&quot;, and use it once per order.
+                </p>
                 <p className="note" style={{ fontSize: 14 }}>
                   Payout failure: press &quot;Next payout fails&quot;, pay an order, watch Stage 1 fail at Kora, then &quot;Retry the failed payout&quot; (it switches back to Kora&apos;s
                   success account first). Signature demos use the newest real Kora webhook.
