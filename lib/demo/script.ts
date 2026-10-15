@@ -35,6 +35,8 @@ export type DemoVendor = {
   bankCode: string;
   accountNumber: string;
   email: string;
+  /** Not registered on ProcureAI: quotes through the one-off form (business details typed each time). */
+  notOnProcureAI?: true;
 };
 
 /**
@@ -76,7 +78,7 @@ const MARKET_VENDORS: readonly DemoVendor[] = [
   { businessName: "Mile 12 Bulk Provisions", phone: "+234 802 331 4410", tags: "food grocery provision noodle rice bean oil beverage drink carton bulk", city: "Lagos", reply: pidgin(88n), ...VALID, email: mail("mile12provisions") },
   { businessName: "Alaba Foods & Beverages Ltd", phone: "+234 805 207 9983", tags: "food beverage drink noodle carton wholesale", city: "Lagos", reply: formal(91n), ...VALID, email: mail("alabafoods") },
   { businessName: "Ariaria Traders Co-op", phone: "+234 703 118 6652", tags: "food grocery noodle provision apparel clothing shirt footwear", city: "Aba", reply: casual(86n), ...UNREGISTERED, email: mail("ariariatraders") },
-  { businessName: "Kano Grain & Provisions", phone: "+234 806 540 2271", tags: "food rice bean grain noodle provision", city: "Kano", reply: silent, ...VALID, email: mail("kanograin") },
+  { businessName: "Kano Grain & Provisions", phone: "+234 806 540 2271", tags: "food rice bean grain noodle provision", city: "Kano", reply: silent, ...VALID, email: mail("kanograin"), notOnProcureAI: true },
   { businessName: "Eko Fresh Distributors", phone: "+234 810 664 3905", tags: "food grocery noodle drink", city: "Lagos", reply: declines, ...VALID, email: mail("ekofresh") },
   { businessName: "Balogun Garments Hub", phone: "+234 807 922 1146", tags: "apparel clothing shirt tshirt uniform", city: "Lagos", reply: casual(87n), ...VALID, email: mail("balogungarments") },
   { businessName: "Yaba Print & Merch", phone: "+234 809 455 7728", tags: "printing branded shirt tshirt cap merch", city: "Lagos", reply: formal(92n), ...VALID, email: mail("yabaprint") },

@@ -82,7 +82,7 @@ function QuoteForm({ token, v }: { token: string; v: VendorView }) {
       style={{ paddingTop: 36, display: "flex", flexDirection: "column", flex: 1 }}
       onSubmit={(e) => {
         e.preventDefault();
-        void send.run(f);
+        void send.run(v.profile ? ({ reply: f.reply } as Fields) : f);
       }}
     >
       <div className="label">{v.buyerName} is asking for a quote</div>
@@ -118,9 +118,21 @@ function QuoteForm({ token, v }: { token: string; v: VendorView }) {
         {issues.reply ? <span className="form-error">{issues.reply}</span> : null}
       </div>
 
+      {v.profile ? (
+        <div className="profile-card" aria-label="Your ProcureAI profile">
+          <div className="label">Sending as your registered business</div>
+          <div className="profile-name">{v.profile.businessName}</div>
+          <div className="profile-meta">
+            {v.profile.rcNumber} · account {v.profile.account} · {v.profile.email}
+          </div>
+          <p className="note" style={{ fontSize: 13, margin: "10px 0 0" }}>
+            Kora checks these details again if {v.buyerName} considers your quote, so ProcureAI can pay you.
+          </p>
+        </div>
+      ) : (
       <div style={{ display: "grid", gap: 14, marginTop: 28 }}>
         <div className="label" style={{ lineHeight: 1.4 }}>
-          Your business. Kora checks these once, so ProcureAI can pay you.
+          Your business. Kora checks these so ProcureAI can pay you.
         </div>
         {field("businessName", "Business name", { autoComplete: "organization" })}
         {field("rcNumber", "CAC registration number", { placeholder: "RC1482093", autoCapitalize: "characters" })}
@@ -146,6 +158,12 @@ function QuoteForm({ token, v }: { token: string; v: VendorView }) {
         </label>
         {issues.consent ? <span className="form-error">{issues.consent}</span> : null}
       </div>
+      )}
+      {!v.profile ? (
+        <p className="note" style={{ fontSize: 13, marginTop: 16 }}>
+          Quote often? <a href="/vendors/join">Register your business once</a> and next time you only write your reply.
+        </p>
+      ) : null}
 
       <div style={{ marginTop: "auto", paddingTop: 24 }}>
         <button type="submit" className="btn" disabled={send.pending || f.reply.trim().length < 3}>
