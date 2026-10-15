@@ -34,6 +34,8 @@ export type RecordView = {
   simulatedIdentity: boolean;
   sandboxRoute: string | null;
   statusLine: string;
+  /** How many buyer–vendor messages the order's thread holds (the text stays between the two parties). */
+  messages: { count: number; line: string };
 };
 
 export async function buildRecordView(orderId: string): Promise<RecordView> {
@@ -46,6 +48,7 @@ export async function buildRecordView(orderId: string): Promise<RecordView> {
       refunds: true,
       ledger: true,
       events: true,
+      _count: { select: { messages: true } },
     },
   });
   if (!order) throw new NotFoundError("Record");
@@ -134,5 +137,9 @@ export async function buildRecordView(orderId: string): Promise<RecordView> {
     simulatedIdentity: (await db().vendorVerification.count({ where: { vendorId: { in: request.vendors.map((v) => v.id) }, simulated: true } })) > 0,
     sandboxRoute: routeNote ? `${routeNote.destinationBankCode}/${routeNote.destinationAccount}` : null,
     statusLine: complete ? "Complete" : order.status === "REFUNDED" ? "Refunded" : `In progress · ${order.status.toLowerCase().replace(/_/g, " ")}`,
+    messages: {
+      count: order._count.messages,
+      line: order._count.messages === 0 ? "No messages between buyer and vendor." : `${order._count.messages} message${order._count.messages === 1 ? "" : "s"} between buyer and vendor.`,
+    },
   };
 }

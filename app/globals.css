@@ -355,3 +355,20 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 
 /* Long Kora references must wrap inside the stamp instead of widening the page (phone width). */
 .stamp { max-width: 100%; white-space: normal; overflow-wrap: anywhere; box-sizing: border-box; }
+
+/* Buyer–vendor messages (tracker and the vendor's phone) */
+.thread { margin-top: 48px; padding: 20px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface); color: var(--ink); max-width: 640px; }
+.thread-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.thread-title { font: 600 22px/1.1 var(--font-display); letter-spacing: -0.025em; }
+.thread-list { list-style: none; margin: 16px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; max-height: 320px; overflow-y: auto; overscroll-behavior: contain; }
+.thread-empty { margin: 0; font-size: 15px; }
+.msg { max-width: 85%; align-self: flex-start; padding: 10px 12px; border-radius: 12px; background: var(--paper); border: 1px solid var(--hairline); }
+.msg.mine { align-self: flex-end; background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.msg-meta { font: 400 12px/1.3 var(--font-body); color: var(--muted); }
+.msg.mine .msg-meta { color: var(--on-ink-soft); }
+.msg-text { margin-top: 4px; font: 400 16px/1.45 var(--font-body); white-space: pre-wrap; overflow-wrap: anywhere; }
+.thread-form { margin-top: 14px; }
+textarea.thread-input { min-height: 64px; font-size: 16px; }
+.thread-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; }
+.thread .thread-send, .phone .thread .thread-send { width: auto; height: 48px; padding: 0 24px; }
+.phone .thread { margin-top: 32px; padding: 16px; max-width: none; }
