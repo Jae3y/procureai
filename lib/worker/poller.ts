@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { ensureOpenPayIn, reconcileCharge } from "@/lib/domain/payin";
+import { releaseDueDeliveries } from "@/lib/domain/delivery";
 import { dispatchStage, reconcilePayout } from "@/lib/domain/payouts";
 import { reconcileRefund } from "@/lib/domain/refunds";
 import { isKoraError } from "@/lib/kora/errors";
@@ -22,14 +23,14 @@ const REQUERY_GAP_MS = 10_000;
 const SELF_HEAL_GAP_MS = 60_000;
 const APPROVE_GRACE_MS = 30_000;
 
-export type PollReport = { charges: number; payouts: number; refunds: number; healed: number; errors: number };
+export type PollReport = { charges: number; payouts: number; refunds: number; healed: number; released: number; errors: number };
 
 function describe(err: unknown): string {
   return isKoraError(err) ? `${err.name}: ${err.message}` : err instanceof Error ? err.message : String(err);
 }
 
 export async function pollOnce(now = new Date()): Promise<PollReport> {
-  const report: PollReport = { charges: 0, payouts: 0, refunds: 0, healed: 0, errors: 0 };
+  const report: PollReport = { charges: 0, payouts: 0, refunds: 0, healed: 0, released: 0, errors: 0 };
   const cause = { type: "POLLER" as const, id: `poll@${now.toISOString()}` };
 
   const staleCharges = await db().payIn.findMany({
@@ -88,6 +89,12 @@ export async function pollOnce(now = new Date()): Promise<PollReport> {
     }
   }
 
+  try {
+    report.released = await releaseDueDeliveries(now);
+  } catch (err) {
+    report.errors++;
+    log.warn({ err: describe(err) }, "poller: releasing delivered orders failed; will retry next tick");
+  }
   report.healed += await selfHeal(now);
   return report;
 }

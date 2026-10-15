@@ -40,6 +40,17 @@ Reset with `npm run demo:reset` between scenarios.
 | Kora 5xx / timeout readable | Offline: double overrides; real: unplug network during approve | "Kora didn't answer in time. Nothing is lost; we'll confirm the result with Kora." Payout stays pending until Kora answers |
 | Identity access blocked → labelled simulation | `SIMULATE_IDENTITY=true` in `.env`, restart | **SIMULATED IDENTITY** badge on the decision screen and the record |
 
+## Delivery without the code, and disputes
+
+The code is the fast path, not the only key. Once Stage 1 has landed:
+
+| Case | How to show it | What you see |
+|---|---|---|
+| Buyer never hands over the code | Vendor phone → **Delivered, but no code from the buyer?** → note + photo → **Mark as delivered** | Buyer's tracker: "Kwik Supplies says it's delivered" with the photo and the date Stage 2 releases (72 h later, `DELIVERY_GRACE_HOURS`). In a pitch: admin Orders → **Skip the wait (demo)** → Stage 2 releases → Complete |
+| Buyer reports a problem in time | Tracker → **Something's wrong** → note + photo → **Freeze payouts** | Payouts frozen; the timer stops. The vendor's phone shows "This order is on hold" and both sides' evidence; the vendor adds theirs with **Send my side** |
+| Admin settles it | Admin Orders → the DISPUTED row → **Evidence** to read both sides → **Pay vendor** or **Refund buyer** | Pay vendor: Stage 2 releases exactly as if the code had been entered. Refund buyer: what is still held goes back through Kora. Once a refund is under way, Pay vendor is refused |
+| Report after the window | The window has passed | "The time to report a problem with this delivery has ended." |
+
 ## Fallback path (if something misbehaves live)
 
 1. Identity call fails on stage → set `SIMULATE_IDENTITY=true`, restart, `npm run demo:reset` (badge makes it explicit).

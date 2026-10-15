@@ -267,6 +267,9 @@ model Order {
   codeAttempts       Int                @default(0)
   codeExpiresAt      DateTime?
   codeUsedAt         DateTime?
+  /// The vendor said "delivered" (with proof); Stage 2 releases at autoReleaseAt unless the buyer disputes first.
+  deliveredAt        DateTime?
+  autoReleaseAt      DateTime?
   payoutRoute        PayoutRoute        @default(VERIFIED_ACCOUNT)
   approvedAt         DateTime           @default(now())
   createdAt          DateTime           @default(now())
@@ -279,6 +282,7 @@ model Order {
   koraEvents         KoraEvent[]
   refunds            Refund[]
   messages           OrderMessage[]
+  evidence           OrderEvidence[]
 }
 
 /// One Kora charge (one-time account) for an order. An underpaid order may get a top-up charge.
@@ -466,6 +470,26 @@ model OrderMessage {
   order     Order         @relation(fields: [orderId], references: [id])
   sender    MessageSender
   body      String
+  createdAt DateTime      @default(now())
+
+  @@index([orderId, id])
+}
+
+enum EvidenceKind {
+  DELIVERY
+  DISPUTE
+}
+
+/** Proof of delivery (vendor) and each side's account of a dispute: a note and an optional photo (≤ 700 KB, CHECK in the migration). */
+model OrderEvidence {
+  id        BigInt        @id @default(autoincrement())
+  orderId   String
+  order     Order         @relation(fields: [orderId], references: [id])
+  party     MessageSender
+  kind      EvidenceKind
+  note      String
+  photo     Bytes?
+  photoType String?
   createdAt DateTime      @default(now())
 
   @@index([orderId, id])

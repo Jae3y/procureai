@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { VendorView } from "@/lib/views/vendor-view";
 import { useAction, useLive } from "./hooks";
+import { EvidenceForm, EvidenceList } from "./evidence";
 import { MessageThread } from "./message-thread";
 import { Spinner } from "./ui";
 
@@ -249,7 +250,34 @@ function OrderScreen({ token, v }: { token: string; v: VendorView }) {
     return <Note title="You were chosen." body={`Waiting for ${v.buyerName}'s payment. Kora holds it, then sends you ${o.stage1Amount}.`} detail={`Order ${o.ref}`} />;
   }
   if (s.screen === "disputed") {
-    return <Note title="This order is on hold." body="The buyer raised a problem, so payouts are paused while ProcureAI looks into it." detail={`Order ${o.ref}`} />;
+    const refunded = o.status === "REFUNDED";
+    return (
+      <div>
+        <Note
+          title={refunded ? "Refunded to the buyer." : "This order is on hold."}
+          body={
+            refunded
+              ? "ProcureAI reviewed both sides and returned the held money to the buyer. Money you already received is yours."
+              : "The buyer reported a problem, so payouts are paused. Add your side below: ProcureAI reviews both, then releases the rest to you or refunds the buyer."
+          }
+          detail={`Order ${o.ref}`}
+        />
+        <div style={{ marginTop: 24 }}>
+          <EvidenceList items={o.evidence} title="What each side has said" />
+        </div>
+        {!refunded ? (
+          <div style={{ marginTop: 24 }}>
+            <EvidenceForm
+              url={`/api/vendors/${token}/evidence`}
+              noteLabel="Your side: what did you deliver, and when?"
+              placeholder="e.g. Delivered 200 shirts to Ikeja on Thursday, signed for by Tolu"
+              submitLabel="Send my side"
+              busyLabel="Sending"
+            />
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   const releasing = s.screen === "releasing";
@@ -315,6 +343,29 @@ function OrderScreen({ token, v }: { token: string; v: VendorView }) {
                 : `You can enter the code once ${o.stage1Amount} has landed.`}
             </p>
             <CodeEntry orderId={o.id} token={token} enabled={stage1Paid && o.status === "STAGE_1_PAID"} attemptsLeft={s.codeAttemptsLeft} locked={s.codeLocked} />
+            {stage1Paid && o.status === "STAGE_1_PAID" ? (
+              o.delivery ? (
+                <div className="delivered-note" role="status">
+                  <strong>Marked delivered on {o.delivery.markedAt}.</strong> If {v.buyerName} doesn&apos;t report a problem, {o.stage2Amount} is released to you on{" "}
+                  {o.delivery.releasesAt}. If they give you the code first, it&apos;s released straight away.
+                </div>
+              ) : (
+                <details className="evidence-more">
+                  <summary className="btn-text">Delivered, but no code from the buyer?</summary>
+                  <p className="note" style={{ fontSize: 14 }}>
+                    Mark it delivered with a photo. {v.buyerName} then has {o.graceHours} hours to report a problem; if they don&apos;t, {o.stage2Amount} is released
+                    to you automatically.
+                  </p>
+                  <EvidenceForm
+                    url={`/api/vendors/${token}/delivered`}
+                    noteLabel="What did you deliver, where, and to whom?"
+                    placeholder="e.g. 200 shirts to Ikeja, received by Tolu"
+                    submitLabel="Mark as delivered"
+                    busyLabel="Saving"
+                  />
+                </details>
+              )
+            ) : null}
           </>
         )}
       </div>

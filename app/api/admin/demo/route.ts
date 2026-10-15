@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { skipDeliveryWait } from "@/lib/domain/delivery";
 import { corruptSignature, payAccount, recheckNow, replayWebhook, retryStage, setPayoutRoute, suppressNextWebhook, underpay } from "@/lib/demo/actions";
 import { koraHealth, latestReplayableEvent, prepareShowcase, resetDemo } from "@/lib/demo/presenter";
 import { db } from "@/lib/db";
@@ -31,6 +32,7 @@ const Body = z.discriminatedUnion("action", [
   z.object({ action: z.literal("health") }),
   z.object({ action: z.literal("replay-latest") }),
   z.object({ action: z.literal("corrupt-latest") }),
+  z.object({ action: z.literal("skip-wait"), orderId: z.string().min(1) }),
 ]);
 
 /** The sandbox buttons on an order page; its buyer may press them. Everything else is admin-only. */
@@ -81,6 +83,10 @@ export const POST = route<z.output<typeof Body>>({ name: "admin.demo", input: Bo
       if (order.status !== "COMPLETE") throw new DomainError("not_complete", "Only a completed purchase can be the sample record.", 409);
       await setSetting("sampleOrderId", input.orderId);
       return { body: { message: `PA-${String(order.number).padStart(4, "0")} is now the sample record behind "See a completed record".` } };
+    }
+    case "skip-wait": {
+      const released = await skipDeliveryWait(input.orderId);
+      return { body: { message: released ? "Waiting period skipped: Stage 2 released to the vendor." : "Nothing to release: the order isn't waiting on a delivery window." } };
     }
     case "showcase":
       runAfterResponse("presenter-showcase", prepareShowcase);

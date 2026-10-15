@@ -64,6 +64,10 @@ export type OrderView = {
     complete: boolean;
     disputed: { title: string; detail: string; refund: string | null } | null;
     recordPath: string | null;
+    /** The vendor marked it delivered: Stage 2 releases at `releasesAt` unless the buyer reports a problem first. */
+    delivery: { markedAt: string; releasesAt: string; releasesAtIso: string; windowOpen: boolean; hours: number } | null;
+    /** Proof of delivery and each side's dispute evidence, oldest first. Photos load from `photoUrl`. */
+    evidence: Array<{ id: string; party: "buyer" | "vendor"; who: string; kind: "delivery" | "dispute"; note: string; when: string; photoUrl: string | null }>;
   };
   vendor: {
     screen: "waiting" | "stage1" | "releasing" | "paid" | "disputed";
@@ -123,9 +127,14 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
     },
   });
   if (!order) throw new NotFoundError("Order");
-  const [orderEvents, requestEvents] = await Promise.all([
+  const [orderEvents, requestEvents, evidenceRows] = await Promise.all([
     db().orderEvent.findMany({ where: { orderId }, orderBy: { id: "asc" } }),
     db().requestEvent.findMany({ where: { requestId: order.requestId, kind: "kora" }, orderBy: { id: "asc" } }),
+    db().orderEvidence.findMany({
+      where: { orderId },
+      orderBy: { id: "asc" },
+      select: { id: true, party: true, kind: true, note: true, photoType: true, createdAt: true },
+    }),
   ]);
   const e = env();
   const { stage1, stage2 } = splitStages(order.amountKobo);
@@ -334,6 +343,25 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
             }
           : null,
       recordPath: `/r/${signRecordId(order.id)}`,
+      delivery:
+        order.deliveredAt && order.autoReleaseAt
+          ? {
+              markedAt: `${lagosDay(order.deliveredAt)}, ${lagosTime(order.deliveredAt)}`,
+              releasesAt: `${lagosDay(order.autoReleaseAt)}, ${lagosTime(order.autoReleaseAt)}`,
+              releasesAtIso: order.autoReleaseAt.toISOString(),
+              windowOpen: order.status === "STAGE_1_PAID" && order.autoReleaseAt > new Date(),
+              hours: e.DELIVERY_GRACE_HOURS,
+            }
+          : null,
+      evidence: evidenceRows.map((ev) => ({
+        id: ev.id.toString(),
+        party: ev.party === "BUYER" ? "buyer" : "vendor",
+        who: ev.party === "BUYER" ? order.request.buyer.name : (order.vendor.name ?? order.vendor.label),
+        kind: ev.kind === "DELIVERY" ? "delivery" : "dispute",
+        note: ev.note,
+        when: `${lagosDay(ev.createdAt)}, ${lagosTime(ev.createdAt)}`,
+        photoUrl: ev.photoType ? `/api/orders/${order.id}/evidence/${ev.id.toString()}` : null,
+      })),
     },
     vendor: {
       screen: vendorScreen,

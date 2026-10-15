@@ -4,6 +4,7 @@ import { kora } from "@/lib/kora/client";
 import { isKoraError } from "@/lib/kora/errors";
 import { formatNaira, type Kobo } from "@/lib/money";
 import { DomainError, NotFoundError, UnknownReferenceError } from "./errors";
+import { cleanNote, decodePhoto, type EvidenceInput } from "./evidence";
 import { recordApiEvent, toJson } from "./kora-events";
 import { type Cause, lockOrder, transition } from "./state";
 import { orderEvent } from "./timeline";
@@ -15,14 +16,21 @@ import { orderEvent } from "./timeline";
  * Same discipline as payouts: row first (PENDING, unique reference), then Kora, never blind-retried.
  */
 
-export async function disputeOrder(orderId: string, reason: string, cause: Cause): Promise<void> {
+export async function disputeOrder(orderId: string, reason: string, cause: Cause, photo?: EvidenceInput["photo"]): Promise<void> {
+  const note = cleanNote(reason);
+  const image = decodePhoto(photo);
   await transaction(async (tx) => {
     const order = await lockOrder(tx, orderId);
     if (order.status !== "HELD" && order.status !== "STAGE_1_PAID") {
       throw new DomainError("not_disputable", "This order can only be disputed while money is held, before delivery.", 409);
     }
+    // After the vendor marks delivery, the buyer has a fixed window; once it ends, Stage 2 is the vendor's.
+    if (order.autoReleaseAt && order.autoReleaseAt <= new Date()) {
+      throw new DomainError("dispute_window_closed", "The time to report a problem with this delivery has ended.", 409);
+    }
     await transition(tx, order, "DISPUTED", { ...cause, note: reason.slice(0, 200) });
     await orderEvent(tx, orderId, { kind: "error", title: "Disputed", detail: `${reason.slice(0, 200)} Payouts are frozen.` });
+    await tx.orderEvidence.create({ data: { orderId, party: "BUYER", kind: "DISPUTE", note, photo: image?.bytes ?? null, photoType: image?.type ?? null } });
   });
 }
 
