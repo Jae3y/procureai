@@ -182,10 +182,10 @@ function Quotes({ v }: { v: RequestView }) {
                     <div className="qname">{q.name}</div>
                     {q.note ? <div className="qnote">{q.note}</div> : null}
                   </div>
-                  <span className="qnum">{q.each}</span>
-                  <span className="qnum">{q.total}</span>
-                  <span className="qnum">{q.upfront}</span>
-                  <span className="qready">{q.ready}</span>
+                  <span className="qnum" data-label="Each">{q.each}</span>
+                  <span className="qnum" data-label="Total">{q.total}</span>
+                  <span className="qnum" data-label="Upfront">{q.upfront}</span>
+                  <span className="qready" data-label="Ready">{q.ready}</span>
                 </div>
               </li>
             ))}
