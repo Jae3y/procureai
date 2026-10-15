@@ -278,6 +278,7 @@ model Order {
   events             OrderEvent[]
   koraEvents         KoraEvent[]
   refunds            Refund[]
+  messages           OrderMessage[]
 }
 
 /// One Kora charge (one-time account) for an order. An underpaid order may get a top-up charge.
@@ -453,6 +454,23 @@ model OrderTransition {
 
 /// The order timeline streamed over SSE. `seq` is the SSE event id, so a reconnect backfills by
 /// asking for everything after Last-Event-ID.
+enum MessageSender {
+  BUYER
+  VENDOR
+}
+
+/** The buyer–vendor thread on an order. Text only; 1–300 characters (a CHECK in the migration). */
+model OrderMessage {
+  id        BigInt        @id @default(autoincrement())
+  orderId   String
+  order     Order         @relation(fields: [orderId], references: [id])
+  sender    MessageSender
+  body      String
+  createdAt DateTime      @default(now())
+
+  @@index([orderId, id])
+}
+
 model OrderEvent {
   id            BigInt   @id @default(autoincrement())
   orderId       String

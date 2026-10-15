@@ -7,15 +7,16 @@ import { expect, test } from "@playwright/test";
  */
 test("buyer and vendor complete a purchase; every naira is accounted for", async ({ page, browser }) => {
   await page.goto("/demo");
-  await expect(page.getByRole("heading", { name: "Three replies. One format." })).toBeVisible();
+  // Market sourcing asks up to 8 vendors; some decline or stay silent, so the reply count varies.
+  await expect(page.getByRole("heading", { name: /^\w+ repl(y|ies)\. One format\.$/ })).toBeVisible();
 
-  await page.getByRole("button", { name: "Check vendors with Kora" }).click();
+  await page.getByRole("button", { name: /^Check (this vendor|these \d+ vendors) with Kora/ }).click();
   await expect(page.getByRole("heading", { name: "Vendor B." })).toBeVisible({ timeout: 90_000 });
 
-  // The failed-verification vendor is shown struck through, with Kora's reason, and is not approvable.
-  await expect(page.getByText("✕ Company registration could not be verified.")).toBeVisible();
+  // Failed-verification vendors (Vendor A and Ariaria Traders) are shown struck through, with Kora's reason, and are not approvable.
+  await expect(page.getByText("✕ Company registration could not be verified.").first()).toBeVisible();
   await expect(page.getByRole("button", { name: /Approve Vendor A/ })).toHaveCount(0);
-  await expect(page.getByText("Payout account belongs to a registered director.")).toBeVisible();
+  await expect(page.getByText("Payout account belongs to a registered director.").first()).toBeVisible();
 
   await page.getByRole("button", { name: "Approve Vendor B" }).click();
   await expect(page).toHaveURL(/\/orders\//, { timeout: 90_000 });
@@ -44,8 +45,8 @@ test("buyer and vendor complete a purchase; every naira is accounted for", async
   const phone = await phoneCtx.newPage();
   await phone.goto(link ?? "");
   await expect(phone.getByText("is in your account.")).toBeVisible({ timeout: 60_000 });
+  // The code submits itself on the 6th digit.
   await phone.getByLabel("Delivery code, 6 digits").fill(code);
-  await phone.getByRole("button", { name: "Confirm delivery" }).click();
   await expect(phone.getByText("Paid", { exact: true })).toBeVisible({ timeout: 90_000 });
   await phoneCtx.close();
 

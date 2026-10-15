@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { OrderView } from "@/lib/views/order-view";
 import { useAction, useCountdown, useElapsed, useLive } from "./hooks";
+import { MessageThread } from "./message-thread";
 import { Header, KoraPanel, MoneyTrail, type Step, Spinner } from "./ui";
 
 /** 04 · Pay and 05 · Tracker for one order, driven entirely by Kora-confirmed state over SSE. */
@@ -224,6 +225,7 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
       <div aria-live="polite">
         {recheck.error ? <p className="form-error">{recheck.error.message}</p> : checkedNote ? <p className="note" style={{ marginTop: 16 }}>{checkedNote}</p> : null}
       </div>
+      <MessageThread url={`/api/orders/${v.id}/messages`} />
     </section>
   );
 }
@@ -378,6 +380,8 @@ function Tracker({ v, connection }: { v: OrderView; connection: "live" | "reconn
               {dispute.error ? <p className="form-error">{dispute.error.message}</p> : null}
             </form>
           ) : null}
+
+          <MessageThread url={`/api/orders/${v.id}/messages`} />
         </div>
 
         <KoraPanel rows={v.events} connection={connection} />

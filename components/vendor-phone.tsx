@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import type { VendorView } from "@/lib/views/vendor-view";
 import { useAction, useLive } from "./hooks";
+import { MessageThread } from "./message-thread";
 import { Spinner } from "./ui";
 
 /** 07–09 · The vendor's phone at /v/<token>. Built for 390px wide, 44px+ tap targets, numeric keypad for the code. */
@@ -10,7 +11,7 @@ export function VendorPhone({ token, initial }: { token: string; initial: Vendor
   const { data: v } = useLive<VendorView>(`/api/vendors/${token}/stream`, initial);
   const o = v.order;
 
-  if (o?.vendor.screen === "paid") return <Paid v={v} />;
+  if (o?.vendor.screen === "paid") return <Paid v={v} token={token} />;
   return (
     <main className="phone">
       <div className="phone-logo">
@@ -34,6 +35,7 @@ export function VendorPhone({ token, initial }: { token: string; initial: Vendor
       ) : o ? (
         <OrderScreen token={token} v={v} />
       ) : null}
+      {v.screen === "order" && o ? <MessageThread url={`/api/vendors/${token}/messages`} /> : null}
     </main>
   );
 }
@@ -320,7 +322,7 @@ function OrderScreen({ token, v }: { token: string; v: VendorView }) {
   );
 }
 
-function Paid({ v }: { v: VendorView }) {
+function Paid({ v, token }: { v: VendorView; token: string }) {
   const o = v.order!;
   return (
     <main className="phone phone-paid" style={{ justifyContent: "center" }}>
@@ -345,6 +347,7 @@ function Paid({ v }: { v: VendorView }) {
           </a>
         </div>
       ) : null}
+      <MessageThread url={`/api/vendors/${token}/messages`} />
     </main>
   );
 }

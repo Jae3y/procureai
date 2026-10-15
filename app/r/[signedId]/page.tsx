@@ -140,6 +140,11 @@ export default async function RecordPage({ params }: { params: Promise<{ signedI
             </div>
           </div>
 
+          <div className="doc-sec">
+            <span className="doc-label">6 · Messages</span>
+            <span style={{ font: "400 16px/1.55 var(--font-body)" }}>{r.messages.line}</span>
+          </div>
+
           <div className="mini-trail">
             <div className="line" style={{ background: trailColor }} aria-hidden="true" />
             <div className="dots" aria-hidden="true">
