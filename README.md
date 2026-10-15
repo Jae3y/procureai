@@ -24,8 +24,13 @@ different shapes, pays a stranger up front, and has no proof afterwards. The che
 | 3 | **Approve** | One click. Kora opens a one-time bank account for this purchase only. |
 | 4 | **Pay** | The buyer transfers from any bank app. ProcureAI re-asks Kora how much actually arrived before crediting a single kobo. Kora caps one account at ₦1,000,000, so a ₦1.26m order is paid as two honest transfers. |
 | 5 | **Hold** | The money sits held. 30% goes to the vendor now, so they can start work. |
-| 6 | **Deliver** | The buyer gets a 6-digit code. The vendor types it on delivery and the remaining 70% is released. |
+| 6 | **Deliver** | The buyer gets a 6-digit code. The vendor types it on delivery and the remaining 70% is released. If the buyer never hands it over, the vendor proves delivery with a photo, and the 70% is released after 72 hours unless the buyer reports a problem. |
 | 7 | **Record** | A shareable page lists every naira in and out with its Kora reference, and ends on **Left unaccounted: ₦0**. It saves as an image. |
+
+Along the way, buyer and vendor can **message each other** on the order. If something goes wrong, the buyer presses
+**Something's wrong**: payouts freeze, both sides add a note and a photo, and ProcureAI either pays the vendor or refunds
+what is still held through Kora. Vendors **register once** (`/vendors/join`), after which a quote is one message; a
+vendor who hasn't registered can still reply through a one-off link.
 
 ## Why Kora is the product, not a plug-in
 
@@ -41,7 +46,7 @@ webhook and by asking Kora directly.
 | Payouts + payout query | Stage 1 (30%) and Stage 2 (70%) to the vendor, each with its own reference |
 | Balances and balance history | Pre-flight funds check, and a reconciliation screen that matches Kora's ledger to ours |
 | Webhooks | Signed events, verified over the raw bytes, stored first, processed after |
-| Refunds | Overpayments and reversals |
+| Refunds + refund query | Disputes ruled for the buyer: what is still held goes back through Kora |
 
 ## Built to be trusted with money
 
@@ -57,7 +62,7 @@ webhook and by asking Kora directly.
   ranker never sees vendor free text, and a deterministic parser takes over if the model is down.
 - **Nothing is silently simulated.** Any simulated path shows a visible badge.
 
-**254 automated tests** (unit, integration against a real Postgres, and Playwright end to end), plus a suite that runs the
+**286 automated tests** (unit, integration against a real Postgres, and Playwright end to end), plus a suite that runs the
 full purchase against the real Kora sandbox.
 
 ## See it in 90 seconds
@@ -86,5 +91,5 @@ npm install
 npm run db:up                         # Postgres in Docker
 npx prisma migrate deploy
 npm run dev:offline                   # http://localhost:3000/demo
-npm test                              # 254 unit + integration tests
+npm test                              # unit + integration tests
 ```

@@ -18,7 +18,7 @@ stateDiagram-v2
   UNDERPAID --> AWAITING_PAYMENT
   UNDERPAID --> HELD : top-up accepted
   HELD --> STAGE_1_PAID : Stage 1 payout dispatched (row written in same tx)
-  STAGE_1_PAID --> CODE_VERIFIED : vendor enters buyer's code (Stage 1 must be SUCCESS)
+  STAGE_1_PAID --> CODE_VERIFIED : vendor enters buyer's code, or 72 h after proof of delivery with no dispute (Stage 1 must be SUCCESS)
   CODE_VERIFIED --> RELEASED : Stage 2 payout dispatched
   RELEASED --> COMPLETE : Stage 2 transfer.success
   STAGE_1_PAID --> PAYOUT_FAILED : transfer.failed / Kora refused
@@ -27,8 +27,15 @@ stateDiagram-v2
   PAYOUT_FAILED --> RELEASED : retry
   HELD --> DISPUTED
   STAGE_1_PAID --> DISPUTED
-  DISPUTED --> REFUNDED : Kora refund.success
+  DISPUTED --> REFUNDED : ruled for the buyer, Kora refund.success
+  DISPUTED --> CODE_VERIFIED : ruled for the vendor (refused while a refund is pending or done)
 ```
+
+**Delivery without the code.** The vendor can mark an order delivered with a note and a photo (`OrderEvidence`), which
+sets `deliveredAt` and `autoReleaseAt` (+`DELIVERY_GRACE_HOURS`, default 72). The poller (`releaseDueDeliveries`) moves a
+due `STAGE_1_PAID` order to `CODE_VERIFIED` and dispatches Stage 2 through the normal path. A dispute before
+`autoReleaseAt` stops it; one after is refused. Buyer and vendor add evidence; an admin rules either way
+(`lib/domain/delivery.ts`).
 
 The table lives in `lib/domain/state.ts` and is mirrored in the `OrderTransitionRule` table; a DB trigger rejects any other
 move **and** any move without an `OrderTransition` audit row written in the same transaction (`txid_current()`). A test asserts
