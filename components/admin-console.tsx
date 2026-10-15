@@ -233,7 +233,7 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
                 <th>Held</th>
                 <th>Unaccounted</th>
                 <th>Updated</th>
-                <th>Sample</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -259,7 +259,16 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
                     <td className={`mono ${o.money.balanced ? "green" : "red"}`}>{o.money.balanced ? "₦0 ✓" : o.money.unaccounted}</td>
                     <td className="mono">{o.updated}</td>
                     <td>
-                      {o.status === "COMPLETE" ? (
+                      {o.status === "DISPUTED" ? (
+                        <RefundButton
+                          orderId={o.id}
+                          orderRef={o.ref}
+                          onDone={(text, bad) => {
+                            setMsg({ text, bad });
+                            void refresh();
+                          }}
+                        />
+                      ) : o.status === "COMPLETE" ? (
                         o.isSample ? (
                           <span className="pill green">Sample record</span>
                         ) : (
@@ -347,6 +356,25 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
         </div>
       ) : null}
     </main>
+  );
+}
+
+/** Returns a disputed order's held money to the buyer through Kora (POST /api/orders/:id/refund). */
+function RefundButton({ orderId, orderRef, onDone }: { orderId: string; orderRef: string; onDone: (text: string, bad: boolean) => void }) {
+  const refund = useAction<undefined, { reference: string; status: string }>(`/api/orders/${orderId}/refund`);
+  return (
+    <button
+      type="button"
+      className="btn-2"
+      disabled={refund.pending}
+      onClick={() =>
+        void refund.run().then((r) =>
+          onDone(r.ok ? `Refund ${r.data.reference} for ${orderRef}: Kora says ${r.data.status}.` : `Refund for ${orderRef} not sent: ${r.error.message}`, !r.ok),
+        )
+      }
+    >
+      {refund.pending ? <Spinner label="Refunding" /> : "Refund"}
+    </button>
   );
 }
 

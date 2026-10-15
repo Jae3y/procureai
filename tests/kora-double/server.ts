@@ -26,6 +26,7 @@ type ChargeState = {
   accountNumber: string;
   paymentEvent: "underpayment" | "overpayment" | null;
 };
+type RefundState = { reference: string; paymentReference: string; amountKobo: bigint; reason: string; status: "processing" | "success" };
 type PayoutState = { reference: string; amountKobo: bigint; status: "processing" | "success" | "failed"; message: string | null; bank: string; account: string };
 
 export type Preference = "accept_all" | "return_excess" | "return_all";
@@ -38,6 +39,7 @@ export class KoraDouble {
   calls: Array<{ method: string; path: string; body: unknown }> = [];
   charges = new Map<string, ChargeState>();
   payouts = new Map<string, PayoutState>();
+  refunds = new Map<string, RefundState>();
   availableKobo = 1_000_000_000n; // ₦10,000,000
   /** How Kora's under/overpayment preference is configured on the merchant's dashboard. */
   preference: Preference = "accept_all";
@@ -72,6 +74,7 @@ export class KoraDouble {
     this.calls = [];
     this.charges.clear();
     this.payouts.clear();
+    this.refunds.clear();
     this.overrides.clear();
     this.generation += 1;
     this.availableKobo = 1_000_000_000n;
@@ -347,6 +350,53 @@ export class KoraDouble {
         status: true,
         message: "Transaction retrieved successfully",
         data: { reference: p.reference, status: p.status, amount: Number(koboToNairaDecimal(p.amountKobo)), fee: 10, currency: "NGN", message: p.message, trace_id: "000000000000000111111111111111" },
+      });
+    }
+
+    // Refunds (Kora docs: Refunds API). Initiate answers "processing"; like payouts, a query settles it.
+    if (method === "POST" && path === "/refunds/initiate") {
+      const reference = str(body.reference);
+      const c = this.charges.get(str(body.payment_reference));
+      if (this.refunds.has(reference)) return send(409, { status: false, message: "duplicate refund reference", data: null });
+      if (!c || c.status !== "success") return send(400, { status: false, message: "Transaction not found or not successful", data: null });
+      const amountKobo = body.amount === undefined ? c.acceptedKobo : decimalToKobo(String(body.amount));
+      if (amountKobo < 10_000n) return send(400, { status: false, message: "Amount can't be less than NGN 100", data: null });
+      if (amountKobo > c.acceptedKobo) return send(400, { status: false, message: `Amount can't be more than NGN ${koboToNairaDecimal(c.acceptedKobo)}`, data: null });
+      const reason = str(body.reason);
+      this.refunds.set(reference, { reference, paymentReference: c.reference, amountKobo, reason, status: "processing" });
+      return send(200, {
+        status: true,
+        message: "Refund successfully initiated",
+        data: {
+          refund_reference: reference,
+          refund_date: new Date().toISOString(),
+          status: "processing",
+          payment_reference: c.reference,
+          reason,
+          amount_returned: Number(koboToNairaDecimal(amountKobo)),
+          currency: "NGN",
+        },
+      });
+    }
+    if (method === "GET" && path.startsWith("/refunds/")) {
+      const r = this.refunds.get(decodeURIComponent(path.slice("/refunds/".length)));
+      if (!r) return send(404, { status: false, message: "Refund not found", data: null });
+      r.status = "success";
+      return send(200, {
+        status: true,
+        message: "Refund details retrieved successfully",
+        data: {
+          amount: koboToNairaDecimal(r.amountKobo),
+          status: r.status,
+          currency: "NGN",
+          destination: "customer",
+          reference: r.reference,
+          reason: r.reason,
+          payment_reference: r.paymentReference,
+          payment_method: "bank_transfer",
+          created_at: new Date().toISOString(),
+          completed_at: new Date().toISOString(),
+        },
       });
     }
 
