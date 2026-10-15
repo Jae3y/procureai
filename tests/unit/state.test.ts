@@ -22,12 +22,14 @@ describe("state machine — legal transitions (§5)", () => {
     ["HELD", "DISPUTED"],
     ["STAGE_1_PAID", "DISPUTED"],
     ["DISPUTED", "REFUNDED"],
+    ["DISPUTED", "CODE_VERIFIED"],
   ] as Array<[OrderStatus, OrderStatus]>)("%s → %s is legal", (from, to) => {
     expect(canTransition(from, to)).toBe(true);
   });
 
-  it("has exactly the 16 transitions of §5 and nothing else", () => {
-    expect(allTransitions()).toHaveLength(16);
+  it("has exactly the 16 transitions of §5, plus DISPUTED → CODE_VERIFIED (a dispute ruled for the vendor), and nothing else", () => {
+    expect(allTransitions()).toHaveLength(17);
+    expect(canTransition("DISPUTED", "CODE_VERIFIED")).toBe(true);
   });
 });
 

@@ -29,6 +29,8 @@ export type AdminView = {
     trackerPath: string;
     requestId: string;
     isSample: boolean;
+    /** The vendor marked it delivered and the buyer's window is still open (the presenter can skip the wait). */
+    deliveryWaiting: boolean;
     /** Per-order reconciliation: everything Kora accepted is paid out, refunded or held. */
     money: { paidIn: string; paidOut: string; refunded: string; held: string; unaccounted: string; balanced: boolean };
   }>;
@@ -74,6 +76,7 @@ export async function buildAdminView(): Promise<AdminView> {
       trackerPath: `/orders/${o.id}`,
       requestId: o.requestId,
       isSample: o.id === sampleOrderId,
+      deliveryWaiting: o.status === "STAGE_1_PAID" && Boolean(o.autoReleaseAt),
       money: (() => {
         const m = moneySummary(o);
         return {

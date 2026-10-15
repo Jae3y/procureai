@@ -260,14 +260,19 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
                     <td className="mono">{o.updated}</td>
                     <td>
                       {o.status === "DISPUTED" ? (
-                        <RefundButton
+                        <ResolveButtons
                           orderId={o.id}
                           orderRef={o.ref}
+                          evidencePath={o.trackerPath}
                           onDone={(text, bad) => {
                             setMsg({ text, bad });
                             void refresh();
                           }}
                         />
+                      ) : o.deliveryWaiting && v.mode.demoMode ? (
+                        <button type="button" className="btn-text" disabled={demo.pending} onClick={() => void act({ action: "skip-wait", orderId: o.id })}>
+                          Skip the wait (demo)
+                        </button>
                       ) : o.status === "COMPLETE" ? (
                         o.isSample ? (
                           <span className="pill green">Sample record</span>
@@ -359,22 +364,23 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
   );
 }
 
-/** Returns a disputed order's held money to the buyer through Kora (POST /api/orders/:id/refund). */
-function RefundButton({ orderId, orderRef, onDone }: { orderId: string; orderRef: string; onDone: (text: string, bad: boolean) => void }) {
-  const refund = useAction<undefined, { reference: string; status: string }>(`/api/orders/${orderId}/refund`);
+/** Settles a disputed order (POST /api/orders/:id/resolve): refund the buyer, or release Stage 2 to the vendor. */
+function ResolveButtons({ orderId, orderRef, evidencePath, onDone }: { orderId: string; orderRef: string; evidencePath: string; onDone: (text: string, bad: boolean) => void }) {
+  const resolve = useAction<{ ruling: "buyer" | "vendor" }, { message: string }>(`/api/orders/${orderId}/resolve`);
+  const rule = (ruling: "buyer" | "vendor") =>
+    void resolve.run({ ruling }).then((r) => onDone(r.ok ? `${orderRef}: ${r.data.message}` : `${orderRef} not resolved: ${r.error.message}`, !r.ok));
   return (
-    <button
-      type="button"
-      className="btn-2"
-      disabled={refund.pending}
-      onClick={() =>
-        void refund.run().then((r) =>
-          onDone(r.ok ? `Refund ${r.data.reference} for ${orderRef}: Kora says ${r.data.status}.` : `Refund for ${orderRef} not sent: ${r.error.message}`, !r.ok),
-        )
-      }
-    >
-      {refund.pending ? <Spinner label="Refunding" /> : "Refund"}
-    </button>
+    <div className="ctl-row">
+      <Link className="btn-text" href={evidencePath}>
+        Evidence
+      </Link>
+      <button type="button" className="btn-2" disabled={resolve.pending} onClick={() => rule("buyer")}>
+        {resolve.pending ? <Spinner label="Working" /> : "Refund buyer"}
+      </button>
+      <button type="button" className="btn-2" disabled={resolve.pending} onClick={() => rule("vendor")}>
+        Pay vendor
+      </button>
+    </div>
   );
 }
 

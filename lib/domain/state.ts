@@ -8,7 +8,7 @@ import type { CauseType, Order, OrderStatus } from "@/lib/generated/prisma/clien
  *   CREATED → AWAITING_PAYMENT → {UNDERPAID ⇄ AWAITING_PAYMENT, HELD}
  *   HELD → STAGE_1_PAID → CODE_VERIFIED → RELEASED → COMPLETE
  *   STAGE_1_PAID | RELEASED → PAYOUT_FAILED → (retry) → the state it failed from
- *   HELD | STAGE_1_PAID → DISPUTED → REFUNDED
+ *   HELD | STAGE_1_PAID → DISPUTED → REFUNDED (buyer wins) | CODE_VERIFIED (vendor wins: Stage 2 as if the code was entered)
  *
  * STAGE_1_PAID / RELEASED are entered when that stage's payout is *dispatched* (its PENDING row is
  * written in the same transaction). Whether the money has landed is the Payout's own status, which
@@ -23,7 +23,7 @@ export const ORDER_TRANSITIONS = {
   CODE_VERIFIED: ["RELEASED"],
   RELEASED: ["COMPLETE", "PAYOUT_FAILED"],
   PAYOUT_FAILED: ["STAGE_1_PAID", "RELEASED"],
-  DISPUTED: ["REFUNDED"],
+  DISPUTED: ["REFUNDED", "CODE_VERIFIED"],
   COMPLETE: [],
   REFUNDED: [],
 } as const satisfies Record<OrderStatus, readonly OrderStatus[]>;

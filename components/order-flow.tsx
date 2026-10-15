@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { OrderView } from "@/lib/views/order-view";
 import { useAction, useCountdown, useElapsed, useLive } from "./hooks";
+import { EvidenceForm, EvidenceList } from "./evidence";
 import { MessageThread } from "./message-thread";
 import { Header, KoraPanel, MoneyTrail, type Step, Spinner } from "./ui";
 
@@ -233,11 +234,12 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
 function Tracker({ v, connection }: { v: OrderView; connection: "live" | "reconnecting" }) {
   const retry = useAction(`/api/orders/${v.id}/payouts/retry`);
   const recheck = useAction(`/api/orders/${v.id}/recheck`);
-  const dispute = useAction<{ reason: string }>(`/api/orders/${v.id}/dispute`);
   const [disputing, setDisputing] = useState(false);
-  const [reason, setReason] = useState("");
   const t = v.track;
-  const canDispute = v.status === "HELD" || v.status === "STAGE_1_PAID";
+  const windowClosed = Boolean(t.delivery && !t.delivery.windowOpen);
+  const canDispute = (v.status === "HELD" || v.status === "STAGE_1_PAID") && !windowClosed;
+  const deliveryProof = t.evidence.filter((ev) => ev.kind === "delivery");
+  const disputeEvidence = t.evidence.filter((ev) => ev.kind === "dispute");
 
   return (
     <section className="section" aria-labelledby="track-title">
@@ -275,6 +277,23 @@ function Tracker({ v, connection }: { v: OrderView; connection: "live" | "reconn
                 Give this code to {v.vendorName} only when all {v.itemLine} are in your hands. When they enter it,{" "}
                 {v.stage2Amount} is released to them.
               </p>
+            </div>
+          ) : null}
+
+          {t.delivery ? (
+            <div className="block">
+              <div className="label" style={{ marginBottom: 12 }}>
+                {v.vendorName} says it&apos;s delivered
+              </div>
+              <p className="body-lg" style={{ margin: 0, maxWidth: "52ch", fontSize: 18 }}>
+                Marked delivered on {t.delivery.markedAt}.
+                {t.delivery.windowOpen
+                  ? ` If everything arrived, you don't need to do anything: ${v.stage2Amount} goes to ${v.vendorName} automatically on ${t.delivery.releasesAt}. If something's wrong, report it before then.`
+                  : v.status === "DISPUTED" || v.status === "REFUNDED"
+                    ? " You reported a problem, so nothing was released automatically."
+                    : ` No problem was reported within ${t.delivery.hours} hours, so ${v.stage2Amount} was released.`}
+              </p>
+              <EvidenceList items={deliveryProof} />
             </div>
           ) : null}
 
@@ -328,6 +347,18 @@ function Tracker({ v, connection }: { v: OrderView; connection: "live" | "reconn
                 {t.disputed.detail}
               </p>
               {t.disputed.refund ? <p className="mono note">Refund: {t.disputed.refund}</p> : null}
+              <EvidenceList items={disputeEvidence} title="Evidence from both sides" />
+              {v.status === "DISPUTED" ? (
+                <details className="evidence-more">
+                  <summary className="btn-text">Add more evidence</summary>
+                  <EvidenceForm url={`/api/orders/${v.id}/evidence`} noteLabel="What else should ProcureAI know?" submitLabel="Add evidence" busyLabel="Sending" />
+                </details>
+              ) : null}
+              {v.status === "DISPUTED" ? (
+                <p className="note" style={{ fontSize: 14 }}>
+                  ProcureAI reviews both sides, then either refunds what is still held to you or releases it to {v.vendorName}.
+                </p>
+              ) : null}
             </div>
           ) : null}
 
@@ -356,29 +387,19 @@ function Tracker({ v, connection }: { v: OrderView; connection: "live" | "reconn
           </div>
           {recheck.error ? <p className="form-error">{recheck.error.message}</p> : null}
           {disputing && canDispute ? (
-            <form
-              className="block"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void dispute.run({ reason }).then((r) => {
-                  if (r.ok) setDisputing(false);
-                });
-              }}
-            >
-              <div className="field">
-                <label htmlFor="dispute-reason">What went wrong? Payouts freeze until ProcureAI resolves it.</label>
-                <textarea id="dispute-reason" className="input" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={200} />
-              </div>
-              <div style={{ display: "flex", gap: 16, marginTop: 16 }}>
-                <button type="submit" className="btn btn-sm" disabled={dispute.pending || reason.trim().length < 5}>
-                  {dispute.pending ? <Spinner label="Freezing" /> : "Freeze payouts"}
-                </button>
-                <button type="button" className="btn-text" onClick={() => setDisputing(false)}>
-                  Cancel
-                </button>
-              </div>
-              {dispute.error ? <p className="form-error">{dispute.error.message}</p> : null}
-            </form>
+            <div className="block">
+              <EvidenceForm
+                url={`/api/orders/${v.id}/dispute`}
+                noteField="reason"
+                minNote={5}
+                noteLabel="What went wrong? Payouts freeze until ProcureAI resolves it."
+                placeholder="e.g. 40 of the shirts are the wrong size"
+                submitLabel="Freeze payouts"
+                busyLabel="Freezing"
+                onDone={() => setDisputing(false)}
+                onCancel={() => setDisputing(false)}
+              />
+            </div>
           ) : null}
 
           <MessageThread url={`/api/orders/${v.id}/messages`} />

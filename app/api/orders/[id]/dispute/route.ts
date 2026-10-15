@@ -6,11 +6,14 @@ import { requireBuyerOfOrder } from "@/lib/http/session";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const Body = z.object({ reason: z.string().trim().min(5).max(200) });
+const Body = z.object({
+  reason: z.string().trim().min(5).max(200),
+  photo: z.object({ type: z.string().max(40), base64: z.string().min(1).max(1_000_000) }).nullish(),
+});
 
 /** POST /api/orders/:id/dispute — freezes payouts while money is still held. */
 export const POST = route<z.output<typeof Body>, { id: string }>({ name: "orders.dispute", input: Body, idempotent: true }, async ({ params, req, input }) => {
   const buyerId = await requireBuyerOfOrder(req, params.id);
-  await disputeOrder(params.id, input.reason, { type: "USER", id: buyerId });
+  await disputeOrder(params.id, input.reason, { type: "USER", id: buyerId }, input.photo);
   return { body: { status: "DISPUTED" } };
 });

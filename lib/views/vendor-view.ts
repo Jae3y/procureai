@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import { vendorByToken } from "@/lib/domain/vendors";
 import { kora } from "@/lib/kora/client";
 import { isKoraError } from "@/lib/kora/errors";
@@ -19,7 +20,17 @@ export type VendorView = {
   banksError: string | null;
   /** Set when the picker shows Kora's payout bank list because its verification list came back empty. */
   banksNote: string | null;
-  order: (Pick<OrderView, "ref" | "status" | "stage1Amount" | "stage2Amount" | "amount" | "vendor" | "events" | "lastEventId"> & { id: string; heldAmount: string; recordPath: string | null }) | null;
+  order:
+    | (Pick<OrderView, "ref" | "status" | "stage1Amount" | "stage2Amount" | "amount" | "vendor" | "events" | "lastEventId"> & {
+        id: string;
+        heldAmount: string;
+        recordPath: string | null;
+        delivery: OrderView["track"]["delivery"];
+        /** How long the buyer has to report a problem after the vendor marks delivery. */
+        graceHours: number;
+        evidence: OrderView["track"]["evidence"];
+      })
+    | null;
   closed: boolean;
 };
 
@@ -62,6 +73,9 @@ export async function buildVendorView(token: string): Promise<VendorView> {
       lastEventId: v.lastEventId,
       heldAmount: heldLine,
       recordPath: v.track.recordPath,
+      delivery: v.track.delivery,
+      graceHours: env().DELIVERY_GRACE_HOURS,
+      evidence: v.track.evidence.map((ev) => ({ ...ev, photoUrl: ev.photoUrl ? `${ev.photoUrl}?t=${encodeURIComponent(token)}` : null })),
     };
   }
 

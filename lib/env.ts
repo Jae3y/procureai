@@ -38,6 +38,8 @@ const EnvSchema = z
     ENABLE_CHECKOUT_REDIRECT: bool.default(false),
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
     CRON_SECRET: z.string().default(""),
+    /** After the vendor marks an order delivered, the buyer has this long to report a problem before Stage 2 releases by itself. */
+    DELIVERY_GRACE_HOURS: z.coerce.number().int().min(1).max(720).default(72),
   })
   .superRefine((env, ctx) => {
     const secretMode = env.KORA_SECRET_KEY.startsWith("sk_test_") ? "test" : "live";

@@ -373,6 +373,24 @@ textarea.thread-input { min-height: 64px; font-size: 16px; }
 .thread .thread-send, .phone .thread .thread-send { width: auto; height: 48px; padding: 0 24px; }
 .phone .thread { margin-top: 32px; padding: 16px; max-width: none; }
 
+/* Proof of delivery and dispute evidence */
+.evidence-form { display: grid; gap: 14px; margin-top: 16px; }
+.evidence-photo { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.evidence-photo-btn { cursor: pointer; }
+.evidence-thumb { display: inline-flex; align-items: center; gap: 10px; }
+.evidence-thumb img { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--hairline); }
+.evidence-actions { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.evidence-list ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.evidence-list { margin-top: 20px; }
+.evidence-item { padding: 12px 14px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface); max-width: 560px; }
+.evidence-item.vendor { border-left: 3px solid var(--green); }
+.evidence-item.buyer { border-left: 3px solid var(--amber); }
+.evidence-photo-link img { display: block; margin-top: 10px; max-width: 100%; max-height: 280px; border-radius: 8px; object-fit: contain; background: var(--paper); }
+.evidence-more { margin-top: 20px; }
+.evidence-more > summary { list-style: none; display: inline-block; }
+.evidence-more > summary::-webkit-details-marker { display: none; }
+.delivered-note { margin-top: 20px; padding: 12px 14px; border: 1px solid var(--green); border-radius: 12px; font: 400 15px/1.45 var(--font-body); color: var(--ink); background: var(--surface); }
+
 /* ── Phones (≤ 600px): nothing wider than the screen, nothing covering the content ── */
 @media (max-width: 600px) {
   /* Home header: keep the logo, Demo and "Start a purchase"; the in-page links live further down. */
