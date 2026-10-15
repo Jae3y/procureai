@@ -185,14 +185,14 @@ export function HomePage() {
       <header className="header">
         <div className="header-in">
           <Logo />
-          <nav style={{ display: "flex", alignItems: "center", gap: "clamp(16px, 2.4vw, 36px)", font: "500 15px/1 var(--font-body)", whiteSpace: "nowrap" }}>
-            <a href="#how" className="btn-text" style={{ textDecoration: "none" }}>
+          <nav className="home-nav" style={{ display: "flex", alignItems: "center", gap: "clamp(16px, 2.4vw, 36px)", font: "500 15px/1 var(--font-body)", whiteSpace: "nowrap" }}>
+            <a href="#how" className="btn-text nav-extra" style={{ textDecoration: "none" }}>
               How it works
             </a>
-            <a href="#who" className="btn-text" style={{ textDecoration: "none" }}>
+            <a href="#who" className="btn-text nav-extra" style={{ textDecoration: "none" }}>
               Who it&apos;s for
             </a>
-            <a href="#vendors" className="btn-text" style={{ textDecoration: "none" }}>
+            <a href="#vendors" className="btn-text nav-extra" style={{ textDecoration: "none" }}>
               For vendors
             </a>
             <Link href="/demo" className="btn-text" style={{ textDecoration: "none" }}>

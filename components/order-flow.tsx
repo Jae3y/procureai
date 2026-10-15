@@ -43,6 +43,7 @@ export function OrderFlow({ initial, initials }: { initial: OrderView; initials:
           Reconnecting to live updates
         </p>
       ) : null}
+      <DemoStrip v={v} />
       {step === "Pay" ? (
         <Pay
           v={v}
@@ -54,7 +55,6 @@ export function OrderFlow({ initial, initials }: { initial: OrderView; initials:
       ) : (
         <Tracker v={v} connection={connection} />
       )}
-      <DemoStrip v={v} />
     </main>
   );
 }
