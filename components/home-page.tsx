@@ -500,7 +500,7 @@ export function HomePage() {
                 You approve once
               </div>
               <p style={{ margin: "14px 0 0", font: "400 17px/1.55 var(--font-body)", color: "var(--muted)", maxWidth: "34ch" }}>
-                Pay into an account made for this purchase. It&apos;s held, then released in two stages: on acceptance and on delivery.
+                Pay into an account made for this purchase. It&apos;s held, then released in two stages: 30% once your money is held, 70% on delivery.
               </p>
             </div>
           </div>
@@ -598,7 +598,7 @@ export function HomePage() {
             Every purchase ends on a record you can drop into the group chat.
           </p>
           <p className="body-lg" style={{ marginTop: 16, maxWidth: "40ch", fontWeight: 600 }}>
-            30% on acceptance, 70% on delivery.
+            Stage 1 (30%) once your money is held, Stage 2 (70%) on delivery.
           </p>
           <div style={{ marginTop: 56, display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center" }}>
             <Link href="/buy" className="btn btn-lg">
