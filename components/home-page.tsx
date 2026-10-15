@@ -250,7 +250,7 @@ export function HomePage() {
               Tell it what you need.
             </h1>
             <div style={{ marginTop: 28, display: "inline-flex", border: "1.5px dashed var(--future)", borderRadius: 12, padding: "14px 20px", font: "500 14px/1.2 var(--font-mono)", color: "var(--muted)" }}>
-              Buy in bulk with pooled money. Kora verifies, holds, and releases in two stages.
+              Buy from vendors you don&apos;t know yet. Kora verifies, holds, and releases in two stages.
             </div>
 
             <form
@@ -601,9 +601,6 @@ export function HomePage() {
           </h2>
           <p className="body-lg" style={{ marginTop: 32, color: "var(--muted)", maxWidth: "40ch" }}>
             Every purchase ends on a record you can drop into the group chat.
-          </p>
-          <p className="body-lg" style={{ marginTop: 16, maxWidth: "40ch", fontWeight: 600 }}>
-            Stage 1 (30%) once your money is held, Stage 2 (70%) on delivery.
           </p>
           <div style={{ marginTop: 56, display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center" }}>
             <Link href="/buy" className="btn btn-lg">

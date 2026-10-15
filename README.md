@@ -1,6 +1,6 @@
 # ProcureAI
 
-**Buy in bulk with one sentence. The AI chooses; Kora makes the choice safe.**
+**Buy from any vendor, safely, with one sentence. The AI chooses; Kora makes the choice safe.**
 
 **Try it live → [procureai-six.vercel.app/buy](https://procureai-six.vercel.app/buy)** (runs on Kora's sandbox, so every naira is test money)
 
@@ -12,7 +12,7 @@ goods arrive. It ends in a record anyone can verify.
 
 ## The problem
 
-Bulk buying in Nigeria runs on WhatsApp voice notes, "send half now", and trust. A buyer compares prices that arrive in
+Buying from a vendor you don't know yet in Nigeria runs on WhatsApp voice notes, "send half now", and trust. A buyer compares prices that arrive in
 different shapes, pays a stranger up front, and has no proof afterwards. The cheapest quote is often the one that isn't real.
 
 ## What happens
@@ -67,7 +67,7 @@ full purchase against the real Kora sandbox.
 
 ## See it in 90 seconds
 
-1. Open **[/buy](https://procureai-six.vercel.app/buy)**, type anything you'd buy in bulk, press Continue, then **Ask vendors**. Replies arrive one by one.
+1. Open **[/buy](https://procureai-six.vercel.app/buy)**, type anything you'd buy, press Continue, then **Ask vendors**. Replies arrive one by one.
 2. **Check vendors with Kora.** One is struck through. The cheapest vendor isn't a registered business.
 3. **Approve**, then use the sandbox strip to make the transfer(s).
 4. **Open tracker**, then **Open vendor's phone**, and type the buyer's 6-digit code.
