@@ -53,7 +53,7 @@ export class FlowDriver {
 
   async createAndQuote(): Promise<string> {
     const created = await this.call(createRequestRoute, "/api/requests", {}, {
-      body: { text: "300 branded T-shirts, under ₦1.5m, delivered by 23 October", buyerName: "Tolu Adebayo", buyerEmail: "tolu.adebayo@example.com" },
+      body: { text: `300 branded T-shirts, under ₦1.5m, delivered by ${deadlineFromToday(30)}`, buyerName: "Tolu Adebayo", buyerEmail: "tolu.adebayo@example.com" },
     });
     expect(created.status).toBe(201);
     const requestId = String(created.body.id);
@@ -110,4 +110,12 @@ export class FlowDriver {
   async buyerCode(orderId: string): Promise<string> {
     return revealHandoverCode(await db().order.findUniqueOrThrow({ where: { id: orderId } })) ?? "";
   }
+}
+
+/**
+ * "14 November": a deadline `days` from today. The scripted replies quote lead times ("7 working
+ * days"), so a fixed date would make every vendor late once the calendar passes it.
+ */
+function deadlineFromToday(days: number): string {
+  return new Date(Date.now() + days * 86_400_000).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Africa/Lagos" });
 }
