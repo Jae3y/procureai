@@ -567,7 +567,7 @@ export function HomePage() {
             <div style={{ borderTop: "1px solid var(--on-ink-line)", paddingTop: 24 }}>
               <div style={{ font: "600 26px/1.1 var(--font-display)", letterSpacing: "-0.025em" }}>Reply in your own words</div>
               <p style={{ margin: "12px 0 0", font: "400 17px/1.55 var(--font-body)", color: "var(--on-ink-soft)" }}>
-                “I fit do am 4,200 each” works. No forms, no app to install.
+                Register your business once. After that, “I fit do am 4,200 each” is a whole quote. No app to install.
               </p>
             </div>
             <div style={{ borderTop: "1px solid var(--on-ink-line)", paddingTop: 24 }}>
@@ -582,6 +582,11 @@ export function HomePage() {
                 If you&apos;re registered and your account is in your company&apos;s name, you&apos;re chosen over a cheaper vendor that can&apos;t be verified.
               </p>
             </div>
+          </div>
+          <div style={{ marginTop: 56 }}>
+            <Link href="/vendors/join" className="btn" style={{ background: "var(--paper)", color: "var(--ink)" }}>
+              Register your business <span className="arrow">→</span>
+            </Link>
           </div>
         </div>
       </section>

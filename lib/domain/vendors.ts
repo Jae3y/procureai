@@ -19,15 +19,32 @@ export async function vendorByToken(token: string): Promise<Vendor> {
   return vendor;
 }
 
+/** Business details are only needed from a vendor who isn't registered on ProcureAI; a registered vendor's are reused. */
 export type QuoteSubmission = {
   reply: string;
-  businessName: string;
-  rcNumber: string;
-  bankCode: string;
-  accountNumber: string;
-  email: string;
-  consent: boolean;
+  businessName?: string;
+  rcNumber?: string;
+  bankCode?: string;
+  accountNumber?: string;
+  email?: string;
+  consent?: boolean;
 };
+
+type BusinessDetails = { businessName: string; rcNumber: string; bankCode: string; accountNumber: string; email: string };
+
+/** The details Kora will check: the vendor's ProcureAI profile if they registered, otherwise what they typed in the form. */
+async function detailsFor(vendor: Vendor, input: QuoteSubmission): Promise<BusinessDetails> {
+  const contact = vendor.contactId ? await db().vendorContact.findUnique({ where: { id: vendor.contactId } }) : null;
+  if (contact?.registeredAt && contact.rcNumber && contact.bankCode && contact.accountNumber && contact.email) {
+    return { businessName: contact.businessName, rcNumber: contact.rcNumber, bankCode: contact.bankCode, accountNumber: contact.accountNumber, email: contact.email };
+  }
+  if (!input.consent) throw new DomainError("consent_required", "Tick the box to let ProcureAI check your business with Kora.", 400);
+  const { businessName, rcNumber, bankCode, accountNumber, email } = input;
+  if (!businessName || !rcNumber || !bankCode || !accountNumber || !email) {
+    throw new DomainError("details_required", "Add your business name, CAC number, bank, account number and email.", 400);
+  }
+  return { businessName, rcNumber, bankCode, accountNumber, email };
+}
 
 /** One reply per invite, with the business details Kora will check. */
 export async function submitQuote(token: string, input: QuoteSubmission) {
@@ -38,17 +55,17 @@ export async function submitQuote(token: string, input: QuoteSubmission) {
   }
   const existing = await db().quote.findUnique({ where: { vendorId: vendor.id } });
   if (existing) throw new DomainError("already_quoted", "You've already sent a quote for this request.", 409);
-  if (!input.consent) throw new DomainError("consent_required", "Tick the box to let ProcureAI check your business with Kora.", 400);
+  const details = await detailsFor(vendor, input);
 
   const { quote, parsedBy, model, note } = await normalizeQuote(input.reply, specOf(request), createdDateOf(request));
   await db().vendor.update({
     where: { id: vendor.id },
     data: {
-      name: input.businessName.trim(),
-      rcNumber: input.rcNumber.trim().toUpperCase(),
-      bankCode: input.bankCode.trim(),
-      accountNumber: input.accountNumber.trim(),
-      email: input.email.trim().toLowerCase(),
+      name: details.businessName.trim(),
+      rcNumber: details.rcNumber.trim().toUpperCase(),
+      bankCode: details.bankCode.trim(),
+      accountNumber: details.accountNumber.trim(),
+      email: details.email.trim().toLowerCase(),
       consentAt: new Date(),
     },
   });

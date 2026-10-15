@@ -125,6 +125,12 @@ model VendorContact {
   city         String
   createdAt    DateTime @default(now())
   vendors      Vendor[]
+  /// Set when the vendor registered on ProcureAI: their quotes then reuse these details (Kora still checks them on every purchase).
+  registeredAt  DateTime?
+  rcNumber      String?
+  bankCode      String?
+  accountNumber String?
+  email         String?
 }
 
 model Request {

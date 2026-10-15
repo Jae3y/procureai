@@ -32,6 +32,8 @@ export type VendorView = {
       })
     | null;
   closed: boolean;
+  /** Set when this vendor is registered on ProcureAI: the quote form then asks only for the reply. */
+  profile: { businessName: string; rcNumber: string; account: string; email: string } | null;
 };
 
 export async function buildVendorView(token: string): Promise<VendorView> {
@@ -41,11 +43,16 @@ export async function buildVendorView(token: string): Promise<VendorView> {
     include: { buyer: true, order: true },
   });
   const quote = await db().quote.findUnique({ where: { vendorId: vendor.id } });
+  const contact = vendor.contactId ? await db().vendorContact.findUnique({ where: { id: vendor.contactId } }) : null;
+  const profile =
+    contact?.registeredAt && contact.rcNumber && contact.accountNumber && contact.email
+      ? { businessName: contact.businessName, rcNumber: contact.rcNumber, account: `•••• ${contact.accountNumber.slice(-4)}`, email: contact.email }
+      : null;
 
   let banks: Array<{ name: string; code: string }> = [];
   let banksError: string | null = null;
   let banksNote: string | null = null;
-  if (!quote) {
+  if (!quote && !profile) {
     try {
       const list = await kora().bankPickerList();
       banks = list.banks.map((b) => ({ name: b.name, code: b.code })).sort((a, b) => a.name.localeCompare(b.name));
@@ -96,5 +103,6 @@ export async function buildVendorView(token: string): Promise<VendorView> {
     order,
     // Quotes are only taken while the request is collecting or being checked.
     closed: request.status === "CANCELLED" || (!quote && request.status !== "COLLECTING" && request.status !== "VERIFYING"),
+    profile,
   };
 }

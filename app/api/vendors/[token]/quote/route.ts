@@ -5,8 +5,7 @@ import { route } from "@/lib/http/route";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const Body = z.object({
-  reply: z.string().trim().min(3, "Write your price and terms").max(1000),
+const Details = z.object({
   businessName: z.string().trim().min(2).max(120),
   rcNumber: z.string().trim().regex(/^(RC|BN|IT|LP|LLP)?\s?\d{4,10}$/i, "Use your CAC registration number, e.g. RC1482093"),
   bankCode: z.string().trim().regex(/^\d{3,6}$/, "Choose your bank"),
@@ -14,6 +13,26 @@ const Body = z.object({
   email: z.email("Enter a business email").max(120),
   consent: z.literal(true, { error: "Tick the box to let ProcureAI check your business with Kora" }),
 });
+const DETAIL_KEYS = ["businessName", "rcNumber", "bankCode", "accountNumber", "email", "consent"] as const;
+/**
+ * A registered vendor sends just the reply; anyone else sends the reply plus the details Kora will check.
+ * When any detail is sent, all of them are validated field by field (so the form can show each message).
+ */
+const Body = z
+  .object({
+    reply: z.string().trim().min(3, "Write your price and terms").max(1000),
+    businessName: z.string().max(120).optional(),
+    rcNumber: z.string().max(20).optional(),
+    bankCode: z.string().max(10).optional(),
+    accountNumber: z.string().max(20).optional(),
+    email: z.string().max(120).optional(),
+    consent: z.boolean().optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (!DETAIL_KEYS.some((k) => v[k] !== undefined && v[k] !== "" && v[k] !== false)) return;
+    const r = Details.safeParse(v);
+    if (!r.success) for (const issue of r.error.issues) ctx.addIssue({ code: "custom", path: issue.path, message: issue.message });
+  });
 
 /** POST /api/vendors/:token/quote — the vendor's free-text reply plus the details Kora will check. */
 export const POST = route<z.output<typeof Body>, { token: string }>(
@@ -27,7 +46,7 @@ export const POST = route<z.output<typeof Body>, { token: string }>(
     ],
   },
   async ({ params, input }) => {
-    const q = await submitQuote(params.token, { ...input, rcNumber: input.rcNumber.replace(/\s+/g, "") });
+    const q = await submitQuote(params.token, { ...input, rcNumber: input.rcNumber?.replace(/\s+/g, "") });
     return { status: 201, body: { quoteId: q.id } };
   },
 );

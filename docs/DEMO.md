@@ -51,6 +51,12 @@ The code is the fast path, not the only key. Once Stage 1 has landed:
 | Admin settles it | Admin Orders → the DISPUTED row → **Evidence** to read both sides → **Pay vendor** or **Refund buyer** | Pay vendor: Stage 2 releases exactly as if the code had been entered. Refund buyer: what is still held goes back through Kora. Once a refund is under way, Pay vendor is refused |
 | Report after the window | The window has passed | "The time to report a problem with this delivery has ended." |
 
+## Registered vendors (the main way vendors quote)
+
+- A vendor registers once at **/vendors/join** (landing page → For vendors → *Register your business*): business name, phone, what they sell, city, CAC number, bank account, email. They join the directory that sourcing searches. A profile can't be overwritten from that form.
+- When invited, a registered vendor's link shows **"Sending as your registered business"** and asks only for the reply. In the T-shirt demo, Onitsha Textile Mart (registered, never replies by itself) shows this: open its link from admin → Vendor links.
+- A vendor who isn't registered still gets the full one-off form (business details typed in), with a link to register. Kora verifies every vendor on every purchase either way.
+
 ## Fallback path (if something misbehaves live)
 
 1. Identity call fails on stage → set `SIMULATE_IDENTITY=true`, restart, `npm run demo:reset` (badge makes it explicit).
