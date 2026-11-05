@@ -28,3 +28,6 @@ ProcureAI design system/
 /CLAUDE.md
 /.claude/
 /.env.example
+
+# A local clone of the private notes repo may sit here; it must never be committed to this public repo
+/procureai-notes/
