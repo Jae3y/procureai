@@ -40,6 +40,8 @@ const EnvSchema = z
     CRON_SECRET: z.string().default(""),
     /** Sends account and order emails through Resend. Without it, notifications stay in-app. */
     RESEND_API_KEY: z.string().default(""),
+    /** Which provider takes NEW payments. Existing payments always stay with the provider that took them. */
+    PAYMENT_PROVIDER: z.enum(["kora"]).default("kora"),
     EMAIL_FROM: z.string().min(3).default("ProcureAI <hello@procureai.com.ng>"),
     /** After the vendor marks an order delivered, the buyer has this long to report a problem before Stage 2 releases by itself. */
     DELIVERY_GRACE_HOURS: z.coerce.number().int().min(1).max(720).default(72),

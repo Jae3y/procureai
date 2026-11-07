@@ -1,9 +1,7 @@
 import { db, transaction, type Tx } from "@/lib/db";
 import { env } from "@/lib/env";
 import type { Order, PayIn, PayInStatus } from "@/lib/generated/prisma/client";
-import { kora } from "@/lib/kora/client";
-import { KORA_MAX_CHARGE_KOBO } from "@/lib/kora/limits";
-import { isKoraError, KoraDuplicateReferenceError } from "@/lib/kora/errors";
+import { isProviderError, payments, providerFor, type ChargeSnapshot } from "@/lib/payments";
 import { log } from "@/lib/log";
 import { formatNaira, type Kobo } from "@/lib/money";
 import { DomainError, NotFoundError, UnknownReferenceError } from "./errors";
@@ -26,15 +24,7 @@ import { orderEvent } from "./timeline";
  * state change.
  */
 
-export type ChargeSnapshot = {
-  status: string;
-  amountKobo: Kobo;
-  paidKobo: Kobo | null;
-  acceptedKobo: Kobo | null;
-  feeKobo: Kobo | null;
-  paymentEvent: string | null;
-  message: string | null;
-};
+export type { ChargeSnapshot };
 
 export type FollowUp =
   | { kind: "DISPATCH_STAGE_1" }
@@ -80,11 +70,12 @@ export async function openPayIn(
   });
   if (!order) throw new NotFoundError("Order");
   const e = env();
-  const k = kora();
-  // Kora caps one bank-transfer account at ₦1,000,000 (real sandbox: 422 "amount must be less than
-  // or equal to 1000000"). Larger orders are paid across several accounts, each credited from Kora's
-  // own answer — never by pretending one account took more than Kora allows.
-  const requestKobo = !e.ENABLE_CHECKOUT_REDIRECT && amountKobo > KORA_MAX_CHARGE_KOBO ? KORA_MAX_CHARGE_KOBO : amountKobo;
+  const provider = payments();
+  // A provider may cap one transfer account (Kora: ₦1,000,000, real sandbox 422 "amount must be less
+  // than or equal to 1000000"). Larger orders are paid across several accounts, each credited from
+  // the provider's own answer — never by pretending one account took more than it allows.
+  const cap = provider.limits.maxChargeKobo;
+  const requestKobo = !e.ENABLE_CHECKOUT_REDIRECT && amountKobo > cap ? cap : amountKobo;
 
   let sequence = await nextSequence(orderId);
   for (let attempt = 0; attempt < 2; attempt++, sequence++) {
@@ -97,8 +88,8 @@ export async function openPayIn(
 
       // Each channel normalises its own answer, so everything below is channel-agnostic.
       const opened = e.ENABLE_CHECKOUT_REDIRECT
-        ? await k
-            .initializeCheckout({ reference, amountKobo: requestKobo, customer, narration, notificationUrl: e.KORA_WEBHOOK_URL, redirectUrl: `${e.APP_BASE_URL}/orders/${orderId}/pay`, metadata })
+        ? await provider
+            .openCheckout({ reference, amountKobo: requestKobo, customer, narration, redirectUrl: `${e.APP_BASE_URL}/orders/${orderId}/pay`, metadata })
             .then((r) => ({
               raw: r.raw,
               channel: "checkout",
@@ -108,21 +99,11 @@ export async function openPayIn(
               accountName: null,
               bankName: null,
               expiresAt: null,
-              checkoutUrl: r.data.checkout_url,
+              checkoutUrl: r.data.checkoutUrl,
             }))
-        : await k
-            .createBankTransferCharge({ reference, amountKobo: requestKobo, customer, accountName, narration, notificationUrl: e.KORA_WEBHOOK_URL, metadata, autoComplete: false })
-            .then((r) => ({
-              raw: r.raw,
-              channel: "bank_transfer",
-              expectedKobo: r.data.amount_expected ?? r.data.amount,
-              feeKobo: r.data.fee ?? null,
-              accountNumber: r.data.bank_account.account_number,
-              accountName: r.data.bank_account.account_name,
-              bankName: r.data.bank_account.bank_name,
-              expiresAt: r.data.bank_account.expiry_date_in_utc ? new Date(r.data.bank_account.expiry_date_in_utc) : null,
-              checkoutUrl: null,
-            }));
+        : await provider
+            .openTransferAccount({ reference, amountKobo: requestKobo, customer, accountName, narration, metadata })
+            .then((r) => ({ raw: r.raw, channel: "bank_transfer", ...r.data, checkoutUrl: null }));
 
       return await transaction(async (tx) => {
         let locked = await lockOrder(tx, orderId);
@@ -132,6 +113,7 @@ export async function openPayIn(
             orderId,
             sequence,
             reference,
+            provider: provider.id,
             channel: opened.channel,
             amountRequestedKobo: requestKobo,
             amountExpectedKobo: opened.expectedKobo,
@@ -176,8 +158,8 @@ export async function openPayIn(
         return payIn;
       });
     } catch (err) {
-      if (err instanceof KoraDuplicateReferenceError && attempt === 0) {
-        log.warn({ orderId, reference }, "charge reference already exists at Kora; opening a replacement account");
+      if (isProviderError(err) && err.kind === "duplicate_reference" && attempt === 0) {
+        log.warn({ orderId, reference, provider: provider.id }, "charge reference already exists at the provider; opening a replacement account");
         continue;
       }
       throw err;
@@ -350,32 +332,15 @@ function spaced(account: string): string {
   return account.replace(/^(\d{3})(\d{3})(\d+)$/, "$1 $2 $3");
 }
 
-export function snapshotFromQuery(data: {
-  status: string;
-  amount: Kobo;
-  amount_paid?: Kobo | null;
-  amount_accepted?: Kobo | null;
-  fee?: Kobo | null;
-  bank_transfer?: { payment_event?: string | null; message?: string | null } | null;
-}): ChargeSnapshot {
-  return {
-    status: data.status,
-    amountKobo: data.amount,
-    paidKobo: data.amount_paid ?? null,
-    acceptedKobo: data.amount_accepted ?? null,
-    feeKobo: data.fee ?? null,
-    paymentEvent: data.bank_transfer?.payment_event ?? null,
-    message: data.bank_transfer?.message ?? null,
-  };
-}
-
 /**
  * The one entry point for "what does Kora say about this charge?" — used by the webhook worker,
  * the reconciliation poller and the Re-check button alike.
  */
 export async function reconcileCharge(reference: string, cause: Cause): Promise<ApplyResult> {
-  const q = await kora().queryCharge(reference);
-  const result = await applyChargeSnapshot(reference, snapshotFromQuery(q.data), q.raw, cause);
+  const payIn = await db().payIn.findUnique({ where: { reference }, select: { provider: true } });
+  if (!payIn) throw new UnknownReferenceError(reference);
+  const q = await providerFor(payIn.provider).queryCharge(reference);
+  const result = await applyChargeSnapshot(reference, q.data, q.raw, cause);
   await runFollowUp(result, cause);
   return result;
 }
@@ -394,7 +359,7 @@ export async function runFollowUp(result: ApplyResult, cause: Cause): Promise<vo
       orderEvent(tx, result.orderId, {
         kind: "error",
         title: f.kind === "DISPATCH_STAGE_1" ? "Stage 1 not sent yet" : "Couldn't open an account for the rest",
-        detail: isKoraError(err) ? err.userMessage : "Something went wrong; ProcureAI will retry automatically.",
+        detail: isProviderError(err) ? err.userMessage : "Something went wrong; ProcureAI will retry automatically.",
       }),
     );
   }

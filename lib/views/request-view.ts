@@ -1,4 +1,4 @@
-import { KORA_MAX_CHARGE_KOBO } from "@/lib/kora/limits";
+import { payments } from "@/lib/payments";
 import { FLAG_COPY, type QuoteFlag } from "@/lib/ai/fallback";
 import { inviteTokenFor } from "@/lib/crypto";
 import { directoryFilter } from "@/lib/domain/requests";
@@ -241,9 +241,10 @@ export async function buildRequestView(requestId: string, opts: { includeInvites
           model: rec.model,
           split: (() => {
             const total = chosenQuote?.totalKobo;
-            if (total == null || total <= KORA_MAX_CHARGE_KOBO) return null;
+            const cap = payments().limits.maxChargeKobo;
+            if (total == null || total <= cap) return null;
             const parts: string[] = [];
-            for (let left = total; left > 0n; left -= KORA_MAX_CHARGE_KOBO) parts.push(formatNaira(left > KORA_MAX_CHARGE_KOBO ? KORA_MAX_CHARGE_KOBO : left));
+            for (let left = total; left > 0n; left -= cap) parts.push(formatNaira(left > cap ? cap : left));
             return { transfers: parts.length, parts };
           })(),
         }

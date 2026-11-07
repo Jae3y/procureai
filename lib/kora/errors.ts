@@ -7,6 +7,8 @@
  * payout must stay PENDING and be resolved by querying, never by retrying with a new reference.
  */
 
+import { ProviderError } from "@/lib/payments/errors";
+
 export type KoraErrorInit = {
   endpoint: string;
   correlationId: string;
@@ -16,16 +18,17 @@ export type KoraErrorInit = {
   body?: unknown;
 };
 
-export abstract class KoraError extends Error {
-  abstract readonly kind: string;
+export abstract class KoraError extends ProviderError {
+  readonly provider = "kora" as const;
+  abstract override readonly kind: string;
   /** True when Kora definitely did not perform the action. */
-  abstract readonly outcomeKnown: boolean;
+  abstract override readonly outcomeKnown: boolean;
   readonly endpoint: string;
   readonly correlationId: string;
   readonly httpStatus: number | undefined;
   readonly koraMessage: string | undefined;
   readonly koraCode: string | undefined;
-  readonly body: unknown;
+  override readonly body: unknown;
 
   constructor(message: string, init: KoraErrorInit) {
     super(message);
@@ -39,7 +42,11 @@ export abstract class KoraError extends Error {
   }
 
   /** One sentence a buyer, vendor or admin can read. */
-  abstract get userMessage(): string;
+  abstract override get userMessage(): string;
+
+  get providerMessage(): string | undefined {
+    return this.koraMessage;
+  }
 
   toJSON() {
     return {

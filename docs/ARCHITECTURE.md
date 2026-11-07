@@ -103,3 +103,16 @@ tagged with the newest timeline id, so EventSource's automatic reconnect always 
   the email copy is sent by `flushNotificationEmails` in the background tick (claimed row by row, never older than 24h).
 - **Writes from other sites** are refused in `route()` by comparing the Origin header to the host.
 
+## Payment providers
+
+The money path talks to `lib/payments` (the `PaymentProvider` contract), never to a provider directly.
+Kora is the first adapter (`lib/payments/kora.ts`); all Kora specifics stay in `lib/kora`.
+
+- `payments()` takes new money movements (`PAYMENT_PROVIDER`, default `kora`).
+- Every PayIn, Payout, Refund and VendorVerification stores `provider`; `providerFor(row.provider)` is used to
+  check or refund it later, so a payment always goes back to the provider that took it.
+- Errors share one vocabulary (`ProviderError`: `kind`, `outcomeKnown`), so "refused" and "we don't know" mean the
+  same thing for every provider, and an uncertain payout is never retried under a new reference.
+- `tests/integration/payment-provider-contract.test.ts` is the gate: a new provider adds a harness there and must
+  pass it against its sandbox before it can take real money.
+

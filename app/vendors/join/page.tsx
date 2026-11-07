@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { VendorJoin } from "@/components/vendor-join";
 import { pageAccount } from "@/lib/http/page-auth";
-import { kora } from "@/lib/kora/client";
-import { isKoraError } from "@/lib/kora/errors";
+import { isProviderError, payments } from "@/lib/payments";
 import { log } from "@/lib/log";
 
 export const dynamic = "force-dynamic";
@@ -16,10 +15,10 @@ export default async function VendorJoinPage() {
   let banks: Array<{ name: string; code: string }> = [];
   let banksError: string | null = null;
   try {
-    const list = await kora().bankPickerList();
-    banks = list.banks.map((b) => ({ name: b.name, code: b.code })).sort((a, b) => a.name.localeCompare(b.name));
+    const list = await payments().banks();
+    banks = [...list.banks].sort((a, b) => a.name.localeCompare(b.name));
   } catch (err) {
-    if (!isKoraError(err)) throw err;
+    if (!isProviderError(err)) throw err;
     log.warn({ err: err.message }, "could not load Kora's bank list for vendor registration");
     banksError = err.userMessage;
   }

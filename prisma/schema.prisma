@@ -247,6 +247,8 @@ model Vendor {
 /// Append-only (I4, I8): a correction is a new row, never an update.
 model VendorVerification {
   id               String      @id @default(cuid())
+  /// The payment provider that handled this; later checks and refunds go back to it.
+  provider String @default("kora")
   seq              BigInt      @unique @default(autoincrement())
   vendorId         String
   vendor           Vendor      @relation(fields: [vendorId], references: [id])
@@ -355,6 +357,8 @@ model Order {
 /// One Kora charge (one-time account) for an order. An underpaid order may get a top-up charge.
 model PayIn {
   id                  String      @id @default(cuid())
+  /// The payment provider that handled this; later checks and refunds go back to it.
+  provider String @default("kora")
   orderId             String
   order               Order       @relation(fields: [orderId], references: [id])
   sequence            Int
@@ -382,6 +386,8 @@ model PayIn {
 
 model Payout {
   id                  String       @id @default(cuid())
+  /// The payment provider that handled this; later checks and refunds go back to it.
+  provider String @default("kora")
   orderId             String
   order               Order        @relation(fields: [orderId], references: [id])
   verificationId      String
@@ -413,6 +419,8 @@ model Payout {
 /// A Kora refund of held money back to the buyer (DISPUTED → REFUNDED).
 model Refund {
   id               String       @id @default(cuid())
+  /// The payment provider that handled this; later checks and refunds go back to it.
+  provider String @default("kora")
   orderId          String
   order            Order        @relation(fields: [orderId], references: [id])
   paymentReference String

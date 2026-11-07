@@ -1,7 +1,5 @@
 import { db, transaction } from "@/lib/db";
-import { env } from "@/lib/env";
-import { kora } from "@/lib/kora/client";
-import { isKoraError } from "@/lib/kora/errors";
+import { isProviderError, providerFor } from "@/lib/payments";
 import { formatNaira, type Kobo } from "@/lib/money";
 import { DomainError, NotFoundError, UnknownReferenceError } from "./errors";
 import { cleanNote, decodePhoto, type EvidenceInput } from "./evidence";
@@ -48,9 +46,13 @@ export async function refundOrder(orderId: string, cause: Cause): Promise<{ refe
   if (!order) throw new NotFoundError("Order");
   if (order.status !== "DISPUTED") throw new DomainError("not_disputed", "Only a disputed order can be refunded.", 409);
   const amountKobo = await refundableKobo(orderId);
-  if (amountKobo < 10_000n) throw new DomainError("refund_too_small", "Kora refunds start at ₦100; nothing refundable is held.", 409);
   const source = await db().payIn.findFirst({ where: { orderId, status: "SUCCESS" }, orderBy: { amountAcceptedKobo: "desc" } });
   if (!source) throw new DomainError("no_payment", "There is no successful payment to refund.", 409);
+  // A payment is always refunded by the provider that took it.
+  const provider = providerFor(source.provider);
+  if (amountKobo < provider.limits.minRefundKobo) {
+    throw new DomainError("refund_too_small", `${provider.name} refunds start at ${formatNaira(provider.limits.minRefundKobo)}; nothing refundable is held.`, 409);
+  }
   if (source.amountAcceptedKobo < amountKobo) {
     throw new DomainError("split_payment", "The held money came from more than one payment; refund each payment from the Kora dashboard.", 409);
   }
@@ -60,41 +62,40 @@ export async function refundOrder(orderId: string, cause: Cause): Promise<{ refe
     if (locked.status !== "DISPUTED") return null;
     const n = (await tx.refund.count({ where: { orderId } })) + 1;
     return tx.refund.create({
-      data: { orderId, paymentReference: source.reference, reference: `RF-${orderId}-${n}`, amountKobo, reason: "Disputed order: held funds returned" },
+      data: { orderId, provider: provider.id, paymentReference: source.reference, reference: `RF-${orderId}-${n}`, amountKobo, reason: "Disputed order: held funds returned" },
     });
   });
   if (!refund) throw new DomainError("not_disputed", "Only a disputed order can be refunded.", 409);
 
   try {
-    const res = await kora().initiateRefund({
+    const res = await provider.refund({
       reference: refund.reference,
       paymentReference: refund.paymentReference,
       amountKobo: refund.amountKobo,
       reason: refund.reason,
-      webhookUrl: env().KORA_WEBHOOK_URL,
     });
     await transaction((tx) =>
       orderEvent(tx, orderId, {
         kind: "info",
-        title: "Refund sent to Kora",
+        title: `Refund sent to ${provider.name}`,
         detail: `${formatNaira(refund.amountKobo)} back to the buyer · ${res.data.status}`,
         amountKobo: refund.amountKobo,
         koraReference: refund.reference,
         signature: "API",
       }),
     );
-    if (res.data.status === "success" || res.data.status === "failed") {
+    if (res.data.status !== "processing") {
       await applyRefundOutcome(refund.reference, res.data.status, null, res.raw, cause);
     }
     return { reference: refund.reference, status: res.data.status };
   } catch (err) {
-    if (!isKoraError(err)) throw err;
+    if (!isProviderError(err)) throw err;
     if (err.outcomeKnown) {
-      await applyRefundOutcome(refund.reference, "failed", err.koraMessage ?? err.userMessage, err.body ?? { error: err.toJSON() }, cause);
-      throw new DomainError("refund_failed", `Kora refused the refund: ${err.koraMessage ?? err.userMessage}`, 502);
+      await applyRefundOutcome(refund.reference, "failed", err.providerMessage ?? err.userMessage, err.body ?? { error: err.toJSON() }, cause);
+      throw new DomainError("refund_failed", `${provider.name} refused the refund: ${err.providerMessage ?? err.userMessage}`, 502);
     }
     await transaction((tx) =>
-      orderEvent(tx, orderId, { kind: "info", title: "Checking refund with Kora", detail: err.userMessage, koraReference: refund.reference }),
+      orderEvent(tx, orderId, { kind: "info", title: `Checking refund with ${provider.name}`, detail: err.userMessage, koraReference: refund.reference }),
     );
     return { reference: refund.reference, status: "pending" };
   }
@@ -139,13 +140,14 @@ export async function applyRefundOutcome(
 }
 
 export async function reconcileRefund(reference: string, cause: Cause, webhookStatus?: "success" | "failed"): Promise<{ changed: boolean }> {
+  const refund = await db().refund.findUnique({ where: { reference }, select: { provider: true } });
+  if (!refund) throw new UnknownReferenceError(reference);
   try {
-    const q = await kora().queryRefund(reference);
-    const s = q.data.status;
-    const status = s === "success" || s === "failed" ? s : (webhookStatus ?? "processing");
+    const q = await providerFor(refund.provider).queryRefund(reference);
+    const status = q.data.status !== "processing" ? q.data.status : (webhookStatus ?? "processing");
     return applyRefundOutcome(reference, status, null, q.raw, cause);
   } catch (err) {
-    if (isKoraError(err) && webhookStatus) {
+    if (isProviderError(err) && webhookStatus) {
       return applyRefundOutcome(reference, webhookStatus, null, { source: "signed webhook", queryError: err.toJSON() }, cause);
     }
     throw err;

@@ -1,8 +1,6 @@
 import { db, transaction } from "@/lib/db";
-import { env } from "@/lib/env";
 import type { Payout, PayoutRoute, PayoutStage } from "@/lib/generated/prisma/client";
-import { kora } from "@/lib/kora/client";
-import { isKoraError, type KoraError } from "@/lib/kora/errors";
+import { isProviderError, payments, providerFor, type PaymentProvider, type ProviderError } from "@/lib/payments";
 import { log } from "@/lib/log";
 import { formatNaira, type Kobo, splitStages } from "@/lib/money";
 import { DomainError, NotFoundError, UnknownReferenceError } from "./errors";
@@ -36,8 +34,8 @@ const SANDBOX_ACCOUNTS = {
 
 export type DispatchResult =
   | { kind: "sent"; payout: Payout }
-  | { kind: "pending-unknown"; payout: Payout; error: KoraError }
-  | { kind: "failed"; payout: Payout; error: KoraError }
+  | { kind: "pending-unknown"; payout: Payout; error: ProviderError }
+  | { kind: "failed"; payout: Payout; error: ProviderError }
   | { kind: "blocked"; reason: "unfunded" | "balance-unavailable" | "vendor-email-missing"; message: string }
   | { kind: "skipped"; reason: string };
 
@@ -46,15 +44,15 @@ function stageAmount(totalKobo: Kobo, stage: PayoutStage): Kobo {
   return stage === "STAGE_1" ? stage1 : stage2;
 }
 
-async function chooseRoute(verification: { bankCode: string; accountNumber: string }): Promise<{ route: PayoutRoute; bank: string; account: string }> {
+async function chooseRoute(provider: PaymentProvider, verification: { bankCode: string; accountNumber: string }): Promise<{ route: PayoutRoute; bank: string; account: string }> {
   const setting = await getSetting("payoutRoute");
-  if (setting !== "VERIFIED_ACCOUNT" && kora().isTestMode) {
+  if (setting !== "VERIFIED_ACCOUNT" && provider.isTestMode) {
     const s = SANDBOX_ACCOUNTS[setting];
     return { route: "SANDBOX_TEST_ACCOUNT", bank: s.bank, account: s.account };
   }
   // Against the real Kora sandbox (test key, real API), disbursements to non-sandbox test accounts
   // are rejected with "Invalid account." Automatically route to Kora's 033 success account.
-  if (kora().isLiveSandbox) {
+  if (provider.isLiveSandbox) {
     return { route: "SANDBOX_TEST_ACCOUNT", bank: "033", account: "0000000000" };
   }
   return { route: "VERIFIED_ACCOUNT", bank: verification.bankCode, account: verification.accountNumber };
@@ -64,19 +62,18 @@ async function chooseRoute(verification: { bankCode: string; accountNumber: stri
  * "Check the Kora balance before Stage 1 and show a precise error if unfunded." Done before every
  * dispatch; a failed check blocks the payout (nothing is written) and says exactly why.
  */
-async function checkBalance(orderId: string, stage: PayoutStage, amountKobo: Kobo): Promise<DispatchResult | null> {
+async function checkBalance(provider: PaymentProvider, orderId: string, stage: PayoutStage, amountKobo: Kobo): Promise<DispatchResult | null> {
   let available: Kobo;
   try {
-    const b = await kora().getBalances();
-    available = b.data.NGN?.available_balance ?? 0n;
+    available = (await provider.balance()).availableKobo;
   } catch (err) {
-    if (!isKoraError(err)) throw err;
-    const message = `Couldn't check the Kora balance before ${STAGE_LABEL[stage]}: ${err.userMessage}`;
+    if (!isProviderError(err)) throw err;
+    const message = `Couldn't check the ${provider.name} balance before ${STAGE_LABEL[stage]}: ${err.userMessage}`;
     await transaction((tx) => orderEvent(tx, orderId, { kind: "error", title: `${STAGE_LABEL[stage]} not sent`, detail: message }));
     return { kind: "blocked", reason: "balance-unavailable", message };
   }
   if (available < amountKobo) {
-    const message = `Insufficient funds in disbursement wallet. Kora balance is ${formatNaira(available)}; ${STAGE_LABEL[stage]} needs ${formatNaira(amountKobo)}.`;
+    const message = `Insufficient funds in disbursement wallet. ${provider.name} balance is ${formatNaira(available)}; ${STAGE_LABEL[stage]} needs ${formatNaira(amountKobo)}.`;
     await transaction((tx) => orderEvent(tx, orderId, { kind: "error", title: `${STAGE_LABEL[stage]} not sent`, detail: message, amountKobo }));
     return { kind: "blocked", reason: "unfunded", message };
   }
@@ -99,9 +96,10 @@ export async function dispatchStage(orderId: string, stage: PayoutStage, cause: 
   if (pre.status !== expected) return { kind: "skipped", reason: `order is ${pre.status}` };
 
   const amountKobo = stageAmount(pre.amountKobo, stage);
-  const blocked = (await checkVendorEmail(orderId, stage, pre.vendor.email)) ?? (await checkBalance(orderId, stage, amountKobo));
+  const provider = payments();
+  const blocked = (await checkVendorEmail(orderId, stage, pre.vendor.email)) ?? (await checkBalance(provider, orderId, stage, amountKobo));
   if (blocked) return blocked;
-  const dest = await chooseRoute(pre.verification);
+  const dest = await chooseRoute(provider, pre.verification);
 
   const payout = await transaction(async (tx) => {
     const order = await lockOrder(tx, orderId);
@@ -113,6 +111,7 @@ export async function dispatchStage(orderId: string, stage: PayoutStage, cause: 
         stage,
         attempt: 1,
         reference: `PO-${orderId}-${STAGE_TAG[stage]}`,
+        provider: provider.id,
         amountKobo,
         route: dest.route,
         destinationBankCode: dest.bank,
@@ -134,9 +133,10 @@ export async function retryPayout(orderId: string, cause: Cause): Promise<Dispat
   const failed = await db().payout.findFirst({ where: { orderId, status: "FAILED", retriedBy: null }, orderBy: { createdAt: "desc" } });
   if (!failed) throw new DomainError("not_failed", "There is no failed payout to retry on this order.", 409);
 
-  const blocked = (await checkVendorEmail(orderId, failed.stage, pre.vendor.email)) ?? (await checkBalance(orderId, failed.stage, failed.amountKobo));
+  const provider = payments();
+  const blocked = (await checkVendorEmail(orderId, failed.stage, pre.vendor.email)) ?? (await checkBalance(provider, orderId, failed.stage, failed.amountKobo));
   if (blocked) return blocked;
-  const dest = await chooseRoute(pre.verification);
+  const dest = await chooseRoute(provider, pre.verification);
 
   const payout = await transaction(async (tx) => {
     const order = await lockOrder(tx, orderId);
@@ -149,6 +149,7 @@ export async function retryPayout(orderId: string, cause: Cause): Promise<Dispat
         stage: failed.stage,
         attempt,
         reference: `PO-${orderId}-${STAGE_TAG[failed.stage]}-R${attempt}`,
+        provider: provider.id,
         amountKobo: failed.amountKobo,
         route: dest.route,
         destinationBankCode: dest.bank,
@@ -169,39 +170,39 @@ async function sendPayout(payout: Payout, cause: Cause): Promise<DispatchResult>
   if (!vendorEmail) throw new DomainError("vendor_email_missing", "The vendor has no email on file.", 409);
   const vendorName = order.vendor.name ?? order.vendor.label;
   const orderRef = `PA-${String(order.number).padStart(4, "0")}`;
+  const provider = providerFor(payout.provider);
   try {
-    const res = await kora().disburse({
+    const res = await provider.sendPayout({
       reference: payout.reference,
       amountKobo: payout.amountKobo,
       bankCode: payout.destinationBankCode,
       accountNumber: payout.destinationAccount,
       narration: `ProcureAI ${orderRef} ${STAGE_LABEL[payout.stage].toLowerCase()}`,
-      customer: { name: vendorName, email: vendorEmail },
-      notificationUrl: env().KORA_WEBHOOK_URL,
+      recipient: { name: vendorName, email: vendorEmail },
       metadata: { orderId: order.id, stage: STAGE_TAG[payout.stage], attempt: String(payout.attempt) },
     });
     await transaction(async (tx) => {
-      await tx.payout.update({ where: { id: payout.id }, data: { dispatchedAt: new Date(), feeKobo: res.data.fee ?? null, koraErrorKind: null } });
+      await tx.payout.update({ where: { id: payout.id }, data: { dispatchedAt: new Date(), feeKobo: res.data.feeKobo, koraErrorKind: null } });
       await orderEvent(tx, payout.orderId, {
         kind: "info",
-        title: `${STAGE_LABEL[payout.stage]} sent to Kora`,
+        title: `${STAGE_LABEL[payout.stage]} sent to ${provider.name}`,
         detail: `${formatNaira(payout.amountKobo)} to ${vendorName}${payout.route === "SANDBOX_TEST_ACCOUNT" ? ` · sandbox route ${payout.destinationBankCode}/${payout.destinationAccount}` : ""} · ${res.data.status}`,
         amountKobo: payout.amountKobo,
         koraReference: payout.reference,
         signature: "API",
       });
     });
-    // Kora may answer with a final status straight away; otherwise the webhook/poller finishes it.
-    if (res.data.status === "success" || res.data.status === "failed") {
-      await applyPayoutOutcome(payout.reference, { status: res.data.status, message: res.data.message ?? null, feeKobo: res.data.fee ?? null, raw: res.raw }, cause);
+    // The provider may answer with a final status straight away; otherwise the webhook/poller finishes it.
+    if (res.data.status !== "processing") {
+      await applyPayoutOutcome(payout.reference, { ...res.data, raw: res.raw }, cause);
     }
     return { kind: "sent", payout };
   } catch (err) {
-    if (!isKoraError(err)) throw err;
+    if (!isProviderError(err)) throw err;
     if (err.outcomeKnown) {
       await applyPayoutOutcome(
         payout.reference,
-        { status: "failed", message: err.koraMessage ?? err.userMessage, feeKobo: null, raw: err.body ?? { error: err.toJSON() } },
+        { status: "failed", message: err.providerMessage ?? err.userMessage, feeKobo: null, raw: err.body ?? { error: err.toJSON() } },
         cause,
       );
       return { kind: "failed", payout, error: err };
@@ -210,8 +211,8 @@ async function sendPayout(payout: Payout, cause: Cause): Promise<DispatchResult>
       await tx.payout.update({ where: { id: payout.id }, data: { koraErrorKind: err.kind } });
       await orderEvent(tx, payout.orderId, {
         kind: "info",
-        title: `Checking ${STAGE_LABEL[payout.stage]} with Kora`,
-        detail: `${err.userMessage} Reference ${payout.reference} stays pending until Kora confirms it.`,
+        title: `Checking ${STAGE_LABEL[payout.stage]} with ${provider.name}`,
+        detail: `${err.userMessage} Reference ${payout.reference} stays pending until ${provider.name} confirms it.`,
         koraReference: payout.reference,
       });
     });
@@ -312,16 +313,10 @@ export async function reconcilePayout(reference: string, cause: Cause, webhookSt
   if (!payout) throw new UnknownReferenceError(reference);
   let outcome: PayoutOutcome;
   try {
-    const q = await kora().verifyPayout(reference);
-    const s = q.data.status;
-    outcome = {
-      status: s === "success" || s === "failed" ? s : "processing",
-      message: q.data.message ?? null,
-      feeKobo: q.data.fee ?? null,
-      raw: q.raw,
-    };
+    const q = await providerFor(payout.provider).queryPayout(reference);
+    outcome = { ...q.data, raw: q.raw };
   } catch (err) {
-    if (!isKoraError(err)) throw err;
+    if (!isProviderError(err)) throw err;
     const oldEnough = Date.now() - payout.createdAt.getTime() > 30_000;
     if (err.kind === "not_found" && oldEnough && !webhookStatus) {
       outcome = { status: "not_found", message: null, feeKobo: null, raw: err.body ?? { error: err.toJSON() } };

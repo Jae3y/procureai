@@ -4,8 +4,7 @@ import { redirect } from "next/navigation";
 import { Notifications, SignOutButton, VendorInvitations, VendorProfileForm } from "@/components/account-dashboard";
 import { SiteShell } from "@/components/site-shell";
 import { pageAccount } from "@/lib/http/page-auth";
-import { kora } from "@/lib/kora/client";
-import { isKoraError } from "@/lib/kora/errors";
+import { isProviderError, payments } from "@/lib/payments";
 import { log } from "@/lib/log";
 import { buildVendorDashboard } from "@/lib/views/account-view";
 
@@ -21,10 +20,10 @@ export default async function VendorDashboardPage() {
   let banks: Array<{ name: string; code: string }> = [];
   let banksError: string | null = null;
   try {
-    const list = await kora().bankPickerList();
-    banks = list.banks.map((b) => ({ name: b.name, code: b.code })).sort((a, b) => a.name.localeCompare(b.name));
+    const list = await payments().banks();
+    banks = [...list.banks].sort((a, b) => a.name.localeCompare(b.name));
   } catch (err) {
-    if (!isKoraError(err)) throw err;
+    if (!isProviderError(err)) throw err;
     log.warn({ err: err.message }, "vendor dashboard: Kora bank list unavailable");
     banksError = err.userMessage;
   }

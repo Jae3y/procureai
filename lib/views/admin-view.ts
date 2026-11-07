@@ -2,8 +2,7 @@ import { inviteTokenFor } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/domain/settings";
 import { env } from "@/lib/env";
-import { kora } from "@/lib/kora/client";
-import { isKoraError } from "@/lib/kora/errors";
+import { isProviderError, payments } from "@/lib/payments";
 import { log } from "@/lib/log";
 import { formatNaira } from "@/lib/money";
 import { lagosDay, lagosTime, orderRef } from "./format";
@@ -50,15 +49,15 @@ export type AdminView = {
 async function payoutWallet(): Promise<AdminView["payoutWallet"]> {
   try {
     const [balances, open] = await Promise.all([
-      kora().getBalances(),
+      payments().balance(),
       db().order.findMany({ where: { status: { in: ["HELD", "STAGE_1_PAID", "CODE_VERIFIED", "RELEASED", "PAYOUT_FAILED", "DISPUTED"] } }, include: { payouts: true, refunds: true, ledger: true } }),
     ]);
-    const available = balances.data.NGN?.available_balance ?? 0n;
+    const available = balances.availableKobo;
     const owed = open.reduce((sum, o) => sum + moneySummary(o).held, 0n);
     return { available: formatNaira(available), owed: formatNaira(owed), short: available < owed };
   } catch (err) {
-    if (!isKoraError(err)) throw err;
-    log.warn({ err: err.message }, "admin: could not read Kora balance");
+    if (!isProviderError(err)) throw err;
+    log.warn({ err: err.message }, "admin: could not read the payout balance");
     return null;
   }
 }

@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import type { VendorVerification } from "@/lib/generated/prisma/client";
-import { kora } from "@/lib/kora/client";
-import { isKoraError, type KoraError } from "@/lib/kora/errors";
+import { isProviderError, payments, type ProviderError } from "@/lib/payments";
 import { log } from "@/lib/log";
 import { type CacOutcome, matchVendor } from "./matching";
 import { DomainError, NotFoundError } from "./errors";
@@ -29,7 +28,7 @@ export type VerifyOutcome = {
 
 const NOT_FOUND = "Company registration could not be verified.";
 
-function definitiveRefusal(e: KoraError): boolean {
+function definitiveRefusal(e: ProviderError): boolean {
   // A 4xx that is not about our access: Kora looked and said no.
   return e.outcomeKnown && e.kind !== "auth" && e.kind !== "access";
 }
@@ -47,7 +46,7 @@ export async function verifyVendors(requestId: string): Promise<VerifyOutcome[]>
   if (vendors.length === 0) throw new DomainError("no_quotes", "No vendor has replied with business details yet.", 409);
 
   await db().request.update({ where: { id: requestId }, data: { status: "VERIFYING" } });
-  const k = kora();
+  const k = payments();
   const signature = k.identitySimulated ? "SIMULATED" : "API";
   const outcomes: VerifyOutcome[] = [];
 
@@ -61,19 +60,19 @@ export async function verifyVendors(requestId: string): Promise<VerifyOutcome[]>
       let rawCac: unknown;
       let cacReference: string | null = null;
       try {
-        const r = await k.verifyCac({ rcNumber: rc, consent });
-        cac = { found: true, registeredName: r.data.name, companyStatus: r.data.company_status, keyPersonnel: r.data.key_personnel };
+        const r = await k.verifyBusiness({ rcNumber: rc, consent });
+        cac = { found: true, registeredName: r.data.name, companyStatus: r.data.companyStatus, keyPersonnel: r.data.keyPersonnel };
         rawCac = r.raw;
         cacReference = r.data.reference;
         await requestEvent(requestId, {
           kind: "kora",
           title: "identity.cac",
-          detail: `${v.label} · ${r.data.name} · ${(r.data.company_status ?? "unknown").toLowerCase()}`,
+          detail: `${v.label} · ${r.data.name} · ${(r.data.companyStatus ?? "unknown").toLowerCase()}`,
           koraReference: r.data.reference,
           signature,
         });
       } catch (e) {
-        if (!isKoraError(e) || !definitiveRefusal(e)) throw e;
+        if (!isProviderError(e) || !definitiveRefusal(e)) throw e;
         cac = { found: false, reason: NOT_FOUND };
         rawCac = e.body ?? { error: e.toJSON() };
         await requestEvent(requestId, {
@@ -90,12 +89,12 @@ export async function verifyVendors(requestId: string): Promise<VerifyOutcome[]>
       let rawAccount: unknown = null;
       if (cac.found) {
         try {
-          const a = await k.verifyBankAccountBasic({ accountNumber, bankCode, consent });
-          accountName = a.data.account_details.name;
+          const a = await k.verifyBankAccount({ accountNumber, bankCode, consent });
+          accountName = a.data.accountName;
           accountReference = a.data.reference;
           rawAccount = a.raw;
         } catch (e) {
-          if (!isKoraError(e) || !definitiveRefusal(e)) throw e;
+          if (!isProviderError(e) || !definitiveRefusal(e)) throw e;
           rawAccount = e.body ?? { error: e.toJSON() };
         }
       }
@@ -104,6 +103,7 @@ export async function verifyVendors(requestId: string): Promise<VerifyOutcome[]>
       const verification = await db().vendorVerification.create({
         data: {
           vendorId: v.id,
+          provider: k.id,
           rcNumber: rc,
           cacReference,
           registeredName: cac.found ? cac.registeredName : null,
@@ -137,9 +137,9 @@ export async function verifyVendors(requestId: string): Promise<VerifyOutcome[]>
       }
       outcomes.push({ vendorId: v.id, label: v.label, verification, error: null });
     } catch (e) {
-      if (!isKoraError(e)) throw e;
+      if (!isProviderError(e)) throw e;
       log.warn({ vendorId: v.id, kind: e.kind, err: e.message }, "identity check could not complete");
-      await requestEvent(requestId, { kind: "error", title: `Couldn't check ${v.label} with Kora`, detail: e.userMessage });
+      await requestEvent(requestId, { kind: "error", title: `Couldn't check ${v.label} with ${k.name}`, detail: e.userMessage });
       outcomes.push({ vendorId: v.id, label: v.label, verification: null, error: { kind: e.kind, message: e.userMessage } });
     }
   }
