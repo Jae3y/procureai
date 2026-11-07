@@ -1,6 +1,7 @@
 import { KORA_MAX_CHARGE_KOBO } from "@/lib/kora/limits";
 import { FLAG_COPY, type QuoteFlag } from "@/lib/ai/fallback";
 import { inviteTokenFor } from "@/lib/crypto";
+import { directoryFilter } from "@/lib/domain/requests";
 import { shortlist } from "@/lib/domain/sourcing";
 import { db } from "@/lib/db";
 import { NotFoundError } from "@/lib/domain/errors";
@@ -87,7 +88,11 @@ export type RequestView = {
   lastEventId: string;
   orderId: string | null;
   orderRef: string | null;
-  invites: Array<{ label: string; phone: string; businessName: string; link: string }> | null;
+  invites: Array<{ label: string; phone: string; businessName: string; link: string; whatsapp: string; replied: boolean }> | null;
+  /** A try-it-out purchase with scripted vendors. A real purchase reaches real vendors only. */
+  isDemo: boolean;
+  /** Real purchases only: the buyer can still bring a vendor they know. */
+  canAddVendors: boolean;
   simulatedIdentity: boolean;
   /** Test key: verified identities are Kora's sandbox test company, labelled as such. */
   koraSandbox: boolean;
@@ -123,7 +128,7 @@ export async function buildRequestView(requestId: string, opts: { includeInvites
   });
   if (!request) throw new NotFoundError("Request");
   const [directory, events, latest] = await Promise.all([
-    db().vendorContact.findMany({ select: { id: true, category: true, createdAt: true } }),
+    db().vendorContact.findMany({ where: directoryFilter(request.isDemo), select: { id: true, category: true, createdAt: true } }),
     db().requestEvent.findMany({ where: { requestId }, orderBy: { id: "asc" } }),
     latestVerifications(request.vendors.map((v) => v.id)),
   ]);
@@ -249,15 +254,24 @@ export async function buildRequestView(requestId: string, opts: { includeInvites
     lastEventId: events.at(-1)?.id.toString() ?? "0",
     orderId: request.order?.id ?? null,
     orderRef: request.order ? orderRef(request.order.number) : null,
-    // In DEMO_MODE the vendors are scripted, so the buyer may open their phones too.
-    invites: opts.includeInvites || env().DEMO_MODE
-      ? request.vendors.map((v) => ({
+    // Demo vendors are scripted, so the buyer may open their phones too. On a real purchase the
+    // buyer only gets the links of vendors they brought themselves: they're the ones who send them.
+    invites: request.vendors
+      .filter((v) => opts.includeInvites || request.isDemo || v.addedByBuyer)
+      .map((v) => {
+        const link = `${base}/v/${inviteTokenFor(request.id, v.label)}`;
+        const message = `Hello, I'm buying ${request.quantity.toLocaleString("en-NG")} × ${request.item} and would like your quote. Reply here, in your own words: ${link}`;
+        return {
           label: v.label,
           phone: v.contactPhone,
           businessName: v.contact?.businessName ?? v.name ?? v.label,
-          link: `${base}/v/${inviteTokenFor(request.id, v.label)}`,
-        }))
-      : null,
+          link,
+          whatsapp: `https://wa.me/${v.contactPhone.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`,
+          replied: Boolean(v.quote),
+        };
+      }),
+    isDemo: request.isDemo,
+    canAddVendors: !request.isDemo && request.status === "COLLECTING",
     simulatedIdentity: env().SIMULATE_IDENTITY,
     koraSandbox: env().koraMode === "test",
     aiEnabled: Boolean(env().AI_API_KEY),

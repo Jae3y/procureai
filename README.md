@@ -2,7 +2,7 @@
 
 **Buy from any vendor, safely, with one sentence. The AI chooses; Kora makes the choice safe.**
 
-**Try it live → [procureai-six.vercel.app/buy](https://procureai-six.vercel.app/buy)** (runs on Kora's sandbox, so every naira is test money)
+**Try it live → [procureai.com.ng/buy](https://procureai.com.ng/buy)** (runs on Kora's sandbox, so every naira is test money)
 
 > *"300 branded T-shirts, under ₦1.5m, delivered by 23 October."*
 
@@ -62,12 +62,29 @@ webhook and by asking Kora directly.
   ranker never sees vendor free text, and a deterministic parser takes over if the model is down.
 - **Nothing is silently simulated.** Any simulated path shows a visible badge.
 
-**286 automated tests** (unit, integration against a real Postgres, and Playwright end to end), plus a suite that runs the
+**299 automated tests** (unit, integration against a real Postgres, and Playwright end to end), plus a suite that runs the
 full purchase against the real Kora sandbox.
+
+## Real purchases and the demo
+
+ProcureAI runs both side by side, and they never touch.
+
+- **Signed in** ([/signup](https://procureai.com.ng/signup)): a real purchase. It goes only to vendors who registered
+  themselves, and the buyer can add vendors they already know by name and phone; ProcureAI gives them a WhatsApp
+  link to send. Nobody is invented: if no registered vendor sells something, the page says so.
+- **Not signed in**: the demo. Scripted vendors reply, and nothing reaches a real vendor.
+- **Vendors** register at [/vendors/join](https://procureai.com.ng/vendors/join), sign in, see buyers' requests and
+  their orders at `/vendor`, and change their details with their password. Kora still checks them on every purchase.
+- **Accounts**: email and password (scrypt), rate-limited sign-in, emailed reset links, a password change ends every
+  other session. Notifications are written in the same transaction as the event and emailed later by the background
+  tick. Everyone can download their data or ask for their account to be deleted.
+- **Legal pages** at /terms, /privacy and /refunds are drafts until a lawyer has reviewed them, and say so.
+
+`npm run golive:check` lists what still stands between a deployment and real money.
 
 ## See it in 90 seconds
 
-1. Open **[/buy](https://procureai-six.vercel.app/buy)**, type anything you'd buy, press Continue, then **Ask vendors**. Replies arrive one by one.
+1. Open **[/buy](https://procureai.com.ng/buy)**, type anything you'd buy, press Continue, then **Ask vendors**. Replies arrive one by one.
 2. **Check vendors with Kora.** One is struck through. The cheapest vendor isn't a registered business.
 3. **Approve**, then use the sandbox strip to make the transfer(s).
 4. **Open tracker**, then **Open vendor's phone**, and type the buyer's 6-digit code.
@@ -93,3 +110,6 @@ npx prisma migrate deploy
 npm run dev:offline                   # http://localhost:3000/demo
 npm test                              # unit + integration tests
 ```
+
+Optional: `RESEND_API_KEY` (and `EMAIL_FROM`) turns on email for password resets and notifications. Without it,
+notifications stay in the app and the reset screen says to contact support.

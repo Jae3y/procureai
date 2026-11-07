@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { VendorJoin } from "@/components/vendor-join";
+import { pageAccount } from "@/lib/http/page-auth";
 import { kora } from "@/lib/kora/client";
 import { isKoraError } from "@/lib/kora/errors";
 import { log } from "@/lib/log";
@@ -9,6 +11,8 @@ export const metadata: Metadata = { title: "Sell on ProcureAI" };
 
 /** /vendors/join — a vendor registers once; from then on a quote is just the reply in their own words. */
 export default async function VendorJoinPage() {
+  const account = await pageAccount();
+  if (account?.vendorContactId) redirect("/vendor");
   let banks: Array<{ name: string; code: string }> = [];
   let banksError: string | null = null;
   try {
@@ -19,5 +23,5 @@ export default async function VendorJoinPage() {
     log.warn({ err: err.message }, "could not load Kora's bank list for vendor registration");
     banksError = err.userMessage;
   }
-  return <VendorJoin banks={banks} banksError={banksError} />;
+  return <VendorJoin banks={banks} banksError={banksError} signedInEmail={account?.email ?? null} />;
 }

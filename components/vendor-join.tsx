@@ -14,14 +14,15 @@ type Fields = {
   accountNumber: string;
   email: string;
   consent: boolean;
+  password: string;
 };
 
-const EMPTY: Fields = { businessName: "", phone: "", sells: "", city: "", rcNumber: "", bankCode: "", accountNumber: "", email: "", consent: false };
+const EMPTY: Fields = { businessName: "", phone: "", sells: "", city: "", rcNumber: "", bankCode: "", accountNumber: "", email: "", consent: false, password: "" };
 
 /** Vendor registration: once, on a phone. Afterwards buyers' requests that match find them, and quoting is one message. */
-export function VendorJoin({ banks, banksError }: { banks: Array<{ name: string; code: string }>; banksError: string | null }) {
-  const [f, setF] = useState<Fields>(EMPTY);
-  const send = useAction<Fields, { id: string; businessName: string }>("/api/vendors/register");
+export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<{ name: string; code: string }>; banksError: string | null; signedInEmail: string | null }) {
+  const [f, setF] = useState<Fields>({ ...EMPTY, email: signedInEmail ?? "" });
+  const send = useAction<Partial<Fields>, { id: string; businessName: string }>("/api/vendors/register");
   const [done, setDone] = useState<string | null>(null);
   const issues = ((send.error?.details as { issues?: Array<{ path: string; message: string }> } | undefined)?.issues ?? []).reduce<Record<string, string>>(
     (acc, i) => ({ ...acc, [i.path]: i.message }),
@@ -57,6 +58,9 @@ export function VendorJoin({ banks, banksError }: { banks: Array<{ name: string;
           <p className="note" style={{ fontSize: 14 }}>
             Kora checks your business and bank account each time a buyer considers your quote. You&apos;re paid 30% once the buyer&apos;s money is held and 70% on delivery.
           </p>
+          <a className="btn" href="/vendor" style={{ marginTop: 16 }}>
+            Open your dashboard
+          </a>
         </div>
       ) : (
         <form
@@ -64,7 +68,8 @@ export function VendorJoin({ banks, banksError }: { banks: Array<{ name: string;
           style={{ paddingTop: 36, display: "grid", gap: 14 }}
           onSubmit={(e) => {
             e.preventDefault();
-            void send.run(f).then((r) => {
+            const { password, ...profile } = f;
+            void send.run(signedInEmail ? profile : { ...profile, password }).then((r) => {
               if (r.ok) setDone(r.data.businessName);
             });
           }}
@@ -95,9 +100,25 @@ export function VendorJoin({ banks, banksError }: { banks: Array<{ name: string;
           </div>
           {field("accountNumber", "Business account number", { inputMode: "numeric", pattern: "[0-9]*", maxLength: 10, autoComplete: "off" })}
           {field("email", "Business email", { type: "email", inputMode: "email", autoComplete: "email" })}
+          {signedInEmail ? (
+            <p className="note" style={{ margin: 0, fontSize: 14 }}>
+              This profile joins your account ({signedInEmail}).
+            </p>
+          ) : (
+            <>
+              {field("password", "Choose a password (at least 10 characters)", { type: "password", autoComplete: "new-password" })}
+              <p className="note" style={{ margin: 0, fontSize: 14 }}>
+                You&apos;ll sign in with your business email and this password to see requests and change your details. Already have an account?{" "}
+                <a href="/login?next=/vendors/join">Sign in first</a>.
+              </p>
+            </>
+          )}
           <label className="check">
             <input type="checkbox" checked={f.consent} onChange={set("consent")} />
-            <span>I agree that ProcureAI can check this business and bank account with Kora whenever a buyer considers my quote.</span>
+            <span>
+              I agree that ProcureAI can check this business and bank account with Kora whenever a buyer considers my quote, and to the <a href="/terms">terms</a> and{" "}
+              <a href="/privacy">privacy policy</a>.
+            </span>
           </label>
           {issues.consent ? <span className="form-error">{issues.consent}</span> : null}
           <button type="submit" className="btn" style={{ marginTop: 8 }} disabled={send.pending}>

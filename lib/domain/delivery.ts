@@ -1,3 +1,4 @@
+import { notifyDelivered } from "@/lib/notify/notifications";
 import { db, transaction } from "@/lib/db";
 import { env } from "@/lib/env";
 import type { EvidenceKind, MessageSender } from "@/lib/generated/prisma/client";
@@ -46,6 +47,7 @@ export async function markDelivered(orderId: string, vendorId: string, input: Ev
       title: "Vendor marked it delivered",
       detail: `${photo ? "With a photo. " : ""}Stage 2 releases automatically after ${env().DELIVERY_GRACE_HOURS} hours unless the buyer reports a problem.`,
     });
+    await notifyDelivered(tx, order, env().DELIVERY_GRACE_HOURS);
     return { autoReleaseAt };
   });
 }

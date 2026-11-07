@@ -30,6 +30,24 @@ export function json(body: unknown, status = 200, headers: Record<string, string
   return new Response(jsonText(body), { status, headers: h });
 }
 
+/**
+ * Browsers attach an Origin header to every cross-site write. Cookies are already SameSite=Lax; this
+ * is the second lock. Servers (Kora, cron) send no Origin and aren't affected.
+ */
+function rejectCrossSite(req: Request): void {
+  if (req.method === "GET" || req.method === "HEAD") return;
+  const origin = req.headers.get("origin");
+  if (!origin) return;
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  let originHost: string | null = null;
+  try {
+    originHost = new URL(origin).host;
+  } catch (bad) {
+    log.warn({ origin, reason: String(bad) }, "unreadable Origin header");
+  }
+  if (host && originHost !== host) throw new DomainError("cross_site", "This request came from another site.", 403);
+}
+
 export function route<I = undefined, P extends Record<string, string> = Record<string, string>>(
   opts: RouteOptions<I, P>,
   handler: Handler<I, P>,
@@ -38,6 +56,7 @@ export function route<I = undefined, P extends Record<string, string> = Record<s
     withLogContext({}, async () => {
       const ip = clientIp(req);
       try {
+        rejectCrossSite(req);
         const params = await ctx.params;
         let raw = "";
         let input = undefined as I;

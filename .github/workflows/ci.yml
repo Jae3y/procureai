@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: procureai
+          POSTGRES_PASSWORD: procureai
+          POSTGRES_DB: procureai_test
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U procureai -d procureai_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+    env:
+      DATABASE_URL: postgresql://procureai:procureai@localhost:5434/procureai_test
+      DATABASE_URL_TEST: postgresql://procureai:procureai@localhost:5434/procureai_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx prisma generate
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run verify:banned
+      # Unit + integration only. Kora calls go to the local test double; no secrets are used here.
+      - run: npm test
+      - name: Build
+        run: npm run build
+        env:
+          # Placeholder values so the environment validates at build time. Nothing here is a real key.
+          KORA_SECRET_KEY: sk_test_ci_placeholder
+          KORA_PUBLIC_KEY: pk_test_ci_placeholder
+          KORA_WEBHOOK_URL: https://ci.invalid/api/webhooks/kora
+          APP_BASE_URL: http://localhost:3000
+          RECORD_SIGNING_SECRET: ci-placeholder-signing-secret-0123456789abcdef
+          DEMO_MODE: "true"
+      - run: npm run verify:bundle

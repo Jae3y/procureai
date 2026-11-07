@@ -71,7 +71,9 @@ function SubmittedRequest({ v }: { v: RequestView }) {
           <span className="body-lg muted" style={{ fontSize: 18 }}>
             {v.status === "CANCELLED"
               ? "This request was closed."
-              : `ProcureAI searched ${v.directoryTotal} vendors and will ask the ${v.directoryCount} that match this order.`}
+              : v.directoryCount === 0 && !v.isDemo
+                ? "No registered vendor sells this yet. Continue, and you can add vendors you know."
+                : `ProcureAI searched ${v.directoryTotal} vendors and will ask the ${v.directoryCount} that match this order.`}
             <span className="parsed-by">read by {v.specParsedBy === "AI" ? "AI" : "rules"}</span>
           </span>
           <Link className="btn-text" href={`/buy?text=${encodeURIComponent(v.rawText)}`}>
@@ -79,8 +81,8 @@ function SubmittedRequest({ v }: { v: RequestView }) {
           </Link>
         </div>
         {canInvite ? (
-          <button type="button" className="btn" disabled={invite.pending || v.directoryCount === 0} onClick={() => void invite.run()}>
-            {invite.pending ? <Spinner label="Asking vendors" /> : <>Ask vendors <span className="arrow">→</span></>}
+          <button type="button" className="btn" disabled={invite.pending || (v.isDemo && v.directoryCount === 0)} onClick={() => void invite.run()}>
+            {invite.pending ? <Spinner label="Asking vendors" /> : <>{v.directoryCount === 0 && !v.isDemo ? "Continue" : "Ask vendors"} <span className="arrow">→</span></>}
           </button>
         ) : null}
       </div>
@@ -128,7 +130,11 @@ function Quotes({ v }: { v: RequestView }) {
         <div className="waiting">
           <div>
             <p className="body-lg" style={{ margin: 0, maxWidth: "30ch" }}>
-              Most vendors reply within an hour. Their replies appear here as they arrive.
+              {v.invitedCount === 0
+                ? "No vendors asked yet. Add the vendors you know below and send them their link."
+                : v.isDemo
+                  ? "Most vendors reply within an hour. Their replies appear here as they arrive."
+                  : "Replies appear here as they arrive, and we'll notify you."}
             </p>
             <p className="note" style={{ marginTop: 24, maxWidth: "36ch" }}>
               You can close this page. Nothing is paid until you approve a vendor.
@@ -210,7 +216,69 @@ function Quotes({ v }: { v: RequestView }) {
           <div aria-live="polite">{error ? <p className="form-error">{error.message}</p> : null}</div>
         </>
       )}
+      {!v.isDemo && (v.canAddVendors || (v.invites?.length ?? 0) > 0) ? <YourVendors v={v} /> : null}
     </section>
+  );
+}
+
+/** A real purchase: the buyer brings vendors they know and sends each one their own link. */
+function YourVendors({ v }: { v: RequestView }) {
+  const [businessName, setBusinessName] = useState("");
+  const [phone, setPhone] = useState("");
+  const add = useAction<{ businessName: string; phone: string }, { label: string }>(`/api/requests/${v.id}/vendors`);
+  const issues = ((add.error?.details as { issues?: Array<{ path: string; message: string }> } | undefined)?.issues ?? []);
+  return (
+    <div style={{ marginTop: 56, borderTop: "1px solid var(--hairline)", paddingTop: 32, display: "grid", gap: 24, maxWidth: 720 }}>
+      <div>
+        <div className="eyebrow" style={{ marginBottom: 12 }}>Your vendors</div>
+        <p className="note" style={{ margin: 0 }}>Know someone who sells this? Add them. They get the same link and the same Kora check as everyone else.</p>
+      </div>
+      {(v.invites ?? []).length > 0 ? (
+        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 12 }}>
+          {(v.invites ?? []).map((i) => (
+            <li key={i.label} style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", justifyContent: "space-between" }}>
+              <span>
+                <strong>{i.businessName}</strong> <span className="mono muted" style={{ fontSize: 14 }}>{i.phone}</span>
+                {i.replied ? <span className="green"> · replied</span> : null}
+              </span>
+              {i.replied ? null : (
+                <a className="btn-2" href={i.whatsapp} target="_blank" rel="noreferrer">Send on WhatsApp</a>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {v.canAddVendors ? (
+        <form
+          noValidate
+          style={{ display: "grid", gap: 12 }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            void add.run({ businessName, phone }).then((r) => {
+              if (r.ok) {
+                setBusinessName("");
+                setPhone("");
+              }
+            });
+          }}
+        >
+          <div className="field">
+            <label htmlFor="add-name">Business name</label>
+            <input id="add-name" className="input" value={businessName} onChange={(e) => setBusinessName(e.target.value)} />
+          </div>
+          <div className="field">
+            <label htmlFor="add-phone">Their phone number</label>
+            <input id="add-phone" className="input" type="tel" inputMode="tel" placeholder="e.g. 0803 123 4567" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </div>
+          <div>
+            <button type="submit" className="btn btn-sm" disabled={add.pending}>
+              {add.pending ? <Spinner label="Adding" /> : "Add vendor"}
+            </button>
+          </div>
+          <div aria-live="polite">{add.error ? <p className="form-error">{issues[0]?.message ?? add.error.message}</p> : null}</div>
+        </form>
+      ) : null}
+    </div>
   );
 }
 

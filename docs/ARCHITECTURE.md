@@ -89,3 +89,17 @@ transition, one credit, one payout, one Kora disburse call.
 ## Realtime
 Timeline rows fire `pg_notify`; one LISTEN connection per process fans out to SSE streams. Each SSE message is a full snapshot
 tagged with the newest timeline id, so EventSource's automatic reconnect always backfills. No client polling.
+
+## Accounts, notifications, demo separation
+
+- **Sessions.** `pa_session` names an account and its `sessionVersion`; a password change or reset bumps the version,
+  so every older cookie stops working. `pa_buyer` is the demo visitor's cookie. One browser may hold both, and a
+  buyer route accepts either (`buyerIdsFrom`).
+- **Demo vs real.** `Request.isDemo` is set by who asks: an account makes a real request, a visitor a demo one.
+  `VendorContact.isDemo` marks the scripted vendors. `directoryFilter()` sends a demo only to demo vendors and a real
+  request only to vendors who registered themselves. Scripted replies, the vendor-phone shortcut and full invite
+  links are demo-only; on a real request the buyer sees only the links of vendors they added.
+- **Notifications.** `notifyOrderTransition` runs inside `transition()`, in the same transaction as the state change;
+  the email copy is sent by `flushNotificationEmails` in the background tick (claimed row by row, never older than 24h).
+- **Writes from other sites** are refused in `route()` by comparing the Origin header to the host.
+

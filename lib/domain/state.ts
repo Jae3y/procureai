@@ -1,3 +1,4 @@
+import { notifyOrderTransition } from "@/lib/notify/notifications";
 import type { Tx } from "@/lib/db";
 import type { CauseType, Order, OrderStatus } from "@/lib/generated/prisma/client";
 
@@ -100,6 +101,7 @@ export async function transition(tx: Tx, order: Order, to: OrderStatus, cause: C
       detail: `${order.status} → ${to} · ${cause.type.toLowerCase()}${cause.note ? ` · ${cause.note}` : ""}`,
     },
   });
+  await notifyOrderTransition(tx, updated, to);
   return updated;
 }
 

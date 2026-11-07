@@ -2,13 +2,22 @@ import { cookies } from "next/headers";
 import { verifySession } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { adminOpenToAll, env } from "@/lib/env";
-import { ADMIN_COOKIE, BUYER_COOKIE } from "./session";
+import type { Account } from "@/lib/generated/prisma/client";
+import { ACCOUNT_COOKIE, ADMIN_COOKIE, BUYER_COOKIE, accountForCookie } from "./session";
 
 /** Session checks for server-rendered pages (route handlers use lib/http/session.ts). */
 
-export async function pageBuyerId(): Promise<string | null> {
+export async function pageAccount(): Promise<Account | null> {
   const c = await cookies();
-  return verifySession("buyer-session", c.get(BUYER_COOKIE)?.value);
+  return accountForCookie(c.get(ACCOUNT_COOKIE)?.value);
+}
+
+/** Every buyer this browser may act as: the signed-in account's first, then the demo visitor's. */
+export async function pageBuyerIds(): Promise<string[]> {
+  const c = await cookies();
+  const account = await accountForCookie(c.get(ACCOUNT_COOKIE)?.value);
+  const demo = verifySession("buyer-session", c.get(BUYER_COOKIE)?.value);
+  return [account?.buyerId, demo].filter((id): id is string => Boolean(id));
 }
 
 export async function pageIsAdmin(): Promise<boolean> {
@@ -21,14 +30,14 @@ export async function pageCanSeeRequest(requestId: string): Promise<"ok" | "miss
   const r = await db().request.findUnique({ where: { id: requestId }, select: { buyerId: true } });
   if (!r) return "missing";
   if (await pageIsAdmin()) return "ok";
-  return r.buyerId === (await pageBuyerId()) ? "ok" : "forbidden";
+  return (await pageBuyerIds()).includes(r.buyerId) ? "ok" : "forbidden";
 }
 
 export async function pageCanSeeOrder(orderId: string): Promise<"ok" | "missing" | "forbidden"> {
   const o = await db().order.findUnique({ where: { id: orderId }, select: { request: { select: { buyerId: true } } } });
   if (!o) return "missing";
   if (await pageIsAdmin()) return "ok";
-  return o.request.buyerId === (await pageBuyerId()) ? "ok" : "forbidden";
+  return (await pageBuyerIds()).includes(o.request.buyerId) ? "ok" : "forbidden";
 }
 
 export function initialsOf(name: string): string {

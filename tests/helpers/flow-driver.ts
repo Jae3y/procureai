@@ -5,6 +5,8 @@ import { POST as recommendRoute } from "@/app/api/requests/[id]/recommend/route"
 import { GET as requestGet } from "@/app/api/requests/[id]/route";
 import { POST as verifyRoute } from "@/app/api/requests/[id]/verify/route";
 import { POST as createRequestRoute } from "@/app/api/requests/route";
+import { POST as signupRoute } from "@/app/api/auth/signup/route";
+import { env } from "@/lib/env";
 import { POST as handoverRoute } from "@/app/api/orders/[id]/handover/route";
 import { POST as recheckRoute } from "@/app/api/orders/[id]/recheck/route";
 import { GET as orderGet } from "@/app/api/orders/[id]/route";
@@ -45,15 +47,24 @@ export class FlowDriver {
     return { status: res.status, body: (await res.json()) as Json, headers: res.headers };
   }
 
+  /** Outside demo mode, three of the scripted businesses stand in as vendors who registered themselves. */
   async seedDirectory(): Promise<void> {
     for (const v of DEMO_VENDORS.slice(0, 3)) {
-      await db().vendorContact.upsert({ where: { phone: v.phone }, create: { businessName: v.businessName, phone: v.phone, category: v.tags, city: v.city }, update: {} });
+      const profile = { registeredAt: new Date(), rcNumber: v.rcNumber, bankCode: v.bankCode, accountNumber: v.accountNumber, email: v.email };
+      await db().vendorContact.upsert({ where: { phone: v.phone }, create: { businessName: v.businessName, phone: v.phone, category: v.tags, city: v.city, ...profile }, update: profile });
     }
   }
 
+  /** A real purchase needs a signed-in buyer; the demo works without one. */
+  async signUp(): Promise<void> {
+    const r = await this.call(signupRoute, "/api/auth/signup", {}, { body: { name: "Tolu Adebayo", email: `tolu+${Date.now()}@example.com`, password: "a-long-test-password" } });
+    expect(r.status, JSON.stringify(r.body)).toBe(201);
+  }
+
   async createAndQuote(): Promise<string> {
+    if (!env().DEMO_MODE) await this.signUp();
     const created = await this.call(createRequestRoute, "/api/requests", {}, {
-      body: { text: `300 branded T-shirts, under ₦1.5m, delivered by ${deadlineFromToday(30)}`, buyerName: "Tolu Adebayo", buyerEmail: "tolu.adebayo@example.com" },
+      body: { text: `300 branded T-shirts, under ₦1.5m, delivered by ${deadlineFromToday(30)}` },
     });
     expect(created.status).toBe(201);
     const requestId = String(created.body.id);

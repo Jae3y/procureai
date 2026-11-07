@@ -2,6 +2,9 @@ import { inviteTokenFor } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { getSetting } from "@/lib/domain/settings";
 import { env } from "@/lib/env";
+import { kora } from "@/lib/kora/client";
+import { isKoraError } from "@/lib/kora/errors";
+import { log } from "@/lib/log";
 import { formatNaira } from "@/lib/money";
 import { lagosDay, lagosTime, orderRef } from "./format";
 import { moneySummary } from "./money-summary";
@@ -39,11 +42,36 @@ export type AdminView = {
   requests: Array<{ id: string; text: string; status: string; created: string; invites: Array<{ label: string; name: string; link: string; replied: boolean }> }>;
   events: Array<{ id: string; when: string; type: string; reference: string; source: string; signature: "valid" | "invalid" | "n/a"; method: string | null; processed: boolean; error: string | null; note: string | null; order: string | null; replayable: boolean }>;
   outbox: { pending: number; parked: number };
+  accounts: { total: number; vendors: number; deletionRequests: Array<{ email: string; when: string }> };
+  /** Kora's available balance against what stage payouts still owe. Null if Kora couldn't be reached. */
+  payoutWallet: { available: string; owed: string; short: boolean } | null;
 };
+
+async function payoutWallet(): Promise<AdminView["payoutWallet"]> {
+  try {
+    const [balances, open] = await Promise.all([
+      kora().getBalances(),
+      db().order.findMany({ where: { status: { in: ["HELD", "STAGE_1_PAID", "CODE_VERIFIED", "RELEASED", "PAYOUT_FAILED", "DISPUTED"] } }, include: { payouts: true, refunds: true, ledger: true } }),
+    ]);
+    const available = balances.data.NGN?.available_balance ?? 0n;
+    const owed = open.reduce((sum, o) => sum + moneySummary(o).held, 0n);
+    return { available: formatNaira(available), owed: formatNaira(owed), short: available < owed };
+  } catch (err) {
+    if (!isKoraError(err)) throw err;
+    log.warn({ err: err.message }, "admin: could not read Kora balance");
+    return null;
+  }
+}
 
 export async function buildAdminView(): Promise<AdminView> {
   const e = env();
   const base = e.APP_BASE_URL.replace(/\/+$/, "");
+  const [accountTotal, vendorAccounts, deletionRequests, wallet] = await Promise.all([
+    db().account.count(),
+    db().account.count({ where: { vendorContactId: { not: null } } }),
+    db().account.findMany({ where: { deletionRequestedAt: { not: null } }, orderBy: { deletionRequestedAt: "asc" }, select: { email: true, deletionRequestedAt: true } }),
+    payoutWallet(),
+  ]);
   const [orders, requests, events, pending, parked, payoutRoute, suppress, sampleOrderId] = await Promise.all([
     db().order.findMany({ orderBy: { updatedAt: "desc" }, take: 40, include: { request: true, vendor: true, payouts: true, refunds: true, ledger: true } }),
     db().request.findMany({ orderBy: { createdAt: "desc" }, take: 6, include: { vendors: { include: { quote: { select: { id: true } } }, orderBy: { label: "asc" } } } }),
@@ -55,6 +83,12 @@ export async function buildAdminView(): Promise<AdminView> {
     getSetting("sampleOrderId"),
   ]);
   return {
+    accounts: {
+      total: accountTotal,
+      vendors: vendorAccounts,
+      deletionRequests: deletionRequests.map((d) => ({ email: d.email, when: d.deletionRequestedAt ? lagosDay(d.deletionRequestedAt) : "" })),
+    },
+    payoutWallet: wallet,
     mode: {
       koraMode: e.koraMode,
       simulateIdentity: e.SIMULATE_IDENTITY,

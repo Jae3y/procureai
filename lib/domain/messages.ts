@@ -1,5 +1,6 @@
 import type { MessageSender } from "@/lib/generated/prisma/client";
-import { db } from "@/lib/db";
+import { db, transaction } from "@/lib/db";
+import { notifyMessage } from "@/lib/notify/notifications";
 import { DomainError, NotFoundError } from "./errors";
 import { vendorByToken } from "./vendors";
 
@@ -14,9 +15,12 @@ export async function postMessage(orderId: string, sender: MessageSender, raw: s
   const body = raw.trim();
   if (!body) throw new DomainError("empty_message", "Write a message first.", 400);
   if (body.length > MESSAGE_MAX_CHARS) throw new DomainError("message_too_long", `Messages are at most ${MESSAGE_MAX_CHARS} characters.`, 400);
-  const exists = await db().order.count({ where: { id: orderId } });
-  if (!exists) throw new NotFoundError("Order");
-  await db().orderMessage.create({ data: { orderId, sender, body } });
+  const order = await db().order.findUnique({ where: { id: orderId }, select: { id: true, requestId: true, vendorId: true } });
+  if (!order) throw new NotFoundError("Order");
+  await transaction(async (tx) => {
+    await tx.orderMessage.create({ data: { orderId, sender, body } });
+    await notifyMessage(tx, order, sender);
+  });
 }
 
 export async function messageCount(orderId: string): Promise<number> {

@@ -442,3 +442,33 @@ textarea.thread-input { min-height: 64px; font-size: 16px; }
 .profile-card { margin-top: 24px; padding: 16px; border: 1px solid var(--green); border-radius: 12px; background: var(--surface); }
 .profile-name { margin-top: 8px; font: 600 22px/1.15 var(--font-display); letter-spacing: -0.02em; }
 .profile-meta { margin-top: 6px; font: 500 13px/1.4 var(--font-mono); color: var(--muted); overflow-wrap: anywhere; }
+
+/* ── Accounts, vendor dashboard, legal, receipt ───────────────────────── */
+.account-narrow { max-width: 560px; margin: 0 auto; padding: 64px var(--gutter) 96px; }
+.account-wide { max-width: 860px; margin: 0 auto; padding: 56px var(--gutter) 96px; }
+.account-title { margin: 0; font: 600 clamp(36px, 4vw, 56px)/1 var(--font-display); letter-spacing: -0.04em; }
+.account-form { display: grid; gap: 16px; }
+.account-block { border-top: 1px solid var(--hairline); margin-top: 40px; padding-top: 28px; }
+.account-block h2, .legal h2, .account-narrow h2 { margin: 0; font: 600 24px/1.15 var(--font-display); letter-spacing: -0.02em; }
+.account-block-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.account-list { list-style: none; margin: 0; padding: 0; }
+.account-list li { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--hairline); }
+.account-list li.unread strong::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-right: 8px; vertical-align: middle; }
+.account-list a, .account-narrow .note a, .account-wide .note a, .site-foot a { color: var(--ink); }
+.legal section { margin-top: 32px; }
+.legal p { font: 400 17px/1.6 var(--font-body); }
+.legal-draft { border: 1px solid var(--hairline); border-radius: 12px; padding: 14px 16px; font: 500 15px/1.5 var(--font-body); background: var(--surface); }
+.site-foot { max-width: var(--max); margin: 0 auto; padding: 40px var(--gutter); border-top: 1px solid var(--hairline); display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; font: 400 14px/1.5 var(--font-body); color: var(--muted); }
+.site-foot a { color: var(--muted); }
+.receipt-grid { display: grid; grid-template-columns: minmax(110px, auto) 1fr; gap: 10px 20px; margin: 28px 0 0; }
+.receipt-grid dt { color: var(--muted); font: 500 15px/1.4 var(--font-body); }
+.receipt-grid dd { margin: 0; font: 400 16px/1.4 var(--font-body); overflow-wrap: anywhere; }
+@media print {
+  .no-print { display: none !important; }
+  .receipt { background: #fff; padding: 0; }
+  .receipt .account-narrow { padding-top: 0; }
+}
+.site-nav { display: flex; gap: 20px; align-items: center; }
+@media (max-width: 560px) {
+  .site-nav .btn { display: none; }
+}

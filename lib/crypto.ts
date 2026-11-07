@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
  * RECORD_SIGNING_SECRET, so a record-URL signature can never be replayed as a session or a code hash.
  */
 
-type Purpose = "record-url" | "buyer-session" | "handover-hash" | "handover-cipher" | "admin-session" | "invite-token";
+type Purpose = "record-url" | "buyer-session" | "account-session" | "handover-hash" | "handover-cipher" | "admin-session" | "invite-token";
 
 const keyCache = new Map<Purpose, Buffer>();
 
@@ -72,15 +72,17 @@ export function verifyRecordId(signed: string): string | null {
   return safeEqual(sig, mac("record-url", id).slice(0, 22)) ? id : null;
 }
 
-// ── Buyer / admin sessions (signed cookie values) ──────────────────────────
+// ── Buyer / account / admin sessions (signed cookie values) ────────────────
 
-export function signSession(kind: "buyer-session" | "admin-session", subject: string, ttlSeconds: number): string {
+type SessionKind = "buyer-session" | "account-session" | "admin-session";
+
+export function signSession(kind: SessionKind, subject: string, ttlSeconds: number): string {
   const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
   const payload = `${subject}.${exp}`;
   return `${payload}.${mac(kind, payload)}`;
 }
 
-export function verifySession(kind: "buyer-session" | "admin-session", value: string | undefined): string | null {
+export function verifySession(kind: SessionKind, value: string | undefined): string | null {
   if (!value) return null;
   const parts = value.split(".");
   if (parts.length !== 3) return null;

@@ -67,6 +67,28 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
           </button>
         </div>
 
+        {v.payoutWallet?.short ? (
+          <p className="form-error" role="alert">
+            Kora balance {v.payoutWallet.available} is below the {v.payoutWallet.owed} held for open orders. Payouts may fail until it is topped up.
+          </p>
+        ) : null}
+        <p className="note">
+          {v.accounts.total} account{v.accounts.total === 1 ? "" : "s"} · {v.accounts.vendors} vendor{v.accounts.vendors === 1 ? "" : "s"}
+          {v.payoutWallet ? ` · Kora balance ${v.payoutWallet.available}, ${v.payoutWallet.owed} held for open orders` : " · Kora balance unavailable"}
+        </p>
+        {v.accounts.deletionRequests.length > 0 ? (
+          <div className="panel" style={{ marginBottom: 24 }}>
+            <div className="label" style={{ marginBottom: 12 }}>Asked to delete their account</div>
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              {v.accounts.deletionRequests.map((d) => (
+                <li key={d.email}>
+                  <span className="mono">{d.email}</span> · {d.when}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         {v.mode.demoMode ? (
           <>
             <h2>Presenter</h2>

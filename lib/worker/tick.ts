@@ -1,4 +1,5 @@
 import { log } from "@/lib/log";
+import { flushNotificationEmails } from "@/lib/notify/notifications";
 import { processOutboxBatch } from "./outbox";
 import { pollOnce } from "./poller";
 
@@ -10,7 +11,11 @@ import { pollOnce } from "./poller";
 
 let running: Promise<TickReport> | null = null;
 
-export type TickReport = { outbox: Awaited<ReturnType<typeof processOutboxBatch>>; poll: Awaited<ReturnType<typeof pollOnce>> };
+export type TickReport = {
+  outbox: Awaited<ReturnType<typeof processOutboxBatch>>;
+  poll: Awaited<ReturnType<typeof pollOnce>>;
+  emails: Awaited<ReturnType<typeof flushNotificationEmails>>;
+};
 
 export function tick(): Promise<TickReport> {
   // Never overlap passes within one process; other processes are kept apart by row locks.
@@ -19,10 +24,11 @@ export function tick(): Promise<TickReport> {
     try {
       const outbox = await processOutboxBatch();
       const poll = await pollOnce();
-      if (outbox.processed || outbox.retried || outbox.parked || poll.charges || poll.payouts || poll.refunds || poll.healed || poll.errors) {
-        log.info({ outbox, poll }, "tick");
+      const emails = await flushNotificationEmails();
+      if (outbox.processed || outbox.retried || outbox.parked || poll.charges || poll.payouts || poll.refunds || poll.healed || poll.errors || emails.sent || emails.failed) {
+        log.info({ outbox, poll, emails }, "tick");
       }
-      return { outbox, poll };
+      return { outbox, poll, emails };
     } finally {
       running = null;
     }

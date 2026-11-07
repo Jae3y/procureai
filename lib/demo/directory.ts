@@ -15,8 +15,8 @@ export async function ensureDemoDirectory(): Promise<void> {
       : { registeredAt: new Date("2026-10-01T09:00:00Z"), rcNumber: v.rcNumber, bankCode: v.bankCode, accountNumber: v.accountNumber, email: v.email };
     await db().vendorContact.upsert({
       where: { phone: v.phone },
-      create: { businessName: v.businessName, phone: v.phone, category: v.tags, city: v.city, ...profile },
-      update: { businessName: v.businessName, category: v.tags, city: v.city, ...profile },
+      create: { businessName: v.businessName, phone: v.phone, category: v.tags, city: v.city, isDemo: true, ...profile },
+      update: { businessName: v.businessName, category: v.tags, city: v.city, isDemo: true, ...profile },
     });
   }
 }

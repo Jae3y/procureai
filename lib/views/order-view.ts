@@ -378,6 +378,6 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
     sandboxRoute: routeNote ? `${routeNote.destinationBankCode}/${routeNote.destinationAccount}` : null,
     testMode: e.KORA_SECRET_KEY.startsWith("sk_test_"),
     demoMode: e.DEMO_MODE,
-    vendorPhoneLink: e.DEMO_MODE && audience !== "vendor" ? `${e.APP_BASE_URL}/v/${inviteTokenFor(order.requestId, order.vendor.label)}` : null,
+    vendorPhoneLink: order.request.isDemo && audience !== "vendor" ? `${e.APP_BASE_URL}/v/${inviteTokenFor(order.requestId, order.vendor.label)}` : null,
   };
 }

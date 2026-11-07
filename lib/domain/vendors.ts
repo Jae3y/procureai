@@ -3,6 +3,7 @@ import { sha256Hex } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import type { Vendor } from "@/lib/generated/prisma/client";
 import { formatNaira } from "@/lib/money";
+import { notify } from "@/lib/notify/notifications";
 import { DomainError } from "./errors";
 import { createdDateOf, specOf } from "./requests";
 import { requestEvent } from "./timeline";
@@ -91,5 +92,15 @@ export async function submitQuote(token: string, input: QuoteSubmission) {
     title: `${vendor.label} replied`,
     detail: `${quote.totalKobo !== null ? formatNaira(quote.totalKobo) : "no price"} · read by ${parsedBy === "AI" ? `AI (${model ?? "model"})` : `rules${note ? ` — ${note}` : ""}`}`,
   });
+  const buyerAccount = await db().account.findUnique({ where: { buyerId: request.buyerId }, select: { id: true } });
+  if (buyerAccount) {
+    await notify(db(), {
+      accountId: buyerAccount.id,
+      kind: "quote",
+      title: "A vendor replied",
+      body: `${vendor.label} sent a quote for ${request.item}${quote.totalKobo !== null ? `: ${formatNaira(quote.totalKobo)}` : ""}.`,
+      href: `/buy/${request.id}`,
+    });
+  }
   return created;
 }

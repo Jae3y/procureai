@@ -1,43 +1,37 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { DEMO_BUYER } from "@/lib/demo/script";
+import { verifySession } from "@/lib/crypto";
+import { DomainError } from "@/lib/domain/errors";
 import { createRequest, IncompleteSpecError } from "@/lib/domain/requests";
 import { env } from "@/lib/env";
 import { formatNaira } from "@/lib/money";
 import { route } from "@/lib/http/route";
-import { buyerIdFrom, buyerSessionCookie } from "@/lib/http/session";
+import { accountFrom, BUYER_COOKIE, buyerSessionCookie, readCookie } from "@/lib/http/session";
 import { civilDay } from "@/lib/views/format";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const Body = z.object({
-  text: z.string().trim().min(5).max(500),
-  buyerName: z.string().trim().min(2).max(80).optional(),
-  buyerEmail: z.email().max(120).optional(),
-});
+const Body = z.object({ text: z.string().trim().min(5).max(500) });
 
 /** POST /api/requests — one sentence in, a parsed request out (or what's missing). */
 export const POST = route({ name: "requests.create", input: Body, idempotent: true, limits: ({ ip }) => [{ key: `req:${ip}`, limit: 20, windowSeconds: 600 }] }, async ({ input, req }) => {
-  let buyerId = buyerIdFrom(req);
+  const account = await accountFrom(req);
   const cookies: string[] = [];
+  let buyerId = account?.buyerId ?? verifySession("buyer-session", readCookie(req, BUYER_COOKIE));
   if (!buyerId) {
-    const name = input.buyerName ?? (env().DEMO_MODE ? DEMO_BUYER.name : null);
-    const email = input.buyerEmail ?? (env().DEMO_MODE ? DEMO_BUYER.email : null);
-    if (!name || !email) {
-      return { status: 400, body: { error: { code: "buyer_details", message: "Add your name and email so Kora can send your receipt." } } };
-    }
-    // On a shared demo (DEMO_MODE with an ADMIN_TOKEN) every visitor gets their own buyer, so one
-    // visitor can't open another's orders; a local demo keeps the single presenter buyer.
-    const shared = env().DEMO_MODE && Boolean(env().ADMIN_TOKEN) && input.buyerEmail === undefined;
-    const buyer = shared
-      ? await db().buyer.create({ data: { name, email } })
-      : ((await db().buyer.findFirst({ where: { email } })) ?? (await db().buyer.create({ data: { name, email } })));
+    if (!env().DEMO_MODE) throw new DomainError("sign_in_required", "Sign in to start a purchase.", 401);
+    // On a shared demo (an ADMIN_TOKEN is set) every visitor gets their own buyer, so one visitor
+    // can't open another's orders; a local demo keeps the single presenter buyer.
+    const shared = Boolean(env().ADMIN_TOKEN);
+    const existing = shared ? null : await db().buyer.findFirst({ where: { email: DEMO_BUYER.email } });
+    const buyer = existing ?? (await db().buyer.create({ data: { name: DEMO_BUYER.name, email: DEMO_BUYER.email } }));
     buyerId = buyer.id;
     cookies.push(buyerSessionCookie(buyer.id));
   }
   try {
-    const request = await createRequest({ rawText: input.text, buyerId });
+    const request = await createRequest({ rawText: input.text, buyerId, isDemo: !account });
     return { status: 201, body: { id: request.id }, cookies };
   } catch (err) {
     if (err instanceof IncompleteSpecError) {

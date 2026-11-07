@@ -1,4 +1,6 @@
-import { db } from "@/lib/db";
+import { db, transaction } from "@/lib/db";
+import type { Account } from "@/lib/generated/prisma/client";
+import { notify } from "@/lib/notify/notifications";
 import { DomainError } from "./errors";
 
 /**
@@ -6,8 +8,9 @@ import { DomainError } from "./errors";
  * and their quotes reuse the saved business details, so a quote is just the reply in their own words.
  * Registration never replaces Kora: every vendor is still verified on every purchase they're chosen for.
  *
- * A profile can't be overwritten through this form (there are no logins yet, so a second sign-up with
- * the same phone could otherwise redirect someone else's payouts). Changing details goes through support.
+ * A profile can't be overwritten through this form, because a second sign-up with the same phone could
+ * otherwise redirect someone else's payouts. Changing details needs the account's password
+ * (updateVendorProfile), and tells the account's email address that it happened.
  */
 
 export type VendorRegistration = {
@@ -43,7 +46,7 @@ export async function registerVendor(input: VendorRegistration): Promise<{ id: s
     email: input.email.trim().toLowerCase(),
     registeredAt: new Date(),
   };
-  const taken = () => new DomainError("already_registered", "This phone number is already registered on ProcureAI. To change your details, contact ProcureAI support.", 409);
+  const taken = () => new DomainError("already_registered", "This phone number is already registered on ProcureAI. Sign in to change your details.", 409);
   const existing = await db().vendorContact.findUnique({ where: { phone } });
   if (existing) {
     // Only an unregistered directory entry can be claimed, and only once (the WHERE makes two racing sign-ups converge).
@@ -58,4 +61,39 @@ export async function registerVendor(input: VendorRegistration): Promise<{ id: s
     if (typeof err === "object" && err !== null && "code" in err && err.code === "P2002") throw taken();
     throw err;
   }
+}
+
+export type VendorProfileUpdate = Omit<VendorRegistration, "phone" | "consent">;
+
+/**
+ * A signed-in vendor edits their profile, confirming their password. New details apply to quotes from
+ * now on: a vendor Kora has already verified on a purchase is frozen at the database level (I4), so
+ * changing the bank account here can't redirect money on an order that is already moving.
+ */
+export async function updateVendorProfile(account: Account, input: VendorProfileUpdate): Promise<void> {
+  if (!account.vendorContactId) throw new DomainError("not_vendor", "This account has no vendor profile yet.", 404);
+  const contactId = account.vendorContactId;
+  const current = await db().vendorContact.findUniqueOrThrow({ where: { id: contactId } });
+  const bankChanged = current.bankCode !== input.bankCode.trim() || current.accountNumber !== input.accountNumber.trim();
+  await transaction(async (tx) => {
+    await tx.vendorContact.update({
+      where: { id: contactId },
+      data: {
+        businessName: input.businessName.trim(),
+        category: input.sells.trim().toLowerCase().replace(/[,;/]+/g, " ").replace(/\s+/g, " "),
+        city: input.city.trim(),
+        rcNumber: input.rcNumber.trim().toUpperCase().replace(/\s+/g, ""),
+        bankCode: input.bankCode.trim(),
+        accountNumber: input.accountNumber.trim(),
+        email: input.email.trim().toLowerCase(),
+      },
+    });
+    await notify(tx, {
+      accountId: account.id,
+      kind: bankChanged ? "profile.bank" : "profile",
+      title: bankChanged ? "Your payout bank account was changed" : "Your vendor profile was updated",
+      body: bankChanged ? "If this wasn't you, change your password and contact ProcureAI right away." : "Your business details were updated.",
+      href: "/vendor",
+    });
+  });
 }

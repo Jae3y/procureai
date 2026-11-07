@@ -75,9 +75,9 @@ export function Header({
         </nav>
         <div className="header-right">
           {refLabel ? <span className="header-ref">{refLabel}</span> : null}
-          <span className="avatar" aria-label="Buyer">
+          <Link href="/account" className="avatar" aria-label="Your account" style={{ textDecoration: "none" }}>
             {initials}
-          </span>
+          </Link>
         </div>
       </div>
     </header>

@@ -101,11 +101,12 @@ describe("shared demo · every visitor is their own buyer", () => {
 });
 
 describe("demo · the tracker links to the vendor's phone", () => {
-  it("in DEMO_MODE for the buyer, never for the vendor or outside demo mode", async () => {
+  it("on a demo purchase for the buyer, never for the vendor or on a real purchase", async () => {
     const f = await makeOrderFixture();
+    await db().request.update({ where: { id: f.order.requestId }, data: { isDemo: true } });
     expect((await buildOrderView(f.order.id, "buyer")).vendorPhoneLink).toMatch(/^http:\/\/localhost:3000\/v\/[\w-]+$/);
     expect((await buildOrderView(f.order.id, "vendor")).vendorPhoneLink).toBeNull();
-    setEnv({ DEMO_MODE: "false" });
+    await db().request.update({ where: { id: f.order.requestId }, data: { isDemo: false } });
     expect((await buildOrderView(f.order.id, "buyer")).vendorPhoneLink).toBeNull();
   });
 });

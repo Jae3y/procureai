@@ -198,6 +198,9 @@ export function HomePage() {
             <Link href="/demo" className="btn-text" style={{ textDecoration: "none" }}>
               Demo
             </Link>
+            <Link href="/account" className="btn-text" style={{ textDecoration: "none" }}>
+              Sign in
+            </Link>
             <Link href="/buy" className="btn btn-sm">
               Start a purchase
             </Link>
@@ -623,6 +626,15 @@ export function HomePage() {
             </Link>
             <Link href="/sample" style={{ color: "var(--muted)" }}>
               See a completed record
+            </Link>
+            <Link href="/terms" style={{ color: "var(--muted)" }}>
+              Terms
+            </Link>
+            <Link href="/privacy" style={{ color: "var(--muted)" }}>
+              Privacy
+            </Link>
+            <Link href="/refunds" style={{ color: "var(--muted)" }}>
+              Refunds and disputes
             </Link>
             <span>Payments and identity checks by Kora</span>
           </span>

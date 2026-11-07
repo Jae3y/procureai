@@ -114,6 +114,60 @@ model Buyer {
   email     String
   createdAt DateTime  @default(now())
   requests  Request[]
+  account   Account?
+}
+
+/// A person who signs in. Every account can buy; it can also sell once linked to a vendor profile.
+/// A password is null only for an account opened from a vendor profile, until its emailed link is used.
+model Account {
+  id                  String         @id @default(cuid())
+  email               String         @unique
+  name                String
+  passwordHash        String?
+  /// Bumped on password change or reset: every older session cookie stops working.
+  sessionVersion      Int            @default(1)
+  buyerId             String         @unique
+  buyer               Buyer          @relation(fields: [buyerId], references: [id])
+  vendorContactId     String?        @unique
+  vendorContact       VendorContact? @relation(fields: [vendorContactId], references: [id])
+  emailVerifiedAt     DateTime?
+  deletionRequestedAt DateTime?
+  lastLoginAt         DateTime?
+  createdAt           DateTime       @default(now())
+  tokens              AccountToken[]
+  notifications       Notification[]
+}
+
+/// Single-use emailed links. Only the sha256 of the token is stored.
+model AccountToken {
+  id        String    @id @default(cuid())
+  accountId String
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  purpose   String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([accountId, purpose])
+}
+
+/// In-app notification, written in the same transaction as the event it describes.
+/// The email copy is sent later by the background tick (store first, then send).
+model Notification {
+  id        String    @id @default(cuid())
+  accountId String
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  kind      String
+  title     String
+  body      String
+  href      String?
+  readAt    DateTime?
+  emailedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([emailedAt, createdAt])
 }
 
 /// Directory of vendors ProcureAI can invite (a stand-in for a real sourcing network).
@@ -131,6 +185,9 @@ model VendorContact {
   bankCode      String?
   accountNumber String?
   email         String?
+  /// The scripted demo vendors. They never receive a real purchase, and real vendors never receive a demo one.
+  isDemo        Boolean  @default(false)
+  account       Account?
 }
 
 model Request {
@@ -145,6 +202,8 @@ model Request {
   specParsedBy    ParsedBy
   specModel       String?
   status          RequestStatus    @default(DRAFT)
+  /// A try-it-out purchase: scripted vendors reply and anyone can open the vendor's screen.
+  isDemo          Boolean          @default(false)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   vendors         Vendor[]
@@ -162,6 +221,8 @@ model Vendor {
   requestId       String
   request         Request              @relation(fields: [requestId], references: [id])
   contactId       String?
+  /// The buyer brought this vendor themselves, so the buyer gets their invite link to share.
+  addedByBuyer    Boolean              @default(false)
   contact         VendorContact?       @relation(fields: [contactId], references: [id])
   label           String
   name            String?

@@ -1,0 +1,47 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { Notifications, SignOutButton, VendorInvitations, VendorProfileForm } from "@/components/account-dashboard";
+import { SiteShell } from "@/components/site-shell";
+import { pageAccount } from "@/lib/http/page-auth";
+import { kora } from "@/lib/kora/client";
+import { isKoraError } from "@/lib/kora/errors";
+import { log } from "@/lib/log";
+import { buildVendorDashboard } from "@/lib/views/account-view";
+
+export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Vendor dashboard · ProcureAI" };
+
+export default async function VendorDashboardPage() {
+  const account = await pageAccount();
+  if (!account) redirect("/login?next=/vendor");
+  const contactId = account.vendorContactId;
+  if (!contactId) redirect("/vendors/join");
+  const v = await buildVendorDashboard({ ...account, vendorContactId: contactId });
+  let banks: Array<{ name: string; code: string }> = [];
+  let banksError: string | null = null;
+  try {
+    const list = await kora().bankPickerList();
+    banks = list.banks.map((b) => ({ name: b.name, code: b.code })).sort((a, b) => a.name.localeCompare(b.name));
+  } catch (err) {
+    if (!isKoraError(err)) throw err;
+    log.warn({ err: err.message }, "vendor dashboard: Kora bank list unavailable");
+    banksError = err.userMessage;
+  }
+  return (
+    <SiteShell signedIn>
+      <section className="account-wide">
+        <div className="account-block-head">
+          <h1 className="account-title">{v.profile.businessName}</h1>
+          <SignOutButton />
+        </div>
+        <p className="note">
+          You&apos;re paid through Kora: 30% when the buyer&apos;s money is held, 70% on delivery. <Link href="/account">Your buyer account</Link>
+        </p>
+        <Notifications rows={v.notifications} />
+        <VendorInvitations v={v} />
+        <VendorProfileForm profile={v.profile} banks={banks} banksError={banksError} />
+      </section>
+    </SiteShell>
+  );
+}
