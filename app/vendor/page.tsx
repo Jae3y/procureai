@@ -39,7 +39,7 @@ export default async function VendorDashboardPage() {
         </p>
         <Notifications rows={v.notifications} />
         <VendorInvitations v={v} />
-        <VendorProfileForm profile={v.profile} banks={banks} banksError={banksError} />
+        <VendorProfileForm profile={v.profile} pendingBank={v.pendingBank} twoStepOn={v.twoStepOn} banks={banks} banksError={banksError} />
       </section>
     </SiteShell>
   );

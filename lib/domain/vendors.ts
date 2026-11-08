@@ -5,6 +5,7 @@ import type { Vendor } from "@/lib/generated/prisma/client";
 import { formatNaira } from "@/lib/money";
 import { notify } from "@/lib/notify/notifications";
 import { DomainError } from "./errors";
+import { applyDueBankChange } from "./vendor-profiles";
 import { createdDateOf, specOf } from "./requests";
 import { requestEvent } from "./timeline";
 
@@ -35,6 +36,7 @@ type BusinessDetails = { businessName: string; rcNumber: string; bankCode: strin
 
 /** The details Kora will check: the vendor's ProcureAI profile if they registered, otherwise what they typed in the form. */
 async function detailsFor(vendor: Vendor, input: QuoteSubmission): Promise<BusinessDetails> {
+  if (vendor.contactId) await applyDueBankChange(vendor.contactId);
   const contact = vendor.contactId ? await db().vendorContact.findUnique({ where: { id: vendor.contactId } }) : null;
   if (contact?.registeredAt && contact.rcNumber && contact.bankCode && contact.accountNumber && contact.email) {
     return { businessName: contact.businessName, rcNumber: contact.rcNumber, bankCode: contact.bankCode, accountNumber: contact.accountNumber, email: contact.email };

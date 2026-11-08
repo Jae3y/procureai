@@ -24,4 +24,5 @@ Object.assign(process.env, {
   DEMO_MODE: "true",
   SIMULATE_IDENTITY: "false",
   ENABLE_CHECKOUT_REDIRECT: "false",
+  PASSWORD_BREACH_CHECK: "false",
 });

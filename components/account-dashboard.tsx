@@ -95,6 +95,112 @@ export function Purchases({ rows }: { rows: AccountView["purchases"] }) {
   );
 }
 
+/** Two-step sign-in and signing out everywhere. */
+export function SecuritySettings({ v }: { v: AccountView }) {
+  const router = useRouter();
+  const setup = useAction<Record<string, never>, { secret: string; qrSvg: string }>("/api/account/2fa/setup");
+  const confirm = useAction<{ code: string }, { recoveryCodes: string[] }>("/api/account/2fa/confirm");
+  const disable = useAction<{ password: string; code: string }>("/api/account/2fa/disable");
+  const everywhere = useAction("/api/account/signout-all");
+  const [pending, setPending] = useState<{ secret: string; qrSvg: string } | null>(null);
+  const [codes, setCodes] = useState<string[] | null>(null);
+  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [turningOff, setTurningOff] = useState(false);
+  return (
+    <div className="account-block">
+      <div className="account-block-head">
+        <h2>Security</h2>
+      </div>
+      {codes ? (
+        <div className="callout-codes" role="status">
+          <p style={{ marginTop: 0 }}>
+            <strong>Two-step sign-in is on.</strong> Save these recovery codes somewhere safe, away from your phone. Each one works once if you lose your phone. They won&apos;t be shown again.
+          </p>
+          <ul className="recovery-codes">
+            {codes.map((c) => (
+              <li key={c} className="mono">{c}</li>
+            ))}
+          </ul>
+          <button type="button" className="btn-2" onClick={() => { setCodes(null); router.refresh(); }}>I&apos;ve saved them</button>
+        </div>
+      ) : v.twoStep.on ? (
+        <>
+          <p className="note" style={{ marginTop: 0 }}>
+            Two-step sign-in is <strong>on</strong>. Signing in needs your password and a code from your authenticator app. {v.twoStep.recoveryCodesLeft} recovery code{v.twoStep.recoveryCodesLeft === 1 ? "" : "s"} left.
+          </p>
+          {turningOff ? (
+            <form
+              noValidate
+              className="account-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void disable.run({ password, code }).then((r) => {
+                  if (r.ok) {
+                    setTurningOff(false);
+                    setPassword("");
+                    setCode("");
+                    router.refresh();
+                  }
+                });
+              }}
+            >
+              <Field id="off-password" label="Your password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={issueFor(disable.error, "password")} />
+              <Field id="off-code" label="Authenticator code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} error={issueFor(disable.error, "code")} />
+              <div><button type="submit" className="btn-2" disabled={disable.pending}>{disable.pending ? <Spinner label="Turning off" /> : "Turn off two-step sign-in"}</button></div>
+              {disable.error && !hasIssues(disable.error) ? <p className="form-error">{disable.error.message}</p> : null}
+            </form>
+          ) : (
+            <button type="button" className="btn-text" onClick={() => setTurningOff(true)}>Turn off two-step sign-in</button>
+          )}
+        </>
+      ) : pending ? (
+        <form
+          noValidate
+          className="account-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void confirm.run({ code }).then((r) => {
+              if (r.ok) {
+                setPending(null);
+                setCode("");
+                setCodes(r.data.recoveryCodes);
+              }
+            });
+          }}
+        >
+          <p className="note" style={{ margin: 0 }}>
+            Scan this with an authenticator app (Google Authenticator, Microsoft Authenticator, Authy or 1Password), then enter the 6-digit code it shows.
+          </p>
+          <div className="qr" aria-label="QR code for your authenticator app" dangerouslySetInnerHTML={{ __html: pending.qrSvg }} />
+          <p className="note" style={{ margin: 0, fontSize: 14 }}>
+            Can&apos;t scan? Type this key into the app: <span className="mono" style={{ overflowWrap: "anywhere" }}>{pending.secret.replace(/(.{4})/g, "$1 ").trim()}</span>
+          </p>
+          <Field id="setup-code" label="Code from the app" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} error={issueFor(confirm.error, "code")} />
+          <div><button type="submit" className="btn-2" disabled={confirm.pending}>{confirm.pending ? <Spinner label="Checking" /> : "Turn on two-step sign-in"}</button></div>
+          {confirm.error && !hasIssues(confirm.error) ? <p className="form-error">{confirm.error.message}</p> : null}
+        </form>
+      ) : (
+        <>
+          <p className="note" style={{ marginTop: 0 }}>
+            Two-step sign-in is <strong>off</strong>. Turn it on so a stolen password alone can&apos;t open your account.{v.isVendor ? " Vendors need it to change their payout bank account." : ""}
+          </p>
+          <button type="button" className="btn-2" disabled={setup.pending} onClick={() => void setup.run({}).then((r) => r.ok && setPending(r.data))}>
+            {setup.pending ? <Spinner label="Preparing" /> : "Turn on two-step sign-in"}
+          </button>
+          {setup.error ? <p className="form-error">{setup.error.message}</p> : null}
+        </>
+      )}
+      <div style={{ marginTop: 28, borderTop: "1px solid var(--hairline)", paddingTop: 20 }}>
+        <p className="note" style={{ marginTop: 0 }}>Signed in somewhere you don&apos;t recognise? This signs out every device, including this one.</p>
+        <button type="button" className="btn-text" disabled={everywhere.pending} onClick={() => void everywhere.run().then((r) => r.ok && window.location.assign("/login"))}>
+          Sign out of all devices
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function AccountSettings({ v }: { v: AccountView }) {
   const router = useRouter();
   const [name, setName] = useState(v.name);
@@ -219,9 +325,22 @@ export function VendorInvitations({ v }: { v: VendorDashboardView }) {
   );
 }
 
-export function VendorProfileForm({ profile, banks, banksError }: { profile: VendorDashboardView["profile"]; banks: Array<{ name: string; code: string }>; banksError: string | null }) {
+export function VendorProfileForm({
+  profile,
+  pendingBank,
+  twoStepOn,
+  banks,
+  banksError,
+}: {
+  profile: VendorDashboardView["profile"];
+  pendingBank: VendorDashboardView["pendingBank"];
+  twoStepOn: boolean;
+  banks: Array<{ name: string; code: string }>;
+  banksError: string | null;
+}) {
   const router = useRouter();
-  const [f, setF] = useState({ businessName: profile.businessName, sells: profile.sells, city: profile.city, rcNumber: profile.rcNumber, bankCode: profile.bankCode, accountNumber: profile.accountNumber, email: profile.email, password: "" });
+  const [f, setF] = useState({ businessName: profile.businessName, sells: profile.sells, city: profile.city, rcNumber: profile.rcNumber, bankCode: profile.bankCode, accountNumber: profile.accountNumber, email: profile.email, password: "", code: "" });
+  const bankChanging = f.bankCode !== profile.bankCode || f.accountNumber !== profile.accountNumber;
   const [saved, setSaved] = useState(false);
   const send = useAction<typeof f>("/api/vendor/profile");
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -232,8 +351,13 @@ export function VendorProfileForm({ profile, banks, banksError }: { profile: Ven
     <div className="account-block">
       <div className="account-block-head"><h2>Your business</h2></div>
       <p className="note" style={{ marginTop: 0 }}>
-        Phone <span className="mono">{profile.phone}</span>. Changes apply to new quotes. Kora still checks your business on every purchase, and an order already under way keeps the details Kora checked.
+        Phone <span className="mono">{profile.phone}</span>. Changes apply to new quotes. Your business is checked again on every purchase, and an order already under way keeps the details that were checked.
       </p>
+      {pendingBank ? (
+        <p className="form-error" role="status">
+          Your payout account is changing to the one ending {pendingBank.accountEnding} on {pendingBank.effective}. If you didn&apos;t ask for this, change your password now: that cancels it.
+        </p>
+      ) : null}
       <form
         noValidate
         className="account-form"
@@ -242,7 +366,7 @@ export function VendorProfileForm({ profile, banks, banksError }: { profile: Ven
           void send.run(f).then((r) => {
             if (r.ok) {
               setSaved(true);
-              setF((s) => ({ ...s, password: "" }));
+              setF((s) => ({ ...s, password: "", code: "" }));
               router.refresh();
             }
           });
@@ -265,6 +389,18 @@ export function VendorProfileForm({ profile, banks, banksError }: { profile: Ven
         </div>
         <Field id="vp-account" label="Business account number" inputMode="numeric" maxLength={10} autoComplete="off" value={f.accountNumber} onChange={set("accountNumber")} error={issueFor(send.error, "accountNumber")} />
         <Field id="vp-email" label="Business email" type="email" value={f.email} onChange={set("email")} error={issueFor(send.error, "email")} />
+        {bankChanging ? (
+          twoStepOn ? (
+            <>
+              <p className="note" style={{ margin: 0, fontSize: 14 }}>For your safety, a new payout account takes effect 24 hours after you save it, and you&apos;ll be notified.</p>
+              <Field id="vp-code" label="Authenticator code" inputMode="numeric" autoComplete="one-time-code" value={f.code} onChange={set("code")} error={issueFor(send.error, "code")} />
+            </>
+          ) : (
+            <p className="form-error" style={{ margin: 0 }}>
+              To change your payout account, first turn on two-step sign-in in <a href="/account">your account</a>.
+            </p>
+          )
+        ) : null}
         <Field id="vp-password" label="Your password, to confirm" type="password" autoComplete="current-password" value={f.password} onChange={set("password")} error={issueFor(send.error, "password")} />
         <div>
           <button type="submit" className="btn-2" disabled={send.pending}>{send.pending ? <Spinner label="Saving" /> : "Save changes"}</button>

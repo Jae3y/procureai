@@ -70,11 +70,29 @@ export type VendorProfileUpdate = Omit<VendorRegistration, "phone" | "consent">;
  * now on: a vendor Kora has already verified on a purchase is frozen at the database level (I4), so
  * changing the bank account here can't redirect money on an order that is already moving.
  */
-export async function updateVendorProfile(account: Account, input: VendorProfileUpdate): Promise<void> {
+/** How long a new payout bank account waits before quotes use it. Changing the password cancels it. */
+export const BANK_CHANGE_HOLD_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Changing where money goes is the one change an attacker who takes over a vendor account wants, so
+ * it needs two-step sign-in, takes effect only after 24 hours, and the vendor is told straight away.
+ * Every other detail changes immediately.
+ */
+export async function updateVendorProfile(account: Account, input: VendorProfileUpdate, verifyCode: (code: string) => Promise<void>, code: string | undefined): Promise<{ bankChangeEffectiveAt: Date | null }> {
   if (!account.vendorContactId) throw new DomainError("not_vendor", "This account has no vendor profile yet.", 404);
   const contactId = account.vendorContactId;
+  await applyDueBankChange(contactId);
   const current = await db().vendorContact.findUniqueOrThrow({ where: { id: contactId } });
-  const bankChanged = current.bankCode !== input.bankCode.trim() || current.accountNumber !== input.accountNumber.trim();
+  const bankCode = input.bankCode.trim();
+  const accountNumber = input.accountNumber.trim();
+  const bankChanged = current.bankCode !== bankCode || current.accountNumber !== accountNumber;
+  const alreadyPending = current.pendingBankCode === bankCode && current.pendingAccountNumber === accountNumber;
+  if (bankChanged && !alreadyPending) {
+    if (!account.totpEnabledAt) throw new DomainError("two_step_required", "Turn on two-step sign-in in your account before changing your payout bank account.", 403);
+    if (!code) throw new DomainError("code_required", "Enter the code from your authenticator app to change your bank account.", 401, { issues: [{ path: "code", message: "Enter your authenticator code" }] });
+    await verifyCode(code);
+  }
+  const effectiveAt = bankChanged ? (alreadyPending ? current.pendingBankEffectiveAt : new Date(Date.now() + BANK_CHANGE_HOLD_MS)) : null;
   await transaction(async (tx) => {
     await tx.vendorContact.update({
       where: { id: contactId },
@@ -83,17 +101,33 @@ export async function updateVendorProfile(account: Account, input: VendorProfile
         category: input.sells.trim().toLowerCase().replace(/[,;/]+/g, " ").replace(/\s+/g, " "),
         city: input.city.trim(),
         rcNumber: input.rcNumber.trim().toUpperCase().replace(/\s+/g, ""),
-        bankCode: input.bankCode.trim(),
-        accountNumber: input.accountNumber.trim(),
         email: input.email.trim().toLowerCase(),
+        ...(bankChanged
+          ? { pendingBankCode: bankCode, pendingAccountNumber: accountNumber, pendingBankEffectiveAt: effectiveAt }
+          : { pendingBankCode: null, pendingAccountNumber: null, pendingBankEffectiveAt: null }),
       },
     });
-    await notify(tx, {
-      accountId: account.id,
-      kind: bankChanged ? "profile.bank" : "profile",
-      title: bankChanged ? "Your payout bank account was changed" : "Your vendor profile was updated",
-      body: bankChanged ? "If this wasn't you, change your password and contact ProcureAI right away." : "Your business details were updated.",
-      href: "/vendor",
-    });
+    if (bankChanged && !alreadyPending) {
+      await notify(tx, {
+        accountId: account.id,
+        kind: "profile.bank",
+        title: "Your payout bank account is changing",
+        body: `New quotes will use the account ending ${accountNumber.slice(-4)} from ${effectiveAt?.toISOString().slice(0, 16).replace("T", " ")} UTC. If this wasn't you, change your password now: that cancels the change.`,
+        href: "/vendor",
+      });
+    } else if (!bankChanged) {
+      await notify(tx, { accountId: account.id, kind: "profile", title: "Your vendor profile was updated", body: "Your business details were updated.", href: "/vendor" });
+    }
+  });
+  return { bankChangeEffectiveAt: effectiveAt };
+}
+
+/** Moves a pending bank change into place once its 24 hours have passed. Safe to call anywhere, any number of times. */
+export async function applyDueBankChange(contactId: string): Promise<void> {
+  const c = await db().vendorContact.findUnique({ where: { id: contactId }, select: { pendingBankCode: true, pendingAccountNumber: true, pendingBankEffectiveAt: true } });
+  if (!c?.pendingBankEffectiveAt || !c.pendingBankCode || !c.pendingAccountNumber || c.pendingBankEffectiveAt > new Date()) return;
+  await db().vendorContact.updateMany({
+    where: { id: contactId, pendingBankEffectiveAt: c.pendingBankEffectiveAt },
+    data: { bankCode: c.pendingBankCode, accountNumber: c.pendingAccountNumber, pendingBankCode: null, pendingAccountNumber: null, pendingBankEffectiveAt: null },
   });
 }

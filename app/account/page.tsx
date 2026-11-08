@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AccountSettings, Notifications, Purchases, SignOutButton } from "@/components/account-dashboard";
+import { AccountSettings, Notifications, Purchases, SecuritySettings, SignOutButton } from "@/components/account-dashboard";
 import { SiteShell } from "@/components/site-shell";
 import { env } from "@/lib/env";
 import { pageAccount } from "@/lib/http/page-auth";
@@ -27,6 +27,7 @@ export default async function AccountPage() {
         </p>
         <Notifications rows={v.notifications} />
         <Purchases rows={v.purchases} />
+        <SecuritySettings v={v} />
         <AccountSettings v={v} />
       </section>
     </SiteShell>

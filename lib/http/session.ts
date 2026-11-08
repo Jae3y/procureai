@@ -14,8 +14,29 @@ import type { Account } from "@/lib/generated/prisma/client";
 
 export const BUYER_COOKIE = "pa_buyer";
 export const ADMIN_COOKIE = "pa_admin";
-export const ACCOUNT_COOKIE = "pa_session";
+/** On HTTPS the browser enforces the __Host- prefix: Secure, Path=/, no Domain, so no subdomain can set or read it. */
+export const ACCOUNT_COOKIE = "__Host-pa_session";
+const ACCOUNT_COOKIE_PLAIN = "pa_session";
 const ACCOUNT_TTL = 60 * 60 * 24 * 30;
+/** Between the password and the authenticator code: proves the password step passed, for 5 minutes. */
+export const LOGIN_TICKET_COOKIE = "pa_login";
+const LOGIN_TICKET_TTL = 5 * 60;
+
+export function accountCookieName(): string {
+  return env().APP_BASE_URL.startsWith("https://") ? ACCOUNT_COOKIE : ACCOUNT_COOKIE_PLAIN;
+}
+
+export function loginTicketCookie(accountId: string): string {
+  return cookieHeader(LOGIN_TICKET_COOKIE, signSession("login-ticket", accountId, LOGIN_TICKET_TTL), LOGIN_TICKET_TTL);
+}
+
+export function clearLoginTicketCookie(): string {
+  return cookieHeader(LOGIN_TICKET_COOKIE, "", 0);
+}
+
+export function loginTicketFrom(req: Request): string | null {
+  return verifySession("login-ticket", readCookie(req, LOGIN_TICKET_COOKIE));
+}
 const BUYER_TTL = 60 * 60 * 24 * 30;
 const ADMIN_TTL = 60 * 60 * 12;
 
@@ -43,11 +64,11 @@ export function adminSessionCookie(): string {
 }
 
 export function accountSessionCookie(account: { id: string; sessionVersion: number }): string {
-  return cookieHeader(ACCOUNT_COOKIE, signSession("account-session", `${account.id}:${account.sessionVersion}`, ACCOUNT_TTL), ACCOUNT_TTL);
+  return cookieHeader(accountCookieName(), signSession("account-session", `${account.id}:${account.sessionVersion}`, ACCOUNT_TTL), ACCOUNT_TTL);
 }
 
 export function clearAccountCookie(): string {
-  return cookieHeader(ACCOUNT_COOKIE, "", 0);
+  return cookieHeader(accountCookieName(), "", 0);
 }
 
 /** The signed-in account for a raw cookie value, or null if it is missing, expired or from before a password change. */
@@ -61,7 +82,7 @@ export async function accountForCookie(value: string | undefined): Promise<Accou
 }
 
 export function accountFrom(req: Request): Promise<Account | null> {
-  return accountForCookie(readCookie(req, ACCOUNT_COOKIE));
+  return accountForCookie(readCookie(req, accountCookieName()));
 }
 
 export async function requireAccount(req: Request): Promise<Account> {

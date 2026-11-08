@@ -1,10 +1,13 @@
 import { burnPasswordCheck, hashPassword, verifyPassword } from "@/lib/auth/password";
-import { randomToken, sha256Hex } from "@/lib/crypto";
+import { assertAcceptablePassword } from "@/lib/auth/password-policy";
+import { newRecoveryCodes, newTotpSecret, normalizeRecoveryCode, otpauthUrl, verifyTotp } from "@/lib/auth/totp";
+import { openSecret, randomToken, sealSecret, sha256Hex } from "@/lib/crypto";
 import { db, transaction } from "@/lib/db";
 import { env } from "@/lib/env";
 import type { Account } from "@/lib/generated/prisma/client";
 import { log } from "@/lib/log";
 import { emailEnabled, sendEmail } from "@/lib/notify/email";
+import { notify } from "@/lib/notify/notifications";
 import { DomainError } from "./errors";
 
 /**
@@ -47,6 +50,7 @@ async function sendVerifyEmail(account: Pick<Account, "id" | "email">): Promise<
 
 export async function signUp(input: { name: string; email: string; password: string }): Promise<Account> {
   const email = normalizeEmail(input.email);
+  await assertAcceptablePassword(input.password, { email, name: input.name });
   const passwordHash = await hashPassword(input.password);
   try {
     const account = await transaction(async (tx) => {
@@ -70,7 +74,106 @@ export async function logIn(input: { email: string; password: string }): Promise
     throw BAD_LOGIN();
   }
   if (!(await verifyPassword(input.password, account.passwordHash))) throw BAD_LOGIN();
-  return db().account.update({ where: { id: account.id }, data: { lastLoginAt: new Date() } });
+  return account;
+}
+
+/** The person passed every step: record it and tell them, so a sign-in they didn't make is noticed. */
+export async function completeLogin(account: Account, device: { ip: string; userAgent: string | null }): Promise<Account> {
+  const updated = await db().account.update({ where: { id: account.id }, data: { lastLoginAt: new Date() } });
+  await notify(db(), {
+    accountId: account.id,
+    kind: "security.login",
+    title: "New sign-in to your account",
+    body: `${describeDevice(device.userAgent)}, from ${device.ip}. If this wasn't you, change your password now and sign out of all devices.`,
+    href: "/account",
+  });
+  return updated;
+}
+
+function describeDevice(ua: string | null): string {
+  if (!ua) return "An unknown device";
+  const browser = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Chrome\//.test(ua) ? "Chrome" : /Firefox\//.test(ua) ? "Firefox" : /Safari\//.test(ua) ? "Safari" : "A browser";
+  const os = /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iPhone or iPad" : /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : "an unknown system";
+  return `${browser} on ${os}`;
+}
+
+// ── Two-step sign-in ───────────────────────────────────────────────────────
+
+const BAD_CODE = () => new DomainError("bad_code", "That code isn't right. Use the 6-digit code your authenticator app shows now, or one of your recovery codes.", 401);
+
+/**
+ * Checks an authenticator code (or a recovery code, which then can't be used again). The update is
+ * conditional on the previous state, so two requests racing with the same code can't both pass.
+ */
+export async function verifySecondFactor(account: Account, code: string): Promise<void> {
+  if (!account.totpEnabledAt || !account.totpSecretCipher) throw BAD_CODE();
+  const clean = code.trim();
+  if (/^\d{6}$/.test(clean.replace(/\s+/g, ""))) {
+    const step = verifyTotp(openSecret(account.id, account.totpSecretCipher), clean, account.totpLastStep);
+    if (step === null) throw BAD_CODE();
+    const { count } = await db().account.updateMany({ where: { id: account.id, totpLastStep: account.totpLastStep }, data: { totpLastStep: step } });
+    if (count === 0) throw BAD_CODE();
+    return;
+  }
+  const hash = sha256Hex(normalizeRecoveryCode(clean));
+  if (!account.recoveryCodeHashes.includes(hash)) throw BAD_CODE();
+  const remaining = account.recoveryCodeHashes.filter((h) => h !== hash);
+  const { count } = await db().account.updateMany({ where: { id: account.id, recoveryCodeHashes: { has: hash } }, data: { recoveryCodeHashes: remaining } });
+  if (count === 0) throw BAD_CODE();
+  await notify(db(), {
+    accountId: account.id,
+    kind: "security.recovery",
+    title: "A recovery code was used",
+    body: `Someone signed in with one of your recovery codes. ${remaining.length} left. If this wasn't you, change your password now.`,
+    href: "/account",
+  });
+}
+
+export async function startTotpSetup(account: Account): Promise<{ secret: string; otpauth: string }> {
+  if (account.totpEnabledAt) throw new DomainError("already_on", "Two-step sign-in is already on.", 409);
+  const secret = newTotpSecret();
+  await db().account.update({ where: { id: account.id }, data: { totpPendingCipher: sealSecret(account.id, secret) } });
+  return { secret, otpauth: otpauthUrl(secret, account.email) };
+}
+
+/** The first correct code proves the app is set up. Returns the recovery codes, shown once. */
+export async function confirmTotpSetup(account: Account, code: string): Promise<string[]> {
+  if (!account.totpPendingCipher) throw new DomainError("no_setup", "Start two-step sign-in setup first.", 409);
+  const secret = openSecret(account.id, account.totpPendingCipher);
+  const step = verifyTotp(secret, code, null);
+  if (step === null) throw BAD_CODE();
+  const codes = newRecoveryCodes();
+  await transaction(async (tx) => {
+    await tx.account.update({
+      where: { id: account.id },
+      data: { totpSecretCipher: account.totpPendingCipher, totpPendingCipher: null, totpEnabledAt: new Date(), totpLastStep: step, recoveryCodeHashes: codes.map((c) => sha256Hex(c)) },
+    });
+    await notify(tx, { accountId: account.id, kind: "security.2fa", title: "Two-step sign-in is on", body: "Signing in now needs your password and a code from your authenticator app.", href: "/account" });
+  });
+  return codes;
+}
+
+export async function disableTotp(account: Account, password: string, code: string): Promise<void> {
+  await requireCurrentPassword(account, password);
+  await verifySecondFactor(account, code);
+  await transaction(async (tx) => {
+    await tx.account.update({ where: { id: account.id }, data: { totpSecretCipher: null, totpPendingCipher: null, totpEnabledAt: null, totpLastStep: null, recoveryCodeHashes: [] } });
+    await notify(tx, { accountId: account.id, kind: "security.2fa", title: "Two-step sign-in was turned off", body: "If this wasn't you, change your password now and turn two-step sign-in back on.", href: "/account" });
+  });
+}
+
+/** Ends every session, this one included. */
+export async function signOutEverywhere(account: Account): Promise<void> {
+  await db().account.update({ where: { id: account.id }, data: { sessionVersion: { increment: 1 } } });
+}
+
+/** A password change or reset also cancels a payout bank change that hasn't taken effect yet. */
+async function cancelPendingBankChange(account: Pick<Account, "vendorContactId">): Promise<void> {
+  if (!account.vendorContactId) return;
+  await db().vendorContact.updateMany({
+    where: { id: account.vendorContactId, pendingBankEffectiveAt: { not: null } },
+    data: { pendingBankCode: null, pendingAccountNumber: null, pendingBankEffectiveAt: null },
+  });
 }
 
 /**
@@ -108,13 +211,27 @@ async function consumeToken(token: string, purpose: TokenPurpose): Promise<strin
 }
 
 /** A reset proves the email too. Every existing session ends. */
-export async function resetPassword(token: string, password: string): Promise<Account> {
+/**
+ * An emailed link alone can't take over an account with two-step sign-in: the reset also needs the
+ * authenticator code or a recovery code. Someone who lost both has to go through support.
+ */
+export async function resetPassword(token: string, password: string, code?: string): Promise<Account> {
+  const row = await db().accountToken.findUnique({ where: { tokenHash: sha256Hex(token) }, include: { account: true } });
+  if (row && row.purpose === "RESET" && !row.usedAt && row.expiresAt > new Date()) {
+    await assertAcceptablePassword(password, { email: row.account.email, name: row.account.name });
+    if (row.account.totpEnabledAt) {
+      if (!code) throw new DomainError("code_required", "This account has two-step sign-in. Enter the code from your authenticator app, or a recovery code.", 401, { issues: [{ path: "code", message: "Enter your authenticator or recovery code" }] });
+      await verifySecondFactor(row.account, code);
+    }
+  }
   const accountId = await consumeToken(token, "RESET");
   const passwordHash = await hashPassword(password);
-  return db().account.update({
+  const account = await db().account.update({
     where: { id: accountId },
     data: { passwordHash, sessionVersion: { increment: 1 }, emailVerifiedAt: new Date(), lastLoginAt: new Date() },
   });
+  await cancelPendingBankChange(account);
+  return account;
 }
 
 export async function verifyEmail(token: string): Promise<void> {
@@ -130,8 +247,11 @@ export async function requireCurrentPassword(account: Account, password: string)
 
 export async function changePassword(account: Account, current: string, next: string): Promise<Account> {
   await requireCurrentPassword(account, current);
+  await assertAcceptablePassword(next, { email: account.email, name: account.name }, "next");
   const passwordHash = await hashPassword(next);
-  return db().account.update({ where: { id: account.id }, data: { passwordHash, sessionVersion: { increment: 1 } } });
+  const updated = await db().account.update({ where: { id: account.id }, data: { passwordHash, sessionVersion: { increment: 1 } } });
+  await cancelPendingBankChange(updated);
+  return updated;
 }
 
 export async function updateName(account: Account, name: string): Promise<void> {
@@ -170,7 +290,18 @@ export async function exportAccountData(account: Account) {
     exportedAt: new Date().toISOString(),
     account: { email: account.email, name: account.name, createdAt: account.createdAt, emailVerifiedAt: account.emailVerifiedAt, lastLoginAt: account.lastLoginAt },
     vendorProfile: contact
-      ? { businessName: contact.businessName, phone: contact.phone, sells: contact.category, city: contact.city, rcNumber: contact.rcNumber, bankCode: contact.bankCode, accountNumber: contact.accountNumber, email: contact.email, registeredAt: contact.registeredAt }
+      ? {
+          businessName: contact.businessName,
+          phone: contact.phone,
+          sells: contact.category,
+          city: contact.city,
+          rcNumber: contact.rcNumber,
+          bankCode: contact.bankCode,
+          // Masked: a stolen session shouldn't be able to download full bank details.
+          accountNumber: contact.accountNumber ? `••••••${contact.accountNumber.slice(-4)}` : null,
+          email: contact.email,
+          registeredAt: contact.registeredAt,
+        }
       : null,
     requests,
     notifications,

@@ -131,6 +131,14 @@ model Account {
   vendorContactId     String?        @unique
   vendorContact       VendorContact? @relation(fields: [vendorContactId], references: [id])
   emailVerifiedAt     DateTime?
+  /// Two-step sign-in: the authenticator secret, sealed with AES-GCM. Pending until the first code is confirmed.
+  totpSecretCipher    String?
+  totpPendingCipher   String?
+  totpEnabledAt       DateTime?
+  /// The last code step accepted, so a code can't be replayed.
+  totpLastStep        Int?
+  /// sha256 hashes of the unused recovery codes.
+  recoveryCodeHashes  String[]       @default([])
   deletionRequestedAt DateTime?
   lastLoginAt         DateTime?
   createdAt           DateTime       @default(now())
@@ -185,6 +193,10 @@ model VendorContact {
   bankCode      String?
   accountNumber String?
   email         String?
+  /// A bank change waits 24 hours before quotes use it; changing the password cancels it.
+  pendingBankCode       String?
+  pendingAccountNumber  String?
+  pendingBankEffectiveAt DateTime?
   /// The scripted demo vendors. They never receive a real purchase, and real vendors never receive a demo one.
   isDemo        Boolean  @default(false)
   account       Account?

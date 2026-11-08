@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
  * RECORD_SIGNING_SECRET, so a record-URL signature can never be replayed as a session or a code hash.
  */
 
-type Purpose = "record-url" | "buyer-session" | "account-session" | "handover-hash" | "handover-cipher" | "admin-session" | "invite-token";
+type Purpose = "record-url" | "buyer-session" | "account-session" | "login-ticket" | "totp-cipher" | "handover-hash" | "handover-cipher" | "admin-session" | "invite-token";
 
 const keyCache = new Map<Purpose, Buffer>();
 
@@ -74,7 +74,7 @@ export function verifyRecordId(signed: string): string | null {
 
 // ── Buyer / account / admin sessions (signed cookie values) ────────────────
 
-type SessionKind = "buyer-session" | "account-session" | "admin-session";
+type SessionKind = "buyer-session" | "account-session" | "admin-session" | "login-ticket";
 
 export function signSession(kind: SessionKind, subject: string, ttlSeconds: number): string {
   const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
@@ -123,3 +123,24 @@ export function decryptHandoverCode(orderId: string, sealed: string): string {
   decipher.setAuthTag(Buffer.from(tagB, "base64url"));
   return Buffer.concat([decipher.update(Buffer.from(ctB, "base64url")), decipher.final()]).toString("utf8");
 }
+
+// ── Sealed secrets (authenticator keys) ────────────────────────────────────
+
+/** AES-256-GCM with a per-purpose key; `bound` ties the ciphertext to one record (e.g. the account id). */
+export function sealSecret(bound: string, plain: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key("totp-cipher"), iv);
+  cipher.setAAD(Buffer.from(bound, "utf8"));
+  const ct = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
+  return [iv, cipher.getAuthTag(), ct].map((b) => b.toString("base64url")).join(".");
+}
+
+export function openSecret(bound: string, sealed: string): string {
+  const [ivB, tagB, ctB] = sealed.split(".");
+  if (!ivB || !tagB || !ctB) throw new Error("malformed sealed secret");
+  const decipher = createDecipheriv("aes-256-gcm", key("totp-cipher"), Buffer.from(ivB, "base64url"));
+  decipher.setAAD(Buffer.from(bound, "utf8"));
+  decipher.setAuthTag(Buffer.from(tagB, "base64url"));
+  return Buffer.concat([decipher.update(Buffer.from(ctB, "base64url")), decipher.final()]).toString("utf8");
+}
+

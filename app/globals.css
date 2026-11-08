@@ -472,3 +472,9 @@ textarea.thread-input { min-height: 64px; font-size: 16px; }
 @media (max-width: 560px) {
   .site-nav .btn { display: none; }
 }
+
+.qr { width: 196px; max-width: 100%; background: #fff; padding: 8px; border-radius: 8px; }
+.qr svg { display: block; width: 100%; height: auto; }
+.recovery-codes { list-style: none; margin: 12px 0 16px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.recovery-codes li { border: 1px solid var(--hairline); border-radius: 8px; padding: 8px 10px; text-align: center; }
+.callout-codes { border: 1px solid var(--hairline); border-radius: 12px; padding: 16px; background: var(--surface); }

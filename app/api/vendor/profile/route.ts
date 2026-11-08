@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { requireCurrentPassword } from "@/lib/domain/accounts";
+import { requireCurrentPassword, verifySecondFactor } from "@/lib/domain/accounts";
 import { updateVendorProfile } from "@/lib/domain/vendor-profiles";
 import { route } from "@/lib/http/route";
 import { requireAccount } from "@/lib/http/session";
@@ -16,6 +16,8 @@ const Body = z.object({
   accountNumber: z.string().trim().regex(/^\d{10}$/, "Account numbers are 10 digits"),
   email: z.email("Enter a business email").max(120),
   password: z.string().min(1, "Enter your password to confirm").max(200),
+  /** Authenticator code: required only when the payout bank account changes. */
+  code: z.string().trim().max(20).optional(),
 });
 
 /** POST /api/vendor/profile — needs the password, because these details decide where money goes. */
@@ -23,9 +25,9 @@ export const POST = route<z.output<typeof Body>>(
   { name: "vendor.profile", input: Body, limits: ({ ip }) => [{ key: `vprofile:${ip}`, limit: 10, windowSeconds: 600 }] },
   async ({ input, req }) => {
     const account = await requireAccount(req);
-    const { password, ...profile } = input;
+    const { password, code, ...profile } = input;
     await requireCurrentPassword(account, password);
-    await updateVendorProfile(account, profile);
-    return { body: { ok: true } };
+    const r = await updateVendorProfile(account, profile, (c) => verifySecondFactor(account, c), code || undefined);
+    return { body: { ok: true, bankChangeEffectiveAt: r.bankChangeEffectiveAt?.toISOString() ?? null } };
   },
 );

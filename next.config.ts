@@ -28,6 +28,21 @@ const config: NextConfig = {
   // This repo is the workspace root (silences the lockfile-outside-repo warning).
   turbopack: { root: import.meta.dirname },
   serverExternalPackages: ["pino", "pg"],
+  /**
+   * The old free address (procureai-six.vercel.app) sends people to procureai.com.ng. Kora's webhook
+   * and the 10-minute cron job still call the old address until they are moved in their dashboards,
+   * so those two paths keep answering there; everything else redirects.
+   */
+  async redirects() {
+    return [
+      {
+        source: "/:path((?!api/webhooks/|api/cron/).*)",
+        has: [{ type: "host", value: "procureai-six.vercel.app" }],
+        destination: "https://procureai.com.ng/:path",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

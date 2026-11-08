@@ -1,6 +1,7 @@
 import { inviteTokenFor, signRecordId } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import type { Account, OrderStatus, RequestStatus } from "@/lib/generated/prisma/client";
+import { applyDueBankChange } from "@/lib/domain/vendor-profiles";
 import { formatNaira } from "@/lib/money";
 import { lagosDay, lagosTime, orderRef } from "./format";
 
@@ -42,6 +43,7 @@ export type AccountView = {
   emailVerified: boolean;
   deletionRequested: boolean;
   isVendor: boolean;
+  twoStep: { on: boolean; recoveryCodesLeft: number };
   notifications: NotificationRow[];
   purchases: Array<{ id: string; title: string; when: string; status: string; amount: string | null; ref: string | null; href: string; receiptHref: string | null; recordHref: string | null }>;
 };
@@ -57,6 +59,7 @@ export async function buildAccountView(account: Account): Promise<AccountView> {
     emailVerified: Boolean(account.emailVerifiedAt),
     deletionRequested: Boolean(account.deletionRequestedAt),
     isVendor: Boolean(account.vendorContactId),
+    twoStep: { on: Boolean(account.totpEnabledAt), recoveryCodesLeft: account.recoveryCodeHashes.length },
     notifications,
     purchases: requests.map((r) => ({
       id: r.id,
@@ -75,12 +78,16 @@ export async function buildAccountView(account: Account): Promise<AccountView> {
 export type VendorDashboardView = {
   notifications: NotificationRow[];
   profile: { businessName: string; phone: string; sells: string; city: string; rcNumber: string; bankCode: string; accountNumber: string; email: string };
+  /** A bank change waiting out its 24 hours. */
+  pendingBank: { accountEnding: string; effective: string } | null;
+  twoStepOn: boolean;
   invitations: Array<{ id: string; title: string; deadline: string; status: string; href: string; quoted: boolean; total: string | null }>;
   orders: Array<{ id: string; ref: string; title: string; amount: string; status: string; href: string }>;
 };
 
 /** Everything goes through the vendor's own invite link, so the dashboard and a shared link show the same screen. */
 export async function buildVendorDashboard(account: Account & { vendorContactId: string }): Promise<VendorDashboardView> {
+  await applyDueBankChange(account.vendorContactId);
   const [notifications, contact, vendors] = await Promise.all([
     notificationsOf(account.id),
     db().vendorContact.findUniqueOrThrow({ where: { id: account.vendorContactId } }),
@@ -105,6 +112,11 @@ export async function buildVendorDashboard(account: Account & { vendorContactId:
       accountNumber: contact.accountNumber ?? "",
       email: contact.email ?? "",
     },
+    pendingBank:
+      contact.pendingBankEffectiveAt && contact.pendingAccountNumber
+        ? { accountEnding: contact.pendingAccountNumber.slice(-4), effective: `${lagosDay(contact.pendingBankEffectiveAt)} ${lagosTime(contact.pendingBankEffectiveAt)}` }
+        : null,
+    twoStepOn: Boolean(account.totpEnabledAt),
     invitations: vendors
       .filter((v) => !v.request.order)
       .map((v) => ({

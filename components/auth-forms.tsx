@@ -44,7 +44,35 @@ function FormShell({ title, intro, children }: { title: string; intro?: React.Re
 export function LoginForm({ next }: { next: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const send = useAction<{ email: string; password: string }>("/api/auth/login");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<"password" | "code">("password");
+  const send = useAction<{ email: string; password: string }, { ok?: boolean; twoFactor?: boolean }>("/api/auth/login");
+  const verify = useAction<{ code: string }>("/api/auth/login/verify");
+  if (step === "code") {
+    return (
+      <FormShell title="Enter your code" intro="Open your authenticator app and enter the 6-digit code for ProcureAI. Lost your phone? Use one of your recovery codes.">
+        <form
+          noValidate
+          className="account-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void verify.run({ code }).then((r) => {
+              if (r.ok) window.location.assign(next);
+            });
+          }}
+        >
+          <Field id="login-code" label="Code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} error={issueFor(verify.error, "code")} autoFocus />
+          <button type="submit" className="btn" disabled={verify.pending}>
+            {verify.pending ? <Spinner label="Checking" /> : "Sign in"}
+          </button>
+          <div aria-live="polite">{verify.error && !hasIssues(verify.error) ? <p className="form-error">{verify.error.message}</p> : null}</div>
+        </form>
+        <p className="note" style={{ marginTop: 24 }}>
+          <button type="button" className="btn-text" onClick={() => { setStep("password"); setCode(""); }}>Back</button>
+        </p>
+      </FormShell>
+    );
+  }
   return (
     <FormShell title="Sign in">
       <form
@@ -53,7 +81,9 @@ export function LoginForm({ next }: { next: string }) {
         onSubmit={(e) => {
           e.preventDefault();
           void send.run({ email, password }).then((r) => {
-            if (r.ok) window.location.assign(next);
+            if (!r.ok) return;
+            if (r.data.twoFactor) setStep("code");
+            else window.location.assign(next);
           });
         }}
       >
@@ -148,7 +178,9 @@ export function ForgotForm({ support }: { support: string }) {
 
 export function ResetForm({ token }: { token: string }) {
   const [password, setPassword] = useState("");
-  const send = useAction<{ token: string; password: string }>("/api/auth/reset");
+  const [code, setCode] = useState("");
+  const send = useAction<{ token: string; password: string; code?: string }>("/api/auth/reset");
+  const needsCode = Boolean(issueFor(send.error, "code")) || code.length > 0;
   return (
     <FormShell title="Choose a new password" intro="You'll be signed out everywhere else.">
       <form
@@ -156,17 +188,20 @@ export function ResetForm({ token }: { token: string }) {
         className="account-form"
         onSubmit={(e) => {
           e.preventDefault();
-          void send.run({ token, password }).then((r) => {
+          void send.run({ token, password, ...(code ? { code } : {}) }).then((r) => {
             if (r.ok) window.location.assign("/account");
           });
         }}
       >
         <Field id="reset-password" label="New password (at least 10 characters)" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} error={issueFor(send.error, "password")} />
+        {needsCode ? (
+          <Field id="reset-code" label="Authenticator code or recovery code" inputMode="text" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} error={issueFor(send.error, "code")} />
+        ) : null}
         <button type="submit" className="btn" disabled={send.pending}>
           {send.pending ? <Spinner label="Saving" /> : "Save new password"}
         </button>
         <div aria-live="polite">
-          {send.error && !issueFor(send.error, "password") ? (
+          {send.error && !issueFor(send.error, "password") && !issueFor(send.error, "code") ? (
             <p className="form-error">
               {send.error.message} <Link href="/forgot">Ask for a new link</Link>
             </p>
