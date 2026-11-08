@@ -71,7 +71,7 @@ export function RequestComposer({ mode, testMode, initialText, initials }: { mod
               This is the demo: scripted vendors reply and no real vendor is contacted. <Link href="/signup?next=/buy">Create an account</Link> to ask real vendors.
             </p>
           ) : testMode ? (
-            <p className="note" style={{ marginTop: 20 }}>Real vendors, Kora test mode: no real money moves yet.</p>
+            <p className="note" style={{ marginTop: 20 }}>Real vendors, test mode: no real money moves yet.</p>
           ) : null}
           <div id="request-error" aria-live="polite">
             {create.error && !draft ? <p className="form-error">{create.error.message}</p> : null}

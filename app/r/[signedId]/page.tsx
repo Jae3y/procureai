@@ -134,7 +134,7 @@ export default async function RecordPage({ params }: { params: Promise<{ signedI
               </div>
               {r.sandboxRoute ? (
                 <p className="note" style={{ margin: 0, fontSize: 13 }}>
-                  Sandbox: a payout was routed to Kora test account <span className="mono">{r.sandboxRoute}</span>.
+                  Sandbox: a payout was routed to a test account <span className="mono">{r.sandboxRoute}</span>.
                 </p>
               ) : null}
             </div>

@@ -5,6 +5,15 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { Logo } from "./ui";
 
+/** In-page links scroll to their section without putting "#section" in the address bar. Without JS the plain href still works. */
+function scrollToSection(e: React.MouseEvent<HTMLAnchorElement>, id: string): void {
+  const target = document.getElementById(id);
+  if (!target) return;
+  e.preventDefault();
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+}
+
 interface ChipData {
   label: string;
   value: string;
@@ -58,11 +67,11 @@ const FAQS = [
   },
   {
     q: "A vendor is not a real business.",
-    a: "Kora checks every vendor against CAC records and confirms director account ownership before you see a recommendation. Vendors that fail verification cannot be approved or paid.",
+    a: "ProcureAI checks every vendor against CAC records and confirms the payout account belongs to the company or one of its directors before you see a recommendation. Vendors that fail the check cannot be approved or paid.",
   },
   {
     q: "People ask where their money went.",
-    a: "Share the permanent record link. It lists every quote, the reason for the decision, and a verifiable Kora reference for every single naira in and out.",
+    a: "Share the permanent record link. It lists every quote, the reason for the decision, and a verifiable payment reference for every naira in and out.",
   },
 ];
 
@@ -186,13 +195,13 @@ export function HomePage() {
         <div className="header-in">
           <Logo />
           <nav className="home-nav" style={{ display: "flex", alignItems: "center", gap: "clamp(16px, 2.4vw, 36px)", font: "500 15px/1 var(--font-body)", whiteSpace: "nowrap" }}>
-            <a href="#how" className="btn-text nav-extra" style={{ textDecoration: "none" }}>
+            <a href="#how" onClick={(e) => scrollToSection(e, "how")} className="btn-text nav-extra" style={{ textDecoration: "none" }}>
               How it works
             </a>
-            <a href="#who" className="btn-text nav-extra" style={{ textDecoration: "none" }}>
+            <a href="#who" onClick={(e) => scrollToSection(e, "who")} className="btn-text nav-extra" style={{ textDecoration: "none" }}>
               Who it&apos;s for
             </a>
-            <a href="#vendors" className="btn-text nav-extra" style={{ textDecoration: "none" }}>
+            <a href="#vendors" onClick={(e) => scrollToSection(e, "vendors")} className="btn-text nav-extra" style={{ textDecoration: "none" }}>
               For vendors
             </a>
             <Link href="/demo" className="btn-text" style={{ textDecoration: "none" }}>
@@ -253,7 +262,7 @@ export function HomePage() {
               Tell it what you need.
             </h1>
             <div style={{ marginTop: 28, display: "inline-flex", border: "1.5px dashed var(--future)", borderRadius: 12, padding: "14px 20px", font: "500 14px/1.2 var(--font-mono)", color: "var(--muted)" }}>
-              Buy from vendors you don&apos;t know yet. Kora verifies, holds, and releases in two stages.
+              Buy from vendors you don&apos;t know yet. ProcureAI verifies them, holds your money, and releases it in two stages.
             </div>
 
             <form
@@ -387,7 +396,7 @@ export function HomePage() {
                 is on its way.
               </div>
               <div style={{ marginTop: 24 }}>
-                <span className="stamp green press">KORA · KTR-1P6W2D</span>
+                <span className="stamp green press">PAID · KTR-1P6W2D</span>
               </div>
               <div style={{ marginTop: 32, paddingTop: 20, borderTop: "1px solid var(--hairline)", display: "flex", justifyContent: "space-between", gap: 16, font: "500 14px/1.3 var(--font-mono)" }}>
                 <span className="amber">₦882,000 held for you</span>
@@ -417,7 +426,7 @@ export function HomePage() {
           <div style={{ marginTop: 28, display: "flex", justifyContent: "space-between", gap: 12, font: "500 clamp(12px, 1vw, 15px)/1.3 var(--font-mono)", color: "var(--muted)", flexWrap: "wrap" }}>
             <span>Request</span>
             <span>Quotes</span>
-            <span>Checked by Kora</span>
+            <span>Vendor checked</span>
             <span>Held</span>
             <span>Stage 1 paid</span>
             <span>Delivered</span>
@@ -491,7 +500,7 @@ export function HomePage() {
             <div style={{ borderTop: "2px solid var(--green)", paddingTop: 28 }}>
               <div style={{ font: "500 clamp(56px, 5vw, 96px)/1 var(--font-mono)", letterSpacing: "-0.06em", color: "var(--green)" }}>02</div>
               <div style={{ marginTop: 28, font: "600 clamp(26px, 2.2vw, 36px)/1 var(--font-display)", letterSpacing: "-0.03em" }}>
-                Kora checks them
+                ProcureAI checks them
               </div>
               <p style={{ margin: "14px 0 0", font: "400 17px/1.55 var(--font-body)", color: "var(--muted)", maxWidth: "34ch" }}>
                 Every vendor is checked against company registration records. Any vendor that fails is dropped, even if it was the cheapest.
@@ -619,7 +628,7 @@ export function HomePage() {
       {/* Footer */}
       <footer style={{ borderTop: "1px solid var(--hairline)" }}>
         <div style={{ maxWidth: "var(--max)", margin: "0 auto", padding: "40px var(--gutter)", display: "flex", justifyContent: "space-between", gap: 24, flexWrap: "wrap", font: "400 14px/1.5 var(--font-body)", color: "var(--muted)" }}>
-          <span>ProcureAI · Lagos</span>
+          <span>ProcureAI</span>
           <span style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
             <Link href="/demo" style={{ color: "var(--muted)" }}>
               Demo scenario
@@ -636,7 +645,6 @@ export function HomePage() {
             <Link href="/refunds" style={{ color: "var(--muted)" }}>
               Refunds and disputes
             </Link>
-            <span>Payments and identity checks by Kora</span>
           </span>
         </div>
       </footer>

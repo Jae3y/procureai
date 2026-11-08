@@ -46,11 +46,11 @@ export const POST = route<z.output<typeof Body>>({ name: "admin.demo", input: Bo
   switch (input.action) {
     case "pay": {
       const r = await payAccount(input.orderId);
-      return { body: { message: `Kora sandbox credited ${formatNaira(r.credited)} to ${r.account}.` } };
+      return { body: { message: `Sandbox transfer of ${formatNaira(r.credited)} sent to ${r.account}.` } };
     }
     case "underpay": {
       const r = await underpay(input.orderId);
-      return { body: { message: `Kora sandbox credited ${formatNaira(r.credited)} (short) to ${r.account}.` } };
+      return { body: { message: `Sandbox transfer of ${formatNaira(r.credited)} (short) sent to ${r.account}.` } };
     }
     case "route":
       await setPayoutRoute(input.route);
@@ -68,7 +68,7 @@ export const POST = route<z.output<typeof Body>>({ name: "admin.demo", input: Bo
     }
     case "recheck":
       await recheckNow(input.orderId);
-      return { body: { message: "Asked Kora about this order." } };
+      return { body: { message: "Checked this order's payments." } };
     case "retry-stage": {
       const r = await retryStage(input.orderId);
       return { body: { message: r.kind === "blocked" ? r.message : `Stage dispatch: ${r.kind}.` } };

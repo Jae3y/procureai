@@ -12,7 +12,7 @@ import { buildRecordView } from "@/lib/views/record-view";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Receipt · ProcureAI" };
 
-/** A printable receipt. Every amount is what Kora confirmed, with the Kora reference beside it. */
+/** A printable receipt. Every amount is what the payment provider confirmed, with its reference beside it. */
 export default async function ReceiptPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = await params;
   const access = await pageCanSeeOrder(orderId);
@@ -55,7 +55,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ orderI
         </ul>
         <p className="note">{r.statusLine}</p>
         <p className="note" style={{ fontSize: 14 }}>
-          Payments were collected and paid out by Kora. ProcureAI is a record of the purchase, not a tax invoice; ask the vendor for their invoice if you need one.
+          Payments were collected and paid out by our licensed payment partner. ProcureAI is a record of the purchase, not a tax invoice; ask the vendor for their invoice if you need one.
         </p>
       </section>
     </main>

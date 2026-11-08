@@ -109,7 +109,7 @@ export function matchVendor(cac: CacOutcome, accountName: string | null): MatchR
   if (status !== "ACTIVE") {
     return fail(`Company is registered but its status is ${status ? status.toLowerCase() : "unknown"}, not active.`);
   }
-  if (!accountName || !accountName.trim()) return fail("Kora could not resolve the payout account's name.");
+  if (!accountName || !accountName.trim()) return fail("The bank could not confirm the payout account's name.");
 
   const account = normalizeName(accountName);
   const company = normalizeName(cac.registeredName);

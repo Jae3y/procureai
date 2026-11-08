@@ -88,11 +88,11 @@ function SigBadge({ signature }: { signature: KoraRow["signature"] }) {
   if (signature === "VERIFIED") return <span className="badge badge-sig">✓ Signature verified</span>;
   if (signature === "INVALID") return <span className="badge badge-bad">✕ Signature invalid</span>;
   if (signature === "SIMULATED") return <span className="badge badge-sim">Simulated identity</span>;
-  if (signature === "API") return <span className="badge badge-api">Kora API</span>;
+  if (signature === "API") return <span className="badge badge-api">Checked with the bank</span>;
   return null;
 }
 
-/** The Kora events panel — the only dark surface. Newest at the bottom, rows rise in. */
+/** The payment events panel — the only dark surface. Newest at the bottom, rows rise in. */
 const COLLAPSED_ROWS = 3;
 
 export function KoraPanel({ rows, connection }: { rows: KoraRow[]; connection: "live" | "reconnecting" }) {
@@ -101,16 +101,16 @@ export function KoraPanel({ rows, connection }: { rows: KoraRow[]; connection: "
   const hidden = Math.max(0, rows.length - COLLAPSED_ROWS);
   const shown = expanded ? rows : rows.slice(-COLLAPSED_ROWS);
   return (
-    <aside className="kora" aria-label="Kora events">
+    <aside className="kora" aria-label="Payment events">
       <div className="kora-head">
-        <span className="kora-title">Kora events</span>
+        <span className="kora-title">Payment events</span>
         <span className={`kora-live${connection === "live" ? "" : " off"}`} role="status">
           <i aria-hidden="true" />
           {connection === "live" ? "Live" : "Reconnecting…"}
         </span>
       </div>
       {rows.length === 0 ? (
-        <div className="kora-empty">Nothing from Kora yet. Events appear here as Kora reports them.</div>
+        <div className="kora-empty">No payment events yet. They appear here as each step is confirmed.</div>
       ) : (
         <ol className={expanded ? "kora-list expanded" : "kora-list"} style={{ listStyle: "none", margin: 0, padding: 0 }}>
           {shown.map((e) => (
@@ -142,7 +142,7 @@ export function KoraPanel({ rows, connection }: { rows: KoraRow[]; connection: "
 
 const NODE_STATE_TEXT: Record<TrailNode["state"], string> = { done: "Done", held: "Held", failed: "Failed", pending: "Not yet" };
 
-/** The Money Trail. The line only extends to nodes Kora has confirmed. */
+/** The Money Trail. The line only extends to nodes the payment provider has confirmed. */
 export function MoneyTrail({ nodes, step }: { nodes: TrailNode[]; step: number }) {
   const frac = Math.max(0, Math.min(step, nodes.length - 1)) / (nodes.length - 1);
   return (

@@ -139,7 +139,7 @@ export async function verifyVendors(requestId: string): Promise<VerifyOutcome[]>
     } catch (e) {
       if (!isProviderError(e)) throw e;
       log.warn({ vendorId: v.id, kind: e.kind, err: e.message }, "identity check could not complete");
-      await requestEvent(requestId, { kind: "error", title: `Couldn't check ${v.label} with ${k.name}`, detail: e.userMessage });
+      await requestEvent(requestId, { kind: "error", title: `Couldn't check ${v.label} yet`, detail: e.userMessage });
       outcomes.push({ vendorId: v.id, label: v.label, verification: null, error: { kind: e.kind, message: e.userMessage } });
     }
   }

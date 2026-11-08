@@ -19,7 +19,7 @@ import { DEMO_VENDORS } from "./script";
  */
 
 function sandboxOnly(): void {
-  if (!kora().isTestMode) throw new DomainError("live_key", "Demo controls only work with a test-mode Kora key.", 403);
+  if (!kora().isTestMode) throw new DomainError("live_key", "Demo controls only work with a test-mode key.", 403);
 }
 
 async function openPayIn(orderId: string) {

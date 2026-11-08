@@ -56,7 +56,7 @@ export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<
             WhatsApp.
           </p>
           <p className="note" style={{ fontSize: 14 }}>
-            Kora checks your business and bank account each time a buyer considers your quote. You&apos;re paid 30% once the buyer&apos;s money is held and 70% on delivery.
+            ProcureAI checks your business and bank account each time a buyer considers your quote. You&apos;re paid 30% once the buyer&apos;s money is held and 70% on delivery.
           </p>
           <a className="btn" href="/vendor" style={{ marginTop: 16 }}>
             Open your dashboard
@@ -77,7 +77,7 @@ export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<
           <div className="label">For vendors</div>
           <h1>Register once. Quote in one message.</h1>
           <p className="note" style={{ margin: "4px 0 8px" }}>
-            Buyers type what they need; ProcureAI sends the request to registered vendors who sell it. You reply in your own words, and get paid through Kora: 30% when the
+            Buyers type what they need; ProcureAI sends the request to registered vendors who sell it. You reply in your own words, and get paid through ProcureAI: 30% when the
             buyer&apos;s money is held, 70% on delivery.
           </p>
           {field("businessName", "Business name", { autoComplete: "organization" })}
@@ -116,7 +116,7 @@ export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<
           <label className="check">
             <input type="checkbox" checked={f.consent} onChange={set("consent")} />
             <span>
-              I agree that ProcureAI can check this business and bank account with Kora whenever a buyer considers my quote, and to the <a href="/terms">terms</a> and{" "}
+              I agree that ProcureAI can check this business and bank account whenever a buyer considers my quote, and to the <a href="/terms">terms</a> and{" "}
               <a href="/privacy">privacy policy</a>.
             </span>
           </label>

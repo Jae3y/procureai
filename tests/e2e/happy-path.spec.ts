@@ -10,7 +10,7 @@ test("buyer and vendor complete a purchase; every naira is accounted for", async
   // Market sourcing asks up to 8 vendors; some decline or stay silent, so the reply count varies.
   await expect(page.getByRole("heading", { name: /^\w+ repl(y|ies)\. One format\.$/ })).toBeVisible();
 
-  await page.getByRole("button", { name: /^Check (this vendor|these \d+ vendors) with Kora/ }).click();
+  await page.getByRole("button", { name: /^Check (this vendor|these \d+ vendors)/ }).click();
   await expect(page.getByRole("heading", { name: "Vendor B." })).toBeVisible({ timeout: 90_000 });
 
   // Failed-verification vendors (Vendor A and Ariaria Traders) are shown struck through, with Kora's reason, and are not approvable.

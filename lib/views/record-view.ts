@@ -10,10 +10,10 @@ import { dayRange, itemPhrase, lagosDay, longOrderRef } from "./format";
 import { splitSentences } from "./request-view";
 
 /**
- * The shareable purchase record. Public behind a signed id. Every money line carries the Kora
- * reference it came from, and the closing stamp only claims what is true: "SIGNED BY KORA" when
- * every money movement was confirmed by a signature-verified webhook, "CONFIRMED WITH KORA" when
- * some were confirmed by querying Kora instead.
+ * The shareable purchase record. Public behind a signed id. Every money line carries the payment
+ * reference it came from, and the closing stamp only claims what is true: "SIGNED AND VERIFIED" when
+ * every money movement was confirmed by a signature-verified webhook, "CONFIRMED" when some were
+ * confirmed by querying the payment provider instead.
  */
 
 export type RecordView = {
@@ -81,7 +81,7 @@ export async function buildRecordView(orderId: string): Promise<RecordView> {
     const ver = latest.get(v.id);
     if (!ver) continue;
     if (ver.verdict === "VERIFIED") {
-      checks.push({ text: `${v.label.replace("Vendor ", "")} · ${ver.registeredName ?? v.name ?? v.label} · ${ver.rcNumber} · ${ver.companyStatus ? ver.companyStatus.charAt(0) + ver.companyStatus.slice(1).toLowerCase() : ""}${isSandboxTestCompany(ver.rcNumber) ? " · Kora sandbox test company" : ""}`, ref: ver.cacReference ?? "", tone: "green" });
+      checks.push({ text: `${v.label.replace("Vendor ", "")} · ${ver.registeredName ?? v.name ?? v.label} · ${ver.rcNumber} · ${ver.companyStatus ? ver.companyStatus.charAt(0) + ver.companyStatus.slice(1).toLowerCase() : ""}${isSandboxTestCompany(ver.rcNumber) ? " · Test company (sandbox)" : ""}`, ref: ver.cacReference ?? "", tone: "green" });
       if (v.id === order.vendorId) {
         checks.push({
           text: ver.matchMethod === "COMPANY" ? "Payout account is in the company's name" : "Payout account owner is a director",
@@ -132,7 +132,7 @@ export async function buildRecordView(orderId: string): Promise<RecordView> {
     unaccounted: formatNaira(unaccounted),
     heldForRefund: excess > 0n ? formatNaira(excess) : null,
     complete,
-    stamp: complete ? (allSigned ? "COMPLETE · ALL REFERENCES SIGNED BY KORA" : "COMPLETE · ALL REFERENCES CONFIRMED WITH KORA") : null,
+    stamp: complete ? (allSigned ? "COMPLETE · EVERY REFERENCE SIGNED AND VERIFIED" : "COMPLETE · EVERY REFERENCE CONFIRMED") : null,
     shareUrl: `${env().APP_BASE_URL.replace(/\/+$/, "")}/r/${signRecordId(order.id)}`,
     simulatedIdentity: (await db().vendorVerification.count({ where: { vendorId: { in: request.vendors.map((v) => v.id) }, simulated: true } })) > 0,
     sandboxRoute: routeNote ? `${routeNote.destinationBankCode}/${routeNote.destinationAccount}` : null,

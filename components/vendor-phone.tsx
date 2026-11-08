@@ -126,13 +126,13 @@ function QuoteForm({ token, v }: { token: string; v: VendorView }) {
             {v.profile.rcNumber} · account {v.profile.account} · {v.profile.email}
           </div>
           <p className="note" style={{ fontSize: 13, margin: "10px 0 0" }}>
-            Kora checks these details again if {v.buyerName} considers your quote, so ProcureAI can pay you.
+            ProcureAI checks these details again if {v.buyerName} considers your quote, so we can pay you.
           </p>
         </div>
       ) : (
       <div style={{ display: "grid", gap: 14, marginTop: 28 }}>
         <div className="label" style={{ lineHeight: 1.4 }}>
-          Your business. Kora checks these so ProcureAI can pay you.
+          Your business. ProcureAI checks these so we can pay you.
         </div>
         {field("businessName", "Business name", { autoComplete: "organization" })}
         {field("rcNumber", "CAC registration number", { placeholder: "RC1482093", autoCapitalize: "characters" })}
@@ -154,7 +154,7 @@ function QuoteForm({ token, v }: { token: string; v: VendorView }) {
         {field("email", "Business email", { type: "email", inputMode: "email", autoComplete: "email" })}
         <label className="check">
           <input type="checkbox" checked={f.consent} onChange={set("consent")} />
-          <span>I agree that ProcureAI can check this business and bank account with Kora.</span>
+          <span>I agree that ProcureAI can check this business and bank account.</span>
         </label>
         {issues.consent ? <span className="form-error">{issues.consent}</span> : null}
       </div>
@@ -265,7 +265,7 @@ function OrderScreen({ token, v }: { token: string; v: VendorView }) {
   const progress = s.stage2.state === "paid" ? "100%" : stage1Paid ? "30%" : "0%";
 
   if (s.screen === "waiting") {
-    return <Note title="You were chosen." body={`Waiting for ${v.buyerName}'s payment. Kora holds it, then sends you ${o.stage1Amount}.`} detail={`Order ${o.ref}`} />;
+    return <Note title="You were chosen." body={`Waiting for ${v.buyerName}'s payment. ProcureAI holds it, then sends you ${o.stage1Amount}.`} detail={`Order ${o.ref}`} />;
   }
   if (s.screen === "disputed") {
     const refunded = o.status === "REFUNDED";
@@ -323,7 +323,7 @@ function OrderScreen({ token, v }: { token: string; v: VendorView }) {
         <div style={{ marginTop: 20 }}>
           {(releasing ? s.stage2.reference : s.stage1.reference) ? (
             <span className={`stamp sm press ${(releasing ? s.stage2.state : s.stage1.state) === "failed" ? "red" : "green"}`}>
-              KORA · {releasing ? s.stage2.reference : s.stage1.reference}
+              REF · {releasing ? s.stage2.reference : s.stage1.reference}
               {(releasing ? s.stage2.state : s.stage1.state) === "failed" ? " · Failed" : ""}
             </span>
           ) : null}
@@ -351,7 +351,7 @@ function OrderScreen({ token, v }: { token: string; v: VendorView }) {
 
       <div style={{ marginTop: "auto", paddingTop: 32 }}>
         {releasing ? (
-          <p className="note">Code accepted. Kora is sending the rest.</p>
+          <p className="note">Code accepted. The rest is on its way to you.</p>
         ) : (
           <>
             <div style={{ font: "600 22px/1.1 var(--font-display)", letterSpacing: "-0.025em" }}>Delivery code</div>
@@ -405,7 +405,7 @@ function Paid({ v, token }: { v: VendorView; token: string }) {
         </div>
         {o.vendor.stage2.reference ? (
           <div style={{ marginTop: 28 }}>
-            <span className="stamp sm press">KORA · {o.vendor.stage2.reference}</span>
+            <span className="stamp sm press">REF · {o.vendor.stage2.reference}</span>
           </div>
         ) : null}
       </div>

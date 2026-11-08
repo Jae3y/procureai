@@ -59,11 +59,11 @@ function byTotal(a: RankQuote, b: RankQuote): number {
 
 function whyNot(q: RankQuote): string {
   const r = (q.failureReason ?? "").toLowerCase();
-  if (q.verdict === "UNCHECKED") return "it hasn't been checked with Kora yet";
-  if (r.includes("registration could not be verified") || r.includes("no business found")) return "Kora could not find its company registration";
+  if (q.verdict === "UNCHECKED") return "it hasn't been checked yet";
+  if (r.includes("registration could not be verified") || r.includes("no business found")) return "its company registration could not be found";
   if (r.includes("not active")) return "its company registration is not active";
   if (r.includes("payout account")) return "its payout account doesn't belong to the business or its directors";
-  return "Kora could not verify it";
+  return "it could not be verified";
 }
 
 export function rankFallback(spec: Spec, quotes: RankQuote[]): Omit<RankResult, "parsedBy" | "model" | "note"> {
@@ -80,7 +80,7 @@ export function rankFallback(spec: Spec, quotes: RankQuote[]): Omit<RankResult, 
   ].map((q) => q.id);
 
   if (!chosen) {
-    return { rankedQuoteIds: ranked, chosenQuoteId: null, reasoning: "No vendor is both verified by Kora and able to meet this order, so ProcureAI won't recommend one yet." };
+    return { rankedQuoteIds: ranked, chosenQuoteId: null, reasoning: "No vendor is both verified and able to meet this order, so ProcureAI won't recommend one yet." };
   }
 
   const sentences: string[] = [];

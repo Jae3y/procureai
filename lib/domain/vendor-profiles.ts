@@ -34,7 +34,7 @@ export function normalizeNigerianPhone(raw: string): string {
 }
 
 export async function registerVendor(input: VendorRegistration): Promise<{ id: string; businessName: string }> {
-  if (!input.consent) throw new DomainError("consent_required", "Tick the box to let ProcureAI check your business with Kora.", 400);
+  if (!input.consent) throw new DomainError("consent_required", "Tick the box to let ProcureAI check your business and bank account.", 400);
   const phone = normalizeNigerianPhone(input.phone);
   const profile = {
     businessName: input.businessName.trim(),

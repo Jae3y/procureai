@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 /**
  * Anything that throws while rendering a page lands here instead of a blank screen. Nothing the
- * buyer did is lost: money moves only through Kora-confirmed steps on the server, so re-checking is safe.
+ * buyer did is lost: money moves only through confirmed steps on the server, so re-checking is safe.
  */
 export default function PageError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
@@ -18,7 +18,7 @@ export default function PageError({ error, reset }: { error: Error & { digest?: 
           Taking a moment.
         </h1>
         <p className="body-lg muted" style={{ maxWidth: "52ch", marginTop: 32 }}>
-          Something didn&apos;t load, most likely a slow reply from Kora or the AI. Nothing is lost and no money has moved without Kora confirming it. Re-check and it
+          Something didn&apos;t load, most likely a slow reply from the bank or the AI. Nothing is lost and no money has moved without the bank confirming it. Re-check and it
           should pick up where it was.
         </p>
         <div style={{ marginTop: 40, display: "flex", gap: 16, flexWrap: "wrap" }}>

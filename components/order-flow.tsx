@@ -7,7 +7,7 @@ import { EvidenceForm, EvidenceList } from "./evidence";
 import { MessageThread } from "./message-thread";
 import { Header, KoraPanel, MoneyTrail, type Step, Spinner } from "./ui";
 
-/** 04 · Pay and 05 · Tracker for one order, driven entirely by Kora-confirmed state over SSE. */
+/** 04 · Pay and 05 · Tracker for one order, driven entirely by payment-confirmed state over SSE. */
 export function OrderFlow({ initial, initials }: { initial: OrderView; initials: string }) {
   const { data: v, connection } = useLive<OrderView>(`/api/orders/${initial.id}/stream`, initial);
   const auto: Step = v.screen === "pay" ? "Pay" : "Track";
@@ -87,15 +87,15 @@ function CopyButton({ text, label, done }: { text: string | null; label: string;
 function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
   const recheck = useAction(`/api/orders/${v.id}/recheck`);
   const [checkedNote, setCheckedNote] = useState<string | null>(null);
-  const askKora = async () => {
+  const askAboutPayment = async () => {
     const r = await recheck.run();
     if (!r.ok) return;
     const checked = (r.data as { checked?: Array<{ changed: boolean }> }).checked ?? [];
     const at = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     setCheckedNote(
       checked.some((c) => c.changed)
-        ? `Kora confirmed a payment at ${at}.`
-        : `Asked Kora at ${at}: no payment has arrived in this account yet. Banks can take a minute; this page updates by itself when it lands.`,
+        ? `Payment confirmed at ${at}.`
+        : `Checked at ${at}: no payment has arrived in this account yet. Banks can take a minute; this page updates by itself when it lands.`,
     );
   };
   const countdown = useCountdown(v.pay.state === "open" || v.pay.state === "short" ? v.pay.expiresAt : null);
@@ -111,7 +111,7 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
             </div>
             <div className="paid-line">
               <span>{p.paidStamp.amount}</span>
-              <span>KORA · {p.paidStamp.reference}</span>
+              <span>REF · {p.paidStamp.reference}</span>
               <span>{p.paidStamp.time}</span>
             </div>
           </div>
@@ -136,7 +136,7 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
         <div className="acct muted breathe" aria-label="Opening your account">
           ··· ··· ····
         </div>
-        <p className="note">Kora is opening a one-time account for this purchase.</p>
+        <p className="note">Opening a one-time account for this purchase.</p>
       </section>
     );
   }
@@ -150,7 +150,7 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
             <div className="short-title">{p.shortfall} short.</div>
             <p className="body-lg" style={{ margin: "24px 0 0", maxWidth: "52ch" }}>
               We received {p.heldSoFar}. Send {p.amountDue} to this account
-              {p.amountDue !== p.shortfall ? `, then the rest to the next one (Kora takes up to ₦1,000,000 per account)` : ""}. Nothing goes to
+              {p.amountDue !== p.shortfall ? `, then the rest to the next one (each account takes up to ₦1,000,000)` : ""}. Nothing goes to
               the vendor until the full amount is here.
             </p>
           </div>
@@ -183,7 +183,7 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
       {p.checkoutUrl ? (
         <div style={{ margin: "40px 0 56px" }}>
           <a className="btn btn-lg" href={p.checkoutUrl}>
-            Pay with Kora checkout <span className="arrow">→</span>
+            Pay at checkout <span className="arrow">→</span>
           </a>
         </div>
       ) : (
@@ -208,8 +208,8 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
         </div>
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
           <CopyButton text={p.accountNumber} label="Copy number" done="Copied" />
-          <button type="button" className="btn btn-sm" disabled={recheck.pending} onClick={() => void askKora()}>
-            {recheck.pending ? <Spinner label="Asking Kora" /> : "I've sent it"}
+          <button type="button" className="btn btn-sm" disabled={recheck.pending} onClick={() => void askAboutPayment()}>
+            {recheck.pending ? <Spinner label="Checking" /> : "I've sent it"}
           </button>
         </div>
       </div>
@@ -218,9 +218,9 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
       </p>
       {p.instalment ? (
         <p className="split-note">
-          <strong>Transfer {p.instalment.part} of {p.instalment.of}.</strong> Kora accepts up to ₦1,000,000 per one-time account, so {v.amount} is paid in {p.instalment.of} transfers.
+          <strong>Transfer {p.instalment.part} of {p.instalment.of}.</strong> Each one-time account takes up to ₦1,000,000, so {v.amount} is paid in {p.instalment.of} transfers.
           {p.instalment.receivedSoFar ? ` Received so far: ${p.instalment.receivedSoFar}.` : ""}
-          {p.instalment.part < p.instalment.of ? " The next account appears here as soon as Kora confirms this one." : ""}
+          {p.instalment.part < p.instalment.of ? " The next account appears here as soon as this payment is confirmed." : ""}
         </p>
       ) : null}
       <div aria-live="polite">
@@ -263,7 +263,7 @@ function Tracker({ v, connection }: { v: OrderView; connection: "live" | "reconn
           </div>
           {v.sandboxRoute ? (
             <p className="note" style={{ fontSize: 14, marginTop: 16 }}>
-              Sandbox payout route used: Kora test account <span className="mono">{v.sandboxRoute}</span>.
+              Sandbox payout route used: test account <span className="mono">{v.sandboxRoute}</span>.
             </p>
           ) : null}
 
@@ -302,7 +302,7 @@ function Tracker({ v, connection }: { v: OrderView; connection: "live" | "reconn
           {t.pendingNote && !t.failure ? (
             <div className="block">
               <div className="label" style={{ marginBottom: 12 }}>
-                Waiting on Kora
+                Waiting for confirmation
               </div>
               <p className="note" style={{ margin: 0 }}>
                 {t.pendingNote}
@@ -333,7 +333,7 @@ function Tracker({ v, connection }: { v: OrderView; connection: "live" | "reconn
                   </button>
                 ) : null}
                 <span className="mono red" style={{ fontSize: 13 }}>
-                  KORA · {t.failure.reference} · Failed
+                  REF · {t.failure.reference} · Failed
                 </span>
               </div>
               <div aria-live="polite">{retry.error ? <p className="form-error">{retry.error.message}</p> : null}</div>
@@ -376,7 +376,7 @@ function Tracker({ v, connection }: { v: OrderView; connection: "live" | "reconn
           <div style={{ marginTop: 48, display: "flex", gap: 24, flexWrap: "wrap", alignItems: "center" }}>
             {!t.complete ? (
               <button type="button" className="btn-text" disabled={recheck.pending} onClick={() => void recheck.run()}>
-                {recheck.pending ? "Asking Kora…" : "Re-check with Kora"}
+                {recheck.pending ? "Checking…" : "Check payment status"}
               </button>
             ) : null}
             {canDispute && !disputing ? (
@@ -411,7 +411,7 @@ function Tracker({ v, connection }: { v: OrderView; connection: "live" | "reconn
   );
 }
 
-/** Sandbox-only controls (DEMO_MODE + test key), in the prototype's demo-bar style. They call Kora's real sandbox APIs. */
+/** Sandbox-only controls (DEMO_MODE + test key), in the prototype's demo-bar style. They call the payment provider's real sandbox APIs. */
 function DemoStrip({ v }: { v: OrderView }) {
   const demo = useAction<{ action: string; orderId: string }, { message: string }>("/api/admin/demo");
   const [msg, setMsg] = useState<string | null>(null);
@@ -461,7 +461,7 @@ function DemoStrip({ v }: { v: OrderView }) {
   );
 }
 
-/** Live progress while Kora confirms a payout: sandbox payouts usually confirm within about a minute. */
+/** Live progress while a payout is confirmed: sandbox payouts usually confirm within about a minute. */
 function PayoutProgress({ p }: { p: NonNullable<OrderView["track"]["payoutInFlight"]> }) {
   const elapsed = useElapsed(p.sentAt);
   return (
@@ -470,14 +470,14 @@ function PayoutProgress({ p }: { p: NonNullable<OrderView["track"]["payoutInFlig
         {p.stage} · {p.amount} on its way
       </div>
       <ol className="payout-steps">
-        <li className="done">Sent to Kora <span className="mono muted">{p.reference}</span></li>
+        <li className="done">Sent <span className="mono muted">{p.reference}</span></li>
         <li className="now">
           <span className="dot breathe" aria-hidden="true" /> Bank processing{elapsed ? ` · ${elapsed}` : ""}
         </li>
-        <li>Confirmed by Kora</li>
+        <li>Confirmed by the bank</li>
       </ol>
       <p className="note" style={{ margin: "12px 0 0" }}>
-        Kora usually confirms within a minute. This page updates by itself the moment it does.
+        Payouts usually confirm within a minute. This page updates by itself the moment it does.
       </p>
     </div>
   );

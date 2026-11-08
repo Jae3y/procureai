@@ -205,11 +205,11 @@ function Quotes({ v }: { v: RequestView }) {
             </p>
             <button type="button" className="btn" disabled={busy} onClick={() => void check()}>
               {phase === "checking" ? (
-                <Spinner label="Checking with Kora" />
+                <Spinner label="Checking vendors" />
               ) : phase === "ranking" ? (
                 <Spinner label="Comparing quotes" />
               ) : (
-                <>Check {v.repliedCount === 1 ? "this vendor" : `these ${v.repliedCount} vendors`} with Kora <span className="arrow">→</span></>
+                <>Check {v.repliedCount === 1 ? "this vendor" : `these ${v.repliedCount} vendors`} <span className="arrow">→</span></>
               )}
             </button>
           </div>
@@ -231,7 +231,7 @@ function YourVendors({ v }: { v: RequestView }) {
     <div style={{ marginTop: 56, borderTop: "1px solid var(--hairline)", paddingTop: 32, display: "grid", gap: 24, maxWidth: 720 }}>
       <div>
         <div className="eyebrow" style={{ marginBottom: 12 }}>Your vendors</div>
-        <p className="note" style={{ margin: 0 }}>Know someone who sells this? Add them. They get the same link and the same Kora check as everyone else.</p>
+        <p className="note" style={{ margin: 0 }}>Know someone who sells this? Add them. They get the same link and the same checks as everyone else.</p>
       </div>
       {(v.invites ?? []).length > 0 ? (
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 12 }}>
@@ -309,7 +309,7 @@ function VendorRow({ c, index, simulated, sandbox }: { c: CheckRow; index: numbe
           <div style={{ margin: "28px 0 0 64px", display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
             <span className="fail-stamp">✕ {c.failureReason}</span>
             <span className="mono red" style={{ fontSize: 13, animation: "riseIn 500ms 900ms both" }}>
-              KORA · {c.cacReference ?? c.rcNumber} · {c.registeredName ? "Not matched" : "Not found"}
+              CAC · {c.cacReference ?? c.rcNumber} · {c.registeredName ? "Not matched" : "Not found"}
             </span>
           </div>
         </>
@@ -336,10 +336,10 @@ function VendorRow({ c, index, simulated, sandbox }: { c: CheckRow; index: numbe
           </div>
           <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
             <span className="stamp press green" style={{ animationDelay: "1100ms" }}>
-              KORA · {c.cacReference} · Verified
+              VERIFIED · {c.cacReference}
             </span>
             {simulated || c.simulated ? <span className="sim-badge">SIMULATED IDENTITY</span> : null}
-            {sandbox && isSandboxTestCompany(c.rcNumber) ? <span className="sandbox-badge">Kora sandbox test company</span> : null}
+            {sandbox && isSandboxTestCompany(c.rcNumber) ? <span className="sandbox-badge">Test company (sandbox)</span> : null}
           </div>
         </div>
       ) : c.verdict === "VERIFIED" ? (
@@ -356,7 +356,7 @@ function VendorRow({ c, index, simulated, sandbox }: { c: CheckRow; index: numbe
         </div>
       ) : (
         <div style={{ margin: "24px 0 0 64px" }} className="mono muted breathe">
-          Checking with Kora…
+          Checking…
         </div>
       )}
     </li>
@@ -381,7 +381,7 @@ function LateReplies({ v }: { v: RequestView }) {
           if (a.ok) await recommend.run();
         }}
       >
-        {busy ? <Spinner label="Checking with Kora" /> : `Check ${v.lateReplies === 1 ? "it" : "them"} too`}
+        {busy ? <Spinner label="Checking vendors" /> : `Check ${v.lateReplies === 1 ? "it" : "them"} too`}
       </button>
     </div>
   );
@@ -408,7 +408,7 @@ function Decision({ v }: { v: RequestView }) {
               Checking.
             </h1>
             <p className="body-lg" style={{ marginTop: 48, maxWidth: "46ch" }}>
-              Kora is confirming each vendor’s company registration and who owns their payout account.
+              ProcureAI is confirming each vendor’s company registration and who owns their payout account.
             </p>
           </>
         ) : rec?.chosenLabel ? (
@@ -437,12 +437,12 @@ function Decision({ v }: { v: RequestView }) {
             </div>
             {rec.split ? (
               <div className="split-note" role="note">
-                <strong>Paid in {rec.split.transfers} transfers.</strong> Kora&apos;s one-time accounts take up to ₦1,000,000 each, so {rec.chosenTotal} goes in as{" "}
-                {rec.split.parts.join(" + ")}. Each account is checked with Kora before the next one opens.
+                <strong>Paid in {rec.split.transfers} transfers.</strong> Each one-time account takes up to ₦1,000,000, so {rec.chosenTotal} goes in as{" "}
+                {rec.split.parts.join(" + ")}. Each payment is confirmed before the next account opens.
               </div>
             ) : null}
             <div className="parsed-by" style={{ marginLeft: 0, marginTop: 16, display: "block" }}>
-              {rec.parsedBy === "AI" ? `Ranked by AI (${rec.model ?? "model"}); every vendor checked by Kora.` : "Ranked by ProcureAI’s rules; every vendor checked by Kora."}
+              {rec.parsedBy === "AI" ? `Ranked by AI (${rec.model ?? "model"}); every vendor verified.` : "Ranked by ProcureAI’s rules; every vendor verified."}
             </div>
             <div aria-live="polite">{approve.error ? <p className="form-error">{approve.error.message}</p> : null}</div>
           </>
@@ -472,12 +472,12 @@ function Decision({ v }: { v: RequestView }) {
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: 20 }} className="label">
           <span>Sorted by price</span>
-          <span>{v.checkedAt ? `Checked by Kora · ${v.checkedAt}` : "Checking with Kora…"}</span>
+          <span>{v.checkedAt ? `Vendors checked · ${v.checkedAt}` : "Checking vendors…"}</span>
         </div>
         {v.lateReplies > 0 ? <LateReplies v={v} /> : null}
         {v.koraSandbox ? (
           <p className="note" style={{ fontSize: 14, marginTop: 0 }}>
-            Sandbox: Kora&apos;s test data verifies one business, John Doe Inc (RC00000011), so every vendor that passes shows it. With live keys each vendor&apos;s own CAC
+            Sandbox: the test data verifies one business, John Doe Inc (RC00000011), so every vendor that passes shows it. With live keys each vendor&apos;s own CAC
             record appears here.
           </p>
         ) : null}

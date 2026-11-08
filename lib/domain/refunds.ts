@@ -77,7 +77,7 @@ export async function refundOrder(orderId: string, cause: Cause): Promise<{ refe
     await transaction((tx) =>
       orderEvent(tx, orderId, {
         kind: "info",
-        title: `Refund sent to ${provider.name}`,
+        title: "Refund sent",
         detail: `${formatNaira(refund.amountKobo)} back to the buyer · ${res.data.status}`,
         amountKobo: refund.amountKobo,
         koraReference: refund.reference,
@@ -95,7 +95,7 @@ export async function refundOrder(orderId: string, cause: Cause): Promise<{ refe
       throw new DomainError("refund_failed", `${provider.name} refused the refund: ${err.providerMessage ?? err.userMessage}`, 502);
     }
     await transaction((tx) =>
-      orderEvent(tx, orderId, { kind: "info", title: `Checking refund with ${provider.name}`, detail: err.userMessage, koraReference: refund.reference }),
+      orderEvent(tx, orderId, { kind: "info", title: "Confirming the refund", detail: err.userMessage, koraReference: refund.reference }),
     );
     return { reference: refund.reference, status: "pending" };
   }
@@ -132,9 +132,9 @@ export async function applyRefundOutcome(
     }
     await tx.refund.update({
       where: { id: refund.id },
-      data: { status: "FAILED", resolvedAt: new Date(), failureReason: message ?? "Kora could not complete the refund", koraResponse: toJson(raw) },
+      data: { status: "FAILED", resolvedAt: new Date(), failureReason: message ?? "The refund could not be completed", koraResponse: toJson(raw) },
     });
-    await orderEvent(tx, order.id, { kind: "kora", title: "refund.failed", detail: message ?? "Kora could not complete the refund", amountKobo: refund.amountKobo, koraReference: reference, signature });
+    await orderEvent(tx, order.id, { kind: "kora", title: "refund.failed", detail: message ?? "The refund could not be completed", amountKobo: refund.amountKobo, koraReference: reference, signature });
     return { changed: true };
   });
 }

@@ -182,7 +182,7 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
       key: "paid",
       label: "Paid",
       amount: formatNaira(reachedHeld ? order.amountAcceptedKobo : order.amountKobo),
-      stamp: firstPaid ? `KORA · ${firstPaid.reference}${successPayIns.length > 1 ? ` +${successPayIns.length - 1}` : ""}` : null,
+      stamp: firstPaid ? `REF · ${firstPaid.reference}${successPayIns.length > 1 ? ` +${successPayIns.length - 1}` : ""}` : null,
       state: reachedHeld ? "done" : "pending",
     },
     {

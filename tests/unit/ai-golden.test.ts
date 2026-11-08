@@ -196,7 +196,7 @@ describe("reviewAndRank — the AI chooses, Kora makes the choice safe", () => {
     expect(r.chosenQuoteId).toBe("qb");
     expect(r.rankedQuoteIds).toEqual(["qb", "qc", "qa"]);
     expect(r.reasoning).toBe(
-      "Vendor A quoted the lowest price, but Kora could not find its company registration, so ProcureAI will not send it money. " +
+      "Vendor A quoted the lowest price, but its company registration could not be found, so ProcureAI will not send it money. " +
         "Vendor B is ₦90,000 cheaper than Vendor C, is registered and active, and its payout account belongs to one of its directors.",
     );
   });

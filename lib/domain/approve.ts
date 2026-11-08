@@ -29,7 +29,7 @@ export async function approve(requestId: string, quoteId: string | null, cause: 
     if (quote.totalKobo === null) throw new DomainError("no_price", "That quote has no price to pay.", 409);
     const verification = (await latestVerifications([quote.vendorId])).get(quote.vendorId);
     if (!verification || verification.verdict !== "VERIFIED") {
-      throw new DomainError("unverified", `${quote.vendor.label} is not verified by Kora, so ProcureAI won't send it money.`, 409);
+      throw new DomainError("unverified", `${quote.vendor.label} is not verified, so ProcureAI won't send it money.`, 409);
     }
     const totalKobo = quote.totalKobo;
     order = await transaction(async (tx) => {

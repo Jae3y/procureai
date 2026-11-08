@@ -63,7 +63,7 @@ describe("shared demo · the sandbox buttons work on your own order only", () =>
 
     const pay = await demo({ action: "pay", orderId: f.order.id }, own);
     expect(pay.status).toBe(200);
-    expect(pay.body.message).toMatch(/^Kora sandbox credited ₦840,000 to \d{10}\.$/);
+    expect(pay.body.message).toMatch(/^Sandbox transfer of ₦840,000 sent to \d{10}\.$/);
     expect((await demo({ action: "recheck", orderId: f.order.id }, own)).status).toBe(200);
     expect((await db().order.findUniqueOrThrow({ where: { id: f.order.id } })).status).toBe("STAGE_1_PAID");
 

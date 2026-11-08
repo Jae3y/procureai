@@ -150,7 +150,7 @@ export async function openPayIn(
           title: kind === "top-up" ? "Account for the rest is ready" : kind === "instalment" ? "Account for the next transfer is ready" : "One-time account ready",
           detail: isTransfer
             ? `${bankLabel(payIn.bankName)} · ${spaced(payIn.accountNumber ?? "")} · ${formatNaira(payIn.amountExpectedKobo)}`
-            : `Kora checkout · ${formatNaira(amountKobo)}`,
+            : `Checkout · ${formatNaira(amountKobo)}`,
           amountKobo: payIn.amountExpectedKobo,
           koraReference: reference,
           signature: "API",
@@ -165,7 +165,7 @@ export async function openPayIn(
       throw err;
     }
   }
-  throw new DomainError("payin_unavailable", "Kora could not open a payment account for this order. Try again.", 502);
+  throw new DomainError("payin_unavailable", "We couldn't open a payment account for this order. Try again.", 502);
 }
 
 function payInStatusFor(koraStatus: string): PayInStatus | null {
@@ -231,7 +231,7 @@ export async function applyChargeSnapshot(reference: string, snap: ChargeSnapsho
         await orderEvent(tx, order.id, {
           kind: "info",
           title: "Overpaid",
-          detail: snap.message ?? `Kora accepted ${formatNaira(accepted)} against ${formatNaira(payIn.amountExpectedKobo)} expected.`,
+          detail: snap.message ?? `${formatNaira(accepted)} accepted against ${formatNaira(payIn.amountExpectedKobo)} expected.`,
           koraReference: reference,
         });
       }
@@ -243,7 +243,7 @@ export async function applyChargeSnapshot(reference: string, snap: ChargeSnapsho
       await orderEvent(tx, order.id, {
         kind: "kora",
         title: final === "FAILED" ? "charge.failed" : "charge.expired",
-        detail: final === "EXPIRED" ? "The one-time account closed before payment arrived" : snap.message ?? "Kora marked this payment failed",
+        detail: final === "EXPIRED" ? "The one-time account closed before payment arrived" : snap.message ?? "The payment failed",
         koraReference: reference,
         signature,
       });
@@ -259,7 +259,7 @@ export async function applyChargeSnapshot(reference: string, snap: ChargeSnapsho
       await orderEvent(tx, order.id, {
         kind: "kora",
         title: "charge.underpaid",
-        detail: snap.message ?? `${formatNaira(snap.paidKobo)} arrived but ${formatNaira(payIn.amountExpectedKobo)} was expected; Kora returned it to the payer.`,
+        detail: snap.message ?? `${formatNaira(snap.paidKobo)} arrived but ${formatNaira(payIn.amountExpectedKobo)} was expected; it was returned to the payer.`,
         amountKobo: snap.paidKobo,
         koraReference: reference,
         signature,
@@ -270,7 +270,7 @@ export async function applyChargeSnapshot(reference: string, snap: ChargeSnapsho
       await orderEvent(tx, order.id, {
         kind: "kora",
         title: "charge.overpaid",
-        detail: snap.message ?? `${formatNaira(snap.paidKobo)} arrived but ${formatNaira(payIn.amountExpectedKobo)} was expected; Kora returned it to the payer.`,
+        detail: snap.message ?? `${formatNaira(snap.paidKobo)} arrived but ${formatNaira(payIn.amountExpectedKobo)} was expected; it was returned to the payer.`,
         amountKobo: snap.paidKobo,
         koraReference: reference,
         signature,
@@ -295,7 +295,7 @@ async function afterCredit(tx: Tx, order: Order, cause: Cause, accountFullyPaid:
     await orderEvent(tx, order.id, {
       kind: "info",
       title: "Transfer received",
-      detail: `${formatNaira(order.amountAcceptedKobo)} of ${formatNaira(order.amountKobo)} received. Kora takes up to ₦1,000,000 per account, so the next account is for ${formatNaira(shortfallKobo)}.`,
+      detail: `${formatNaira(order.amountAcceptedKobo)} of ${formatNaira(order.amountKobo)} received. Each account takes up to ₦1,000,000, so the next account is for ${formatNaira(shortfallKobo)}.`,
       amountKobo: shortfallKobo,
     });
     return { changed: true, followUp: { kind: "NEXT_INSTALMENT", remainingKobo: shortfallKobo }, orderId: order.id };
@@ -305,7 +305,7 @@ async function afterCredit(tx: Tx, order: Order, cause: Cause, accountFullyPaid:
     await orderEvent(tx, order.id, {
       kind: "info",
       title: "Transfer received",
-      detail: `${formatNaira(order.amountAcceptedKobo)} of ${formatNaira(order.amountKobo)} received. Kora takes up to ₦1,000,000 per account, so the next account is for ${formatNaira(shortfallKobo)}.`,
+      detail: `${formatNaira(order.amountAcceptedKobo)} of ${formatNaira(order.amountKobo)} received. Each account takes up to ₦1,000,000, so the next account is for ${formatNaira(shortfallKobo)}.`,
       amountKobo: shortfallKobo,
     });
     return { changed: true, followUp: { kind: "TOP_UP", shortfallKobo }, orderId: order.id };

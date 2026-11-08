@@ -26,12 +26,11 @@ export function SiteShell({ signedIn, children }: { signedIn: boolean; children:
       </header>
       {children}
       <footer className="site-foot">
-        <span>ProcureAI · Lagos</span>
+        <span>ProcureAI</span>
         <span style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
           <Link href="/terms">Terms</Link>
           <Link href="/privacy">Privacy</Link>
           <Link href="/refunds">Refunds and disputes</Link>
-          <span>Payments and identity checks by Kora</span>
         </span>
       </footer>
     </main>

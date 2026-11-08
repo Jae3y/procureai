@@ -68,12 +68,12 @@ async function checkBalance(provider: PaymentProvider, orderId: string, stage: P
     available = (await provider.balance()).availableKobo;
   } catch (err) {
     if (!isProviderError(err)) throw err;
-    const message = `Couldn't check the ${provider.name} balance before ${STAGE_LABEL[stage]}: ${err.userMessage}`;
+    const message = `Couldn't check the payout balance before ${STAGE_LABEL[stage]}: ${err.userMessage}`;
     await transaction((tx) => orderEvent(tx, orderId, { kind: "error", title: `${STAGE_LABEL[stage]} not sent`, detail: message }));
     return { kind: "blocked", reason: "balance-unavailable", message };
   }
   if (available < amountKobo) {
-    const message = `Insufficient funds in disbursement wallet. ${provider.name} balance is ${formatNaira(available)}; ${STAGE_LABEL[stage]} needs ${formatNaira(amountKobo)}.`;
+    const message = `Insufficient funds in disbursement wallet. Payout balance is ${formatNaira(available)}; ${STAGE_LABEL[stage]} needs ${formatNaira(amountKobo)}.`;
     await transaction((tx) => orderEvent(tx, orderId, { kind: "error", title: `${STAGE_LABEL[stage]} not sent`, detail: message, amountKobo }));
     return { kind: "blocked", reason: "unfunded", message };
   }
@@ -83,7 +83,7 @@ async function checkBalance(provider: PaymentProvider, orderId: string, stage: P
 /** Kora requires a recipient email on every payout; refuse before writing anything. */
 async function checkVendorEmail(orderId: string, stage: PayoutStage, email: string | null): Promise<DispatchResult | null> {
   if (email) return null;
-  const message = "The vendor has no email on file, and Kora needs one to send a payout. Ask the vendor to add it.";
+  const message = "The vendor has no email on file, and one is needed to send a payout. Ask the vendor to add it.";
   await transaction((tx) => orderEvent(tx, orderId, { kind: "error", title: `${STAGE_LABEL[stage]} not sent`, detail: message }));
   return { kind: "blocked", reason: "vendor-email-missing", message };
 }
@@ -185,7 +185,7 @@ async function sendPayout(payout: Payout, cause: Cause): Promise<DispatchResult>
       await tx.payout.update({ where: { id: payout.id }, data: { dispatchedAt: new Date(), feeKobo: res.data.feeKobo, koraErrorKind: null } });
       await orderEvent(tx, payout.orderId, {
         kind: "info",
-        title: `${STAGE_LABEL[payout.stage]} sent to ${provider.name}`,
+        title: `${STAGE_LABEL[payout.stage]} sent`,
         detail: `${formatNaira(payout.amountKobo)} to ${vendorName}${payout.route === "SANDBOX_TEST_ACCOUNT" ? ` · sandbox route ${payout.destinationBankCode}/${payout.destinationAccount}` : ""} · ${res.data.status}`,
         amountKobo: payout.amountKobo,
         koraReference: payout.reference,
@@ -211,8 +211,8 @@ async function sendPayout(payout: Payout, cause: Cause): Promise<DispatchResult>
       await tx.payout.update({ where: { id: payout.id }, data: { koraErrorKind: err.kind } });
       await orderEvent(tx, payout.orderId, {
         kind: "info",
-        title: `Checking ${STAGE_LABEL[payout.stage]} with ${provider.name}`,
-        detail: `${err.userMessage} Reference ${payout.reference} stays pending until ${provider.name} confirms it.`,
+        title: `Confirming ${STAGE_LABEL[payout.stage]}`,
+        detail: `${err.userMessage} Reference ${payout.reference} stays pending until it is confirmed.`,
         koraReference: payout.reference,
       });
     });
@@ -282,7 +282,7 @@ export async function applyPayoutOutcome(reference: string, outcome: PayoutOutco
     // failed, or Kora has no record of a payout whose dispatch never got an answer
     const reason =
       outcome.status === "not_found"
-        ? "Kora has no record of this payout, so it was never sent."
+        ? "The payment provider has no record of this payout, so it was never sent."
         : (outcome.message ?? "Declined by receiving bank");
     await tx.payout.update({
       where: { id: payout.id },

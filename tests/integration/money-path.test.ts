@@ -130,7 +130,7 @@ describe("instalments — Kora takes at most ₦1,000,000 per one-time account",
     expect(await status(order.id)).toBe("AWAITING_PAYMENT");
     expect(await db().orderTransition.count({ where: { orderId: order.id, toState: "UNDERPAID" } })).toBe(0);
     const received = await db().orderEvent.findFirstOrThrow({ where: { orderId: order.id, title: "Transfer received" } });
-    expect(received.detail).toBe("₦1,000,000 of ₦1,260,000 received. Kora takes up to ₦1,000,000 per account, so the next account is for ₦260,000.");
+    expect(received.detail).toBe("₦1,000,000 of ₦1,260,000 received. Each account takes up to ₦1,000,000, so the next account is for ₦260,000.");
     expect(await db().payout.count({ where: { orderId: order.id } })).toBe(0);
     await expectMoneyInvariants(order.id);
 
@@ -359,7 +359,7 @@ describe("payouts — two stages, failures, retries, unknown outcomes", () => {
     expect(await status(f.order.id)).toBe("HELD");
     expect(await db().payout.count({ where: { orderId: f.order.id } })).toBe(0);
     const err = await db().orderEvent.findFirstOrThrow({ where: { orderId: f.order.id, kind: "error" } });
-    expect(err.detail).toBe("Insufficient funds in disbursement wallet. Kora balance is ₦0; Stage 1 needs ₦252,000.");
+    expect(err.detail).toBe("Insufficient funds in disbursement wallet. Payout balance is ₦0; Stage 1 needs ₦252,000.");
     // Funded again: the next attempt goes through.
     double.availableKobo = 1_000_000_000n;
     const r = await dispatchStage(f.order.id, "STAGE_1", user);
@@ -405,7 +405,7 @@ describe("payouts — two stages, failures, retries, unknown outcomes", () => {
     await pollOnce();
     const resolved = await db().payout.findUniqueOrThrow({ where: { id: p.id } });
     expect(resolved.status).toBe("FAILED");
-    expect(resolved.failureReason).toBe("Kora has no record of this payout, so it was never sent.");
+    expect(resolved.failureReason).toBe("The payment provider has no record of this payout, so it was never sent.");
     expect(await status(f.order.id)).toBe("PAYOUT_FAILED");
     expect(double.callsTo("POST /transactions/disburse")).toBe(1);
   });

@@ -37,7 +37,7 @@ export function normalizeUser(rawReply: string, requestDate: string, quantity: n
   return `Request date: ${requestDate}\nBuyer wants: ${quantity} ${item}\n<vendor_reply>\n${rawReply}\n</vendor_reply>`;
 }
 
-export const RANK_SYSTEM = `You recommend one vendor for a buyer, for a Nigerian procurement app that pays vendors through Kora.
+export const RANK_SYSTEM = `You recommend one vendor for a buyer, for a Nigerian procurement app that pays vendors through a licensed payment processor.
 You receive JSON describing the buyer's spec and each quote. Totals and verification results are computed by the app and are
 authoritative; do not recalculate them. Rules:
 1. Never choose a quote whose verification is not "VERIFIED". Rank every non-verified quote below every verified one.

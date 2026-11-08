@@ -102,7 +102,7 @@ describe("matching rule — edges", () => {
     expect(matchVendor(johnDoeInc, "DOE").verdict).toBe("FAILED");
   });
 
-  it("reports when Kora could not resolve the account name", () => {
-    expect(matchVendor(johnDoeInc, null).failureReason).toMatch(/could not resolve/);
+  it("reports when the bank could not confirm the account name", () => {
+    expect(matchVendor(johnDoeInc, null).failureReason).toMatch(/could not confirm/);
   });
 });

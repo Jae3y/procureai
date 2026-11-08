@@ -44,7 +44,7 @@ describe("P4 · the full flow, headless", () => {
     expect(view.recommendation?.chosenLabel).toBe("Vendor B");
     expect(view.recommendation?.chosenTotal).toBe("₦1,260,000");
     expect(view.recommendation?.reasoning).toEqual([
-      "Vendor A quoted the lowest price, but Kora could not find its company registration, so ProcureAI will not send it money.",
+      "Vendor A quoted the lowest price, but its company registration could not be found, so ProcureAI will not send it money.",
       "Vendor B is ₦90,000 cheaper than Vendor C, is registered and active, and its payout account belongs to one of its directors.",
     ]);
 
@@ -126,7 +126,7 @@ describe("P4 · the full flow, headless", () => {
     const { POST } = await import("@/app/api/requests/[id]/approve/route");
     const r = await d.call(POST, `/api/requests/${requestId}/approve`, { id: requestId }, { body: { quoteId: vendorA.quote?.id } });
     expect(r.status).toBe(409);
-    expect((r.body.error as { message: string }).message).toBe("Vendor A is not verified by Kora, so ProcureAI won't send it money.");
+    expect((r.body.error as { message: string }).message).toBe("Vendor A is not verified, so ProcureAI won't send it money.");
     expect(await db().order.count()).toBe(0);
   });
 

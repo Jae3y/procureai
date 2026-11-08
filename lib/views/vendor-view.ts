@@ -56,7 +56,7 @@ export async function buildVendorView(token: string): Promise<VendorView> {
     try {
       const list = await kora().bankPickerList();
       banks = list.banks.map((b) => ({ name: b.name, code: b.code })).sort((a, b) => a.name.localeCompare(b.name));
-      if (list.source === "payout") banksNote = "Kora's verification bank list is empty here, so this is Kora's payout bank list.";
+      if (list.source === "payout") banksNote = "The verification bank list is empty here, so this is the payout bank list.";
     } catch (err) {
       if (!isKoraError(err)) throw err;
       log.warn({ err: err.message }, "could not load Kora's bank list for the vendor form");

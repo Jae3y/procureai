@@ -41,7 +41,7 @@ async function detailsFor(vendor: Vendor, input: QuoteSubmission): Promise<Busin
   if (contact?.registeredAt && contact.rcNumber && contact.bankCode && contact.accountNumber && contact.email) {
     return { businessName: contact.businessName, rcNumber: contact.rcNumber, bankCode: contact.bankCode, accountNumber: contact.accountNumber, email: contact.email };
   }
-  if (!input.consent) throw new DomainError("consent_required", "Tick the box to let ProcureAI check your business with Kora.", 400);
+  if (!input.consent) throw new DomainError("consent_required", "Tick the box to let ProcureAI check your business and bank account.", 400);
   const { businessName, rcNumber, bankCode, accountNumber, email } = input;
   if (!businessName || !rcNumber || !bankCode || !accountNumber || !email) {
     throw new DomainError("details_required", "Add your business name, CAC number, bank, account number and email.", 400);

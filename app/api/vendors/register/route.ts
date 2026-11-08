@@ -19,7 +19,7 @@ const Body = z.object({
   bankCode: z.string().trim().regex(/^\d{3,6}$/, "Choose your bank"),
   accountNumber: z.string().trim().regex(/^\d{10}$/, "Account numbers are 10 digits"),
   email: z.email("Enter a business email").max(120),
-  consent: z.literal(true, { error: "Tick the box to let ProcureAI check your business with Kora" }),
+  consent: z.literal(true, { error: "Tick the box to let ProcureAI check your business and bank account" }),
   /** Opens an account with the profile. Not needed when already signed in. */
   password: z.string().min(PASSWORD_MIN, `Use at least ${PASSWORD_MIN} characters`).max(PASSWORD_MAX).optional(),
 });
