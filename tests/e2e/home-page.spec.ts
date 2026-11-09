@@ -8,7 +8,7 @@ test("home marketing page allows switching modes, parsing requests into chips, a
 
   // Test vendor toggle
   await page.getByRole("button", { name: "I'm a vendor" }).click();
-  await expect(page.getByRole("heading", { name: "Get paid for what you deliver." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Get paid before you start." })).toBeVisible();
   await expect(page.getByText("₦378,000")).toBeVisible();
   await expect(page.getByText("PAID · KTR-1P6W2D")).toBeVisible();
 

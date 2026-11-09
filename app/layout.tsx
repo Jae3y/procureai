@@ -8,7 +8,7 @@ const jetbrains = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "500", "6
 
 export const metadata: Metadata = {
   title: "ProcureAI",
-  description: "Buy from vendors you don't know yet. ProcureAI checks every vendor, holds the money, and pays in two stages.",
+  description: "Buy from vendors you don't know yet without the gamble. ProcureAI checks every vendor, holds your money until delivery, and gets vendors paid before they start.",
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#F6F3EC" };

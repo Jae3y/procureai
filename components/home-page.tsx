@@ -58,6 +58,10 @@ const PEOPLE = [
 
 const FAQS = [
   {
+    q: "You're new. Why should I trust ProcureAI?",
+    a: "You shouldn't have to take our word for it, so ProcureAI is built around checks you can see. Every vendor is checked against CAC records before you can pay. Your payment goes to a one-time account made for your purchase. Every purchase ends on a record with a payment reference for every naira. And if you want to be careful, start with a small order and watch how it works.",
+  },
+  {
     q: "The vendor never delivers.",
     a: "Your delivery code is never entered, so the remaining 70% never leaves the held account. You can dispute and request a full refund of what remains.",
   },
@@ -73,6 +77,22 @@ const FAQS = [
     q: "People ask where their money went.",
     a: "Share the permanent record link. It lists every quote, the reason for the decision, and a verifiable payment reference for every naira in and out.",
   },
+];
+
+/** Under the hero input: the three fears a first-time buyer has, answered where they decide. */
+const TRUST = ["Every vendor checked against CAC records", "Your money is held until delivery", "Free while we launch. No account needed to try."];
+
+const USUAL_WAY = [
+  "Message twenty vendors on WhatsApp",
+  "Chase replies and compare prices in your head",
+  "Send a deposit to someone you can't verify",
+  "Hope it arrives, then explain it to everyone who chipped in",
+];
+const PROCUREAI_WAY = [
+  "Say what you need once",
+  "Quotes line up side by side, in one format",
+  "Every vendor checked before you can pay",
+  "Money held until delivery, and one record to share",
 ];
 
 const defaultExample = EXAMPLES[0]!;
@@ -198,15 +218,9 @@ export function HomePage() {
             <a href="#how" onClick={(e) => scrollToSection(e, "how")} className="btn-text nav-extra" style={{ textDecoration: "none" }}>
               How it works
             </a>
-            <a href="#who" onClick={(e) => scrollToSection(e, "who")} className="btn-text nav-extra" style={{ textDecoration: "none" }}>
-              Who it&apos;s for
-            </a>
             <a href="#vendors" onClick={(e) => scrollToSection(e, "vendors")} className="btn-text nav-extra" style={{ textDecoration: "none" }}>
               For vendors
             </a>
-            <Link href="/demo" className="btn-text" style={{ textDecoration: "none" }}>
-              Demo
-            </Link>
             <Link href="/account" className="btn-text" style={{ textDecoration: "none" }}>
               Sign in
             </Link>
@@ -262,7 +276,7 @@ export function HomePage() {
               Tell it what you need.
             </h1>
             <div style={{ marginTop: 28, display: "inline-flex", border: "1.5px dashed var(--future)", borderRadius: 12, padding: "14px 20px", font: "500 14px/1.2 var(--font-mono)", color: "var(--muted)" }}>
-              Buy from vendors you don&apos;t know yet. ProcureAI verifies them, holds your money, and releases it in two stages.
+              Buy from vendors you don&apos;t know yet. ProcureAI checks every one, holds your money, and releases it only as the work is delivered.
             </div>
 
             <form
@@ -302,6 +316,15 @@ export function HomePage() {
                 {parsed ? "Start purchase" : "Try it"} <span className="arrow">→</span>
               </button>
             </form>
+
+            <ul style={{ margin: "20px 0 0", padding: 0, listStyle: "none", display: "flex", gap: "10px 28px", flexWrap: "wrap", font: "500 14px/1.3 var(--font-body)", color: "var(--muted)" }}>
+              {TRUST.map((t) => (
+                <li key={t} style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                  <span aria-hidden="true" style={{ color: "var(--green)" }}>✓</span>
+                  {t}
+                </li>
+              ))}
+            </ul>
 
             {parsed ? (
               <div style={{ marginTop: 24 }}>
@@ -376,19 +399,22 @@ export function HomePage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 420px), 1fr))", gap: "clamp(40px, 6vw, 120px)", alignItems: "end", marginTop: 40 }}>
             <div>
               <h1 className="headline" style={{ fontSize: "clamp(64px, 8.4vw, 164px)", lineHeight: 0.88 }}>
-                Get paid for what you deliver.
+                Get paid before you start.
               </h1>
-              <p className="body-lg" style={{ marginTop: 32, color: "var(--muted)", maxWidth: "40ch" }}>
-                Buyers send you a link. Reply in your own words. If they choose you, 30% lands in your business account the moment you accept, and the rest the moment you deliver.
+              <p className="body-lg" style={{ marginTop: 32, color: "var(--muted)", maxWidth: "42ch" }}>
+                Buyers send you a link. Reply in your own words. When a buyer picks you and their payment is confirmed, 30% goes straight to your business account for materials. The other 70% is already held for you, and it&apos;s released when delivery is confirmed.
               </p>
-              <div style={{ marginTop: 40 }}>
-                <Link href="/demo" className="btn btn-lg">
-                  See what vendors see <span className="arrow">→</span>
+              <div style={{ marginTop: 40, display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap" }}>
+                <Link href="/vendors/join" className="btn btn-lg">
+                  Register your business, it&apos;s free <span className="arrow">→</span>
+                </Link>
+                <Link href="/demo" className="btn-text">
+                  See what vendors see
                 </Link>
               </div>
             </div>
             <div style={{ border: "1px solid var(--hairline)", borderRadius: 12, background: "var(--surface)", padding: "clamp(28px, 3vw, 48px)" }}>
-              <div className="label">Order PA-0417 · 300 T-shirts</div>
+              <div className="label">Sample order PA-0417 · 300 T-shirts</div>
               <div style={{ marginTop: 20, font: "500 clamp(48px, 5vw, 88px)/1 var(--font-mono)", letterSpacing: "-0.06em", color: "var(--green)" }}>
                 ₦378,000
               </div>
@@ -477,6 +503,39 @@ export function HomePage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* The usual way vs ProcureAI */}
+      <section style={{ borderTop: "1px solid var(--hairline)" }}>
+        <div style={{ maxWidth: "var(--max)", margin: "0 auto", padding: "clamp(96px, 12vh, 160px) var(--gutter)", boxSizing: "border-box" }}>
+          <h2 className="headline" style={{ fontSize: "clamp(48px, 6vw, 116px)", lineHeight: 0.92, maxWidth: "16ch" }}>
+            Buying from strangers shouldn&apos;t feel like gambling.
+          </h2>
+          <div style={{ marginTop: 80, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: "clamp(32px, 5vw, 80px)" }}>
+            <div style={{ borderTop: "2px solid var(--pending)", paddingTop: 28 }}>
+              <div className="label">The usual way</div>
+              <ul style={{ margin: "24px 0 0", padding: 0, listStyle: "none", display: "grid", gap: 18 }}>
+                {USUAL_WAY.map((t) => (
+                  <li key={t} style={{ display: "flex", gap: 14, alignItems: "baseline", font: "400 clamp(18px, 1.4vw, 22px)/1.4 var(--font-body)", color: "var(--muted)" }}>
+                    <span aria-hidden="true" style={{ color: "var(--red)" }}>✕</span>
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div style={{ borderTop: "2px solid var(--green)", paddingTop: 28 }}>
+              <div className="label" style={{ color: "var(--green)" }}>With ProcureAI</div>
+              <ul style={{ margin: "24px 0 0", padding: 0, listStyle: "none", display: "grid", gap: 18 }}>
+                {PROCUREAI_WAY.map((t) => (
+                  <li key={t} style={{ display: "flex", gap: 14, alignItems: "baseline", font: "500 clamp(18px, 1.4vw, 22px)/1.4 var(--font-body)" }}>
+                    <span aria-hidden="true" style={{ color: "var(--green)" }}>✓</span>
+                    {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </section>
@@ -572,32 +631,38 @@ export function HomePage() {
       <section id="vendors" style={{ background: "var(--ink)", color: "var(--paper)" }}>
         <div style={{ maxWidth: "var(--max)", margin: "0 auto", padding: "clamp(96px, 12vh, 160px) var(--gutter)", boxSizing: "border-box" }}>
           <div style={{ font: "500 15px/1 var(--font-mono)", color: "var(--on-ink-muted)" }}>For vendors</div>
-          <h2 className="headline" style={{ marginTop: 24, fontSize: "clamp(48px, 6.4vw, 124px)", lineHeight: 0.92, maxWidth: "14ch", color: "var(--paper)" }}>
-            No more “send deposit first”.
+          <h2 className="headline" style={{ marginTop: 24, fontSize: "clamp(48px, 6.4vw, 124px)", lineHeight: 0.92, maxWidth: "16ch", color: "var(--paper)" }}>
+            Get paid before you start the work.
           </h2>
-          <div style={{ marginTop: 80, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 40 }}>
+          <p className="body-lg" style={{ marginTop: 32, color: "var(--on-ink-soft)", maxWidth: "46ch" }}>
+            No more buying materials with your own money and hoping the buyer pays. No more chasing a transfer after you&apos;ve delivered.
+          </p>
+          <div style={{ marginTop: 72, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: 40 }}>
             <div style={{ borderTop: "1px solid var(--on-ink-line)", paddingTop: 24 }}>
-              <div style={{ font: "600 26px/1.1 var(--font-display)", letterSpacing: "-0.025em" }}>Reply in your own words</div>
+              <div style={{ font: "600 26px/1.1 var(--font-display)", letterSpacing: "-0.025em" }}>30% in your account upfront</div>
               <p style={{ margin: "12px 0 0", font: "400 17px/1.55 var(--font-body)", color: "var(--on-ink-soft)" }}>
-                Register your business once. After that, “I fit do am 4,200 each” is a whole quote. No app to install.
+                The moment the buyer&apos;s payment is confirmed, 30% is sent to your business account. Use it for materials. Start with confidence.
               </p>
             </div>
             <div style={{ borderTop: "1px solid var(--on-ink-line)", paddingTop: 24 }}>
-              <div style={{ font: "600 26px/1.1 var(--font-display)", letterSpacing: "-0.025em" }}>The money is already there</div>
+              <div style={{ font: "600 26px/1.1 var(--font-display)", letterSpacing: "-0.025em" }}>The rest is already waiting</div>
               <p style={{ margin: "12px 0 0", font: "400 17px/1.55 var(--font-body)", color: "var(--on-ink-soft)" }}>
-                The buyer pays before you start. You can see it held for you.
+                The other 70% is held for you from day one, and you can see it. It&apos;s released when delivery is confirmed.
               </p>
             </div>
             <div style={{ borderTop: "1px solid var(--on-ink-line)", paddingTop: 24 }}>
-              <div style={{ font: "600 26px/1.1 var(--font-display)", letterSpacing: "-0.025em" }}>Registered businesses win</div>
+              <div style={{ font: "600 26px/1.1 var(--font-display)", letterSpacing: "-0.025em" }}>Reply like you do on WhatsApp</div>
               <p style={{ margin: "12px 0 0", font: "400 17px/1.55 var(--font-body)", color: "var(--on-ink-soft)" }}>
-                If you&apos;re registered and your account is in your company&apos;s name, you&apos;re chosen over a cheaper vendor that can&apos;t be verified.
+                Register once. After that, “I fit do am 4,200 each” is a whole quote. No app to install.
               </p>
             </div>
           </div>
-          <div style={{ marginTop: 56 }}>
+          <p style={{ margin: "48px 0 0", font: "400 17px/1.55 var(--font-body)", color: "var(--on-ink-soft)", maxWidth: "62ch" }}>
+            Buyers can only choose businesses that have been verified, so you&apos;re never up against a vendor who can&apos;t prove who they are. Registering is free, and no vendor can pay to be ranked higher.
+          </p>
+          <div style={{ marginTop: 40 }}>
             <Link href="/vendors/join" className="btn" style={{ background: "var(--paper)", color: "var(--ink)" }}>
-              Register your business <span className="arrow">→</span>
+              Register your business, it&apos;s free <span className="arrow">→</span>
             </Link>
           </div>
         </div>
@@ -622,6 +687,9 @@ export function HomePage() {
               Explore interactive demo
             </Link>
           </div>
+          <p className="note" style={{ marginTop: 28 }}>
+            Selling instead? <Link href="/vendors/join" style={{ color: "var(--ink)" }}>Register your business, it&apos;s free</Link>.
+          </p>
         </div>
       </section>
 

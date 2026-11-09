@@ -56,7 +56,7 @@ export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<
             WhatsApp.
           </p>
           <p className="note" style={{ fontSize: 14 }}>
-            ProcureAI checks your business and bank account each time a buyer considers your quote. You&apos;re paid 30% once the buyer&apos;s money is held and 70% on delivery.
+            ProcureAI checks your business and bank account each time a buyer considers your quote. You&apos;re paid 30% as soon as the buyer&apos;s payment is confirmed, and 70% when delivery is confirmed.
           </p>
           <a className="btn" href="/vendor" style={{ marginTop: 16 }}>
             Open your dashboard
@@ -75,10 +75,10 @@ export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<
           }}
         >
           <div className="label">For vendors</div>
-          <h1>Register once. Quote in one message.</h1>
+          <h1>Register once. Get paid before you start.</h1>
           <p className="note" style={{ margin: "4px 0 8px" }}>
-            Buyers type what they need; ProcureAI sends the request to registered vendors who sell it. You reply in your own words, and get paid through ProcureAI: 30% when the
-            buyer&apos;s money is held, 70% on delivery.
+            Buyers type what they need and ProcureAI sends the request to registered vendors who sell it. You reply in your own words. When a buyer picks you, 30% goes to your
+            business account as soon as their payment is confirmed, and the other 70% is held for you until delivery. Registering is free.
           </p>
           {field("businessName", "Business name", { autoComplete: "organization" })}
           {field("phone", "Phone (where buyers' requests reach you)", { type: "tel", inputMode: "tel", autoComplete: "tel", placeholder: "0803 412 7781" })}
