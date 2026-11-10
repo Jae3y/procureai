@@ -124,6 +124,8 @@ model Account {
   email               String         @unique
   name                String
   passwordHash        String?
+  /// Google's stable account id, set when the person signs in with Google.
+  googleSub           String?        @unique
   /// Bumped on password change or reset: every older session cookie stops working.
   sessionVersion      Int            @default(1)
   buyerId             String         @unique
@@ -131,6 +133,9 @@ model Account {
   vendorContactId     String?        @unique
   vendorContact       VendorContact? @relation(fields: [vendorContactId], references: [id])
   emailVerifiedAt     DateTime?
+  /// When this person accepted the terms and privacy policy, and which version (LEGAL_UPDATED).
+  termsAcceptedAt     DateTime?
+  termsVersion        String?
   /// Two-step sign-in: the authenticator secret, sealed with AES-GCM. Pending until the first code is confirmed.
   totpSecretCipher    String?
   totpPendingCipher   String?

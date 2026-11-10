@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import type { Account, OrderStatus, RequestStatus } from "@/lib/generated/prisma/client";
 import { applyDueBankChange } from "@/lib/domain/vendor-profiles";
 import { formatNaira } from "@/lib/money";
+import { emailEnabled } from "@/lib/notify/email";
 import { lagosDay, lagosTime, orderRef } from "./format";
 
 /** The signed-in dashboards. Amounts arrive formatted; every line is scoped to the account asking. */
@@ -41,6 +42,10 @@ export type AccountView = {
   name: string;
   email: string;
   emailVerified: boolean;
+  /** Email sending is switched on, so a confirmation link can be sent. */
+  emailWorks: boolean;
+  /** False for accounts that only sign in with Google: they set a first password instead of changing one. */
+  hasPassword: boolean;
   deletionRequested: boolean;
   isVendor: boolean;
   twoStep: { on: boolean; recoveryCodesLeft: number };
@@ -57,6 +62,8 @@ export async function buildAccountView(account: Account): Promise<AccountView> {
     name: account.name,
     email: account.email,
     emailVerified: Boolean(account.emailVerifiedAt),
+    emailWorks: emailEnabled(),
+    hasPassword: Boolean(account.passwordHash),
     deletionRequested: Boolean(account.deletionRequestedAt),
     isVendor: Boolean(account.vendorContactId),
     twoStep: { on: Boolean(account.totpEnabledAt), recoveryCodesLeft: account.recoveryCodeHashes.length },

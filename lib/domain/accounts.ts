@@ -7,7 +7,8 @@ import { env } from "@/lib/env";
 import type { Account } from "@/lib/generated/prisma/client";
 import { log } from "@/lib/log";
 import { emailEnabled, sendEmail } from "@/lib/notify/email";
-import { notify } from "@/lib/notify/notifications";
+import { LEGAL_UPDATED } from "@/lib/legal";
+import { notify, notifyOps } from "@/lib/notify/notifications";
 import { DomainError } from "./errors";
 
 /**
@@ -38,14 +39,25 @@ async function issueToken(accountId: string, purpose: TokenPurpose, ttlMs: numbe
   return token;
 }
 
-async function sendVerifyEmail(account: Pick<Account, "id" | "email">): Promise<void> {
-  if (!emailEnabled()) return;
+async function sendVerifyEmail(account: Pick<Account, "id" | "email">): Promise<boolean> {
+  if (!emailEnabled()) return false;
   const token = await issueToken(account.id, "VERIFY", VERIFY_TTL_MS);
-  await sendEmail({
+  return sendEmail({
     to: account.email,
     subject: "Confirm your email for ProcureAI",
-    text: `Confirm this is your email by opening this link:\n\n${env().APP_BASE_URL}/verify?token=${token}\n\nIf you didn't sign up for ProcureAI, ignore this message.`,
+    content: {
+      heading: "Confirm your email",
+      paragraphs: ["Confirm this is your email address so receipts, payment updates and password resets reach you."],
+      button: { label: "Confirm my email", url: `${env().APP_BASE_URL}/verify?token=${token}` },
+      footnote: "This link works for 7 days. If you didn't sign up for ProcureAI, ignore this email.",
+    },
   });
+}
+
+/** "Send the link again", from the account page. Limited by the route so it can't be used to flood an inbox. */
+export async function resendVerifyEmail(account: Account): Promise<{ sent: boolean }> {
+  if (account.emailVerifiedAt) throw new DomainError("already_verified", "Your email is already confirmed.", 409);
+  return { sent: await sendVerifyEmail(account) };
 }
 
 export async function signUp(input: { name: string; email: string; password: string }): Promise<Account> {
@@ -55,7 +67,9 @@ export async function signUp(input: { name: string; email: string; password: str
   try {
     const account = await transaction(async (tx) => {
       const buyer = await tx.buyer.create({ data: { name: input.name.trim(), email } });
-      return tx.account.create({ data: { email, name: input.name.trim(), passwordHash, buyerId: buyer.id, lastLoginAt: new Date() } });
+      return tx.account.create({
+        data: { email, name: input.name.trim(), passwordHash, buyerId: buyer.id, lastLoginAt: new Date(), termsAcceptedAt: new Date(), termsVersion: LEGAL_UPDATED },
+      });
     });
     await sendVerifyEmail(account).catch((err: unknown) => log.error({ err }, "verification email failed"));
     return account;
@@ -75,6 +89,50 @@ export async function logIn(input: { email: string; password: string }): Promise
   }
   if (!(await verifyPassword(input.password, account.passwordHash))) throw BAD_LOGIN();
   return account;
+}
+
+/**
+ * Google vouched for this email (email_verified), so: the Google-linked account if there is one;
+ * otherwise the account with this email, now linked (Google proves the email, just as a reset link
+ * would); otherwise a new account. A registered vendor profile with this email and no account yet is
+ * linked too. Two-step sign-in, if on, is still asked for by the caller.
+ */
+export async function signInWithGoogle(profile: { sub: string; email: string; name: string }): Promise<Account> {
+  const bySub = await db().account.findUnique({ where: { googleSub: profile.sub } });
+  if (bySub) return bySub;
+  const email = normalizeEmail(profile.email);
+  const byEmail = await db().account.findUnique({ where: { email } });
+  if (byEmail) {
+    if (byEmail.googleSub && byEmail.googleSub !== profile.sub) {
+      throw new DomainError("google_mismatch", "This email is already linked to a different Google account.", 409);
+    }
+    return db().account.update({ where: { id: byEmail.id }, data: { googleSub: profile.sub, emailVerifiedAt: byEmail.emailVerifiedAt ?? new Date() } });
+  }
+  const contact = await db().vendorContact.findFirst({ where: { email, isDemo: false, registeredAt: { not: null }, account: null } });
+  try {
+    return await transaction(async (tx) => {
+      const buyer = await tx.buyer.create({ data: { name: profile.name, email } });
+      return tx.account.create({
+        data: {
+          email,
+          name: profile.name,
+          buyerId: buyer.id,
+          googleSub: profile.sub,
+          emailVerifiedAt: new Date(),
+          termsAcceptedAt: new Date(),
+          termsVersion: LEGAL_UPDATED,
+          ...(contact ? { vendorContactId: contact.id } : {}),
+        },
+      });
+    });
+  } catch (err) {
+    // Two tabs finishing Google sign-in at once: the second finds the account the first created.
+    if (isUniqueViolation(err)) {
+      const again = await db().account.findUnique({ where: { googleSub: profile.sub } });
+      if (again) return again;
+    }
+    throw err;
+  }
 }
 
 /** The person passed every step: record it and tell them, so a sign-in they didn't make is noticed. */
@@ -197,7 +255,12 @@ export async function requestPasswordReset(rawEmail: string): Promise<void> {
   await sendEmail({
     to: account.email,
     subject: "Reset your ProcureAI password",
-    text: `Choose a new password by opening this link. It works once and expires in an hour:\n\n${env().APP_BASE_URL}/reset?token=${token}\n\nIf you didn't ask for this, ignore this message. Your password hasn't changed.`,
+    content: {
+      heading: "Reset your password",
+      paragraphs: ["Someone asked to reset the password for your ProcureAI account. If it was you, choose a new password below."],
+      button: { label: "Choose a new password", url: `${env().APP_BASE_URL}/reset?token=${token}` },
+      footnote: "The link works once and expires in an hour. If you didn't ask for this, ignore this email: your password hasn't changed.",
+    },
   });
 }
 
@@ -240,13 +303,24 @@ export async function verifyEmail(token: string): Promise<void> {
 }
 
 export async function requireCurrentPassword(account: Account, password: string): Promise<void> {
-  if (!account.passwordHash || !(await verifyPassword(password, account.passwordHash))) {
+  if (!account.passwordHash) {
+    throw new DomainError("no_password", "Your account signs in with Google. Set a password on your account page first, then try again.", 403);
+  }
+  if (!(await verifyPassword(password, account.passwordHash))) {
     throw new DomainError("wrong_password", "Your current password isn't right.", 403);
   }
 }
 
+/** How recently a password-less (Google) account must have signed in to set its first password. */
+const RECENT_SIGN_IN_MS = 15 * 60 * 1000;
+
 export async function changePassword(account: Account, current: string, next: string): Promise<Account> {
-  await requireCurrentPassword(account, current);
+  if (account.passwordHash) {
+    await requireCurrentPassword(account, current);
+  } else if (!account.lastLoginAt || Date.now() - account.lastLoginAt.getTime() > RECENT_SIGN_IN_MS) {
+    // Setting a first password is a takeover risk if a session was stolen: it needs a fresh Google sign-in.
+    throw new DomainError("sign_in_again", "For your safety, sign out and sign in again with Google, then set your password within 15 minutes.", 403);
+  }
   await assertAcceptablePassword(next, { email: account.email, name: account.name }, "next");
   const passwordHash = await hashPassword(next);
   const updated = await db().account.update({ where: { id: account.id }, data: { passwordHash, sessionVersion: { increment: 1 } } });
@@ -314,5 +388,6 @@ export async function exportAccountData(account: Account) {
  */
 export async function requestDeletion(account: Account): Promise<void> {
   await db().account.update({ where: { id: account.id }, data: { deletionRequestedAt: new Date() } });
+  await notifyOps(db(), { kind: "ops.deletion", title: "An account asked to be deleted", body: `${account.email} asked for their account to be deleted. Review it in the admin console.`, href: "/admin" });
   log.warn({ accountId: account.id }, "account deletion requested");
 }

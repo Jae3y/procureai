@@ -45,6 +45,13 @@ const EnvSchema = z
     /** Refuse new passwords found in public breaches (Have I Been Pwned range API). Off only in tests. */
     PASSWORD_BREACH_CHECK: bool.default(true),
     EMAIL_FROM: z.string().min(3).default("ProcureAI <hello@procureai.com.ng>"),
+    /** Where replies to ProcureAI's emails go. Leave empty until that mailbox exists. */
+    EMAIL_REPLY_TO: z.string().default(""),
+    /** The owner's account email: failed payouts, disputes and deletion requests are sent there. */
+    OPS_ALERT_EMAIL: z.string().default(""),
+    /** "Continue with Google": the OAuth client from Google Cloud. The button is hidden until both are set. */
+    GOOGLE_CLIENT_ID: z.string().default(""),
+    GOOGLE_CLIENT_SECRET: z.string().default(""),
     /** After the vendor marks an order delivered, the buyer has this long to report a problem before Stage 2 releases by itself. */
     DELIVERY_GRACE_HOURS: z.coerce.number().int().min(1).max(720).default(72),
   })

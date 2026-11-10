@@ -1,5 +1,6 @@
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
+import { type EmailContent, renderEmail } from "./email-template";
 
 /**
  * Outgoing email through Resend's HTTP API. Without RESEND_API_KEY nothing is sent and callers are
@@ -7,7 +8,7 @@ import { log } from "@/lib/log";
  * when an emailed link isn't available.
  */
 
-export type Email = { to: string; subject: string; text: string };
+export type Email = { to: string; subject: string; content: EmailContent };
 
 export function emailEnabled(): boolean {
   return Boolean(env().RESEND_API_KEY);
@@ -19,14 +20,22 @@ export async function sendEmail(mail: Email): Promise<boolean> {
     log.info({ subject: mail.subject }, "email not sent: RESEND_API_KEY is not set");
     return false;
   }
+  const { text, html } = renderEmail(mail.content);
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${e.RESEND_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: e.EMAIL_FROM, to: [mail.to], subject: mail.subject, text: mail.text }),
+    body: JSON.stringify({
+      from: e.EMAIL_FROM,
+      to: [mail.to],
+      subject: mail.subject,
+      text,
+      html,
+      ...(e.EMAIL_REPLY_TO ? { reply_to: e.EMAIL_REPLY_TO } : {}),
+    }),
     signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) {
-    log.error({ status: res.status, subject: mail.subject }, "email provider refused the message");
+    log.error({ status: res.status, subject: mail.subject, body: (await res.text()).slice(0, 300) }, "email provider refused the message");
     return false;
   }
   return true;

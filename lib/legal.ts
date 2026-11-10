@@ -79,8 +79,22 @@ export const PRIVACY: LegalSection[] = [
   {
     heading: "Who sees it",
     paragraphs: [
-      "Our payment processor, Kora (Korapay), to verify businesses and move money. Our AI provider sees the text of requests and quotes to read them, never bank details. Our hosting and database providers store it.",
+      "Our payment processor, Kora (Korapay), to verify businesses and move money.",
+      "Our AI providers, Google (Gemini) and, as a backup, Groq, receive the text of purchase requests and vendor replies so they can read them. They never receive bank details or passwords. While we use Google's free AI tier, Google may use that text to improve its products.",
+      "Vercel hosts the website, Neon stores the database, and Resend sends our emails.",
       "A buyer sees the business details of vendors who quote; a vendor sees the request and, once chosen, the buyer's messages. The shareable record shows what was bought and the payment trail, not bank account numbers.",
+    ],
+  },
+  {
+    heading: "Where it is stored",
+    paragraphs: [
+      "Our hosting, database, email and AI providers run servers outside Nigeria. We only use providers that protect data under their own data protection commitments, as the Nigeria Data Protection Act 2023 requires for transfers abroad.",
+    ],
+  },
+  {
+    heading: "Cookies",
+    paragraphs: [
+      "We only use cookies that the site needs to work: one that keeps you signed in, one that remembers a demo purchase, and short-lived ones used during sign-in. We don't use advertising or tracking cookies.",
     ],
   },
   {

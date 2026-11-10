@@ -34,6 +34,29 @@ export function clearLoginTicketCookie(): string {
   return cookieHeader(LOGIN_TICKET_COOKIE, "", 0);
 }
 
+export const OAUTH_COOKIE = "pa_oauth";
+const OAUTH_TTL = 10 * 60;
+
+/** The OAuth state, nonce, PKCE verifier and where to go after, signed, for ten minutes. */
+export function oauthStateCookie(state: { state: string; nonce: string; verifier: string; next: string }): string {
+  const subject = Buffer.from(JSON.stringify(state), "utf8").toString("base64url");
+  return cookieHeader(OAUTH_COOKIE, signSession("oauth-state", subject, OAUTH_TTL), OAUTH_TTL);
+}
+
+export function clearOauthCookie(): string {
+  return cookieHeader(OAUTH_COOKIE, "", 0);
+}
+
+export function oauthStateFrom(req: Request): { state: string; nonce: string; verifier: string; next: string } | null {
+  const subject = verifySession("oauth-state", readCookie(req, OAUTH_COOKIE));
+  if (!subject) return null;
+  try {
+    return JSON.parse(Buffer.from(subject, "base64url").toString("utf8")) as { state: string; nonce: string; verifier: string; next: string };
+  } catch {
+    return null; // a cookie we signed but can't read back is treated as no sign-in in progress
+  }
+}
+
 export function loginTicketFrom(req: Request): string | null {
   return verifySession("login-ticket", readCookie(req, LOGIN_TICKET_COOKIE));
 }

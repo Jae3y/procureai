@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { SignupForm } from "@/components/auth-forms";
 import { SiteShell } from "@/components/site-shell";
+import { googleEnabled } from "@/lib/auth/google";
 import { pageAccount } from "@/lib/http/page-auth";
 import { safeNext } from "@/lib/http/next-path";
 
@@ -13,7 +14,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
   if (await pageAccount()) redirect(next);
   return (
     <SiteShell signedIn={false}>
-      <SignupForm next={next} />
+      <SignupForm next={next} google={googleEnabled()} />
     </SiteShell>
   );
 }

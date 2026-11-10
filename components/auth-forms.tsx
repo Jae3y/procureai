@@ -31,6 +31,32 @@ export function Field({
   );
 }
 
+/** Google's own "G" mark, as their branding guidelines ask for on a "Continue with Google" button. */
+function GoogleMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
+function GoogleButton({ next, label }: { next: string; label: string }) {
+  return (
+    <>
+      <a className="btn-2 google-btn" href={`/api/auth/google/start?next=${encodeURIComponent(next)}`}>
+        <GoogleMark />
+        {label}
+      </a>
+      <div className="or-rule" aria-hidden="true">
+        <span>or</span>
+      </div>
+    </>
+  );
+}
+
 function FormShell({ title, intro, children }: { title: string; intro?: React.ReactNode; children: React.ReactNode }) {
   return (
     <section className="account-narrow">
@@ -41,11 +67,11 @@ function FormShell({ title, intro, children }: { title: string; intro?: React.Re
   );
 }
 
-export function LoginForm({ next }: { next: string }) {
+export function LoginForm({ next, google = false, error = null, startAtCode = false }: { next: string; google?: boolean; error?: string | null; startAtCode?: boolean }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
-  const [step, setStep] = useState<"password" | "code">("password");
+  const [step, setStep] = useState<"password" | "code">(startAtCode ? "code" : "password");
   const send = useAction<{ email: string; password: string }, { ok?: boolean; twoFactor?: boolean }>("/api/auth/login");
   const verify = useAction<{ code: string }>("/api/auth/login/verify");
   if (step === "code") {
@@ -75,6 +101,12 @@ export function LoginForm({ next }: { next: string }) {
   }
   return (
     <FormShell title="Sign in">
+      {error ? (
+        <p className="form-error" role="alert" style={{ marginTop: 0 }}>
+          {error}
+        </p>
+      ) : null}
+      {google ? <GoogleButton next={next} label="Continue with Google" /> : null}
       <form
         noValidate
         className="account-form"
@@ -103,7 +135,7 @@ export function LoginForm({ next }: { next: string }) {
   );
 }
 
-export function SignupForm({ next }: { next: string }) {
+export function SignupForm({ next, google = false }: { next: string; google?: boolean }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -111,6 +143,14 @@ export function SignupForm({ next }: { next: string }) {
   const send = useAction<{ name: string; email: string; password: string }>("/api/auth/signup");
   return (
     <FormShell title="Create your account" intro="Ask real vendors, keep every purchase in one place, and get told when something needs you.">
+      {google ? (
+        <>
+          <GoogleButton next={next} label="Continue with Google" />
+          <p className="note" style={{ margin: "-8px 0 20px", fontSize: 13 }}>
+            Continuing with Google means you agree to the <Link href="/terms">terms</Link> and <Link href="/privacy">privacy policy</Link>.
+          </p>
+        </>
+      ) : null}
       <form
         noValidate
         className="account-form"

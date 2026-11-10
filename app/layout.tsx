@@ -7,7 +7,10 @@ const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600"], variabl
 const jetbrains = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-jetbrains", display: "swap" });
 
 export const metadata: Metadata = {
-  title: "ProcureAI",
+  metadataBase: new URL("https://procureai.com.ng"),
+  title: { default: "ProcureAI", template: "%s" },
+  openGraph: { type: "website", siteName: "ProcureAI", url: "https://procureai.com.ng", locale: "en_NG" },
+  twitter: { card: "summary_large_image" },
   description: "Buy from vendors you don't know yet without the gamble. ProcureAI checks every vendor, holds your money until delivery, and gets vendors paid before they start.",
 };
 

@@ -51,8 +51,29 @@ const SELLER_COPY: Partial<Record<OrderStatus, Copy>> = {
   REFUNDED: { title: "Order refunded", body: (i) => `The order for ${i} was refunded to the buyer.` },
 };
 
+/**
+ * Alerts for the person running ProcureAI (OPS_ALERT_EMAIL): delivered to their own account like any
+ * notification, so they appear in-app and by email. Silently skipped if that account doesn't exist.
+ */
+export async function notifyOps(client: Tx, input: Omit<NotificationInput, "accountId">): Promise<void> {
+  const email = env().OPS_ALERT_EMAIL.trim().toLowerCase();
+  if (!email) return;
+  const owner = await client.account.findUnique({ where: { email }, select: { id: true } });
+  if (owner) await notify(client, { ...input, accountId: owner.id });
+}
+
+const OPS_COPY: Partial<Record<OrderStatus, string>> = {
+  PAYOUT_FAILED: "A vendor payout failed",
+  DISPUTED: "A buyer reported a problem",
+  UNDERPAID: "A buyer's transfer was short",
+};
+
 /** Called from transition(), inside its transaction. */
 export async function notifyOrderTransition(tx: Tx, order: Order, to: OrderStatus): Promise<void> {
+  const opsTitle = OPS_COPY[to];
+  if (opsTitle) {
+    await notifyOps(tx, { kind: `ops.${to}`, title: opsTitle, body: `Order PA-${String(order.number).padStart(4, "0")} needs a look in the admin console.`, href: "/admin" });
+  }
   const buyerCopy = BUYER_COPY[to];
   const sellerCopy = SELLER_COPY[to];
   if (!buyerCopy && !sellerCopy) return;
@@ -105,8 +126,11 @@ export async function flushNotificationEmails(limit = 20): Promise<{ sent: numbe
   for (const n of due) {
     const { count } = await db().notification.updateMany({ where: { id: n.id, emailedAt: null }, data: { emailedAt: new Date() } });
     if (count === 0) continue;
-    const link = n.href ? `\n\nOpen it: ${env().APP_BASE_URL}${n.href}` : "";
-    const ok = await sendEmail({ to: n.account.email, subject: n.title, text: `${n.body}${link}\n\nProcureAI` }).catch((err: unknown) => {
+    const ok = await sendEmail({
+      to: n.account.email,
+      subject: n.title,
+      content: { heading: n.title, paragraphs: [n.body], ...(n.href ? { button: { label: "Open ProcureAI", url: `${env().APP_BASE_URL}${n.href}` } } : {}) },
+    }).catch((err: unknown) => {
       log.error({ err, notification: n.id }, "email send failed");
       return false;
     });

@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
  * RECORD_SIGNING_SECRET, so a record-URL signature can never be replayed as a session or a code hash.
  */
 
-type Purpose = "record-url" | "buyer-session" | "account-session" | "login-ticket" | "totp-cipher" | "handover-hash" | "handover-cipher" | "admin-session" | "invite-token";
+type Purpose = "record-url" | "buyer-session" | "account-session" | "login-ticket" | "oauth-state" | "totp-cipher" | "handover-hash" | "handover-cipher" | "admin-session" | "invite-token";
 
 const keyCache = new Map<Purpose, Buffer>();
 
@@ -74,7 +74,7 @@ export function verifyRecordId(signed: string): string | null {
 
 // ── Buyer / account / admin sessions (signed cookie values) ────────────────
 
-type SessionKind = "buyer-session" | "account-session" | "admin-session" | "login-ticket";
+type SessionKind = "buyer-session" | "account-session" | "admin-session" | "login-ticket" | "oauth-state";
 
 export function signSession(kind: SessionKind, subject: string, ttlSeconds: number): string {
   const exp = Math.floor(Date.now() / 1000) + ttlSeconds;

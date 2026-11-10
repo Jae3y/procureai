@@ -17,6 +17,28 @@ function hasIssues(error: ActionError | null): boolean {
   return Boolean((error?.details as { issues?: unknown[] } | undefined)?.issues?.length);
 }
 
+/** Shown until the email is confirmed, when emails can actually be sent. */
+export function ConfirmEmailBanner({ v }: { v: AccountView }) {
+  const resend = useAction<Record<string, never>, { sent: boolean }>("/api/account/verify-email");
+  const [sent, setSent] = useState(false);
+  if (v.emailVerified || !v.emailWorks) return null;
+  return (
+    <div className="callout-codes" role="status" style={{ marginTop: 24 }}>
+      <p style={{ margin: "0 0 12px" }}>
+        <strong>Confirm your email.</strong> We sent a link to <span className="mono">{v.email}</span>. You need it before paying for a purchase, so receipts and payment updates reach you.
+      </p>
+      {sent ? (
+        <p className="note" style={{ margin: 0 }}>Sent. Check your inbox and spam folder.</p>
+      ) : (
+        <button type="button" className="btn-2 btn-sm" disabled={resend.pending} onClick={() => void resend.run({}).then((r) => r.ok && setSent(true))}>
+          {resend.pending ? <Spinner label="Sending" /> : "Send the link again"}
+        </button>
+      )}
+      {resend.error ? <p className="form-error">{resend.error.message}</p> : null}
+    </div>
+  );
+}
+
 export function SignOutButton() {
   const out = useAction("/api/auth/logout");
   return (
@@ -253,10 +275,14 @@ export function AccountSettings({ v }: { v: AccountView }) {
           });
         }}
       >
-        <Field id="set-current" label="Current password" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} error={issueFor(password.error, "current")} />
+        {v.hasPassword ? (
+          <Field id="set-current" label="Current password" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} error={issueFor(password.error, "current")} />
+        ) : (
+          <p className="note" style={{ margin: 0 }}>You sign in with Google. Set a password too, so you can sign in either way and confirm sensitive changes.</p>
+        )}
         <Field id="set-next" label="New password (at least 10 characters)" type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} error={issueFor(password.error, "next")} />
         <div>
-          <button type="submit" className="btn-2" disabled={password.pending}>{password.pending ? <Spinner label="Saving" /> : "Change password"}</button>
+          <button type="submit" className="btn-2" disabled={password.pending}>{password.pending ? <Spinner label="Saving" /> : v.hasPassword ? "Change password" : "Set password"}</button>
         </div>
         {password.error && !hasIssues(password.error) ? <p className="form-error">{password.error.message}</p> : null}
       </form>

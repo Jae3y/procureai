@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AccountSettings, Notifications, Purchases, SecuritySettings, SignOutButton } from "@/components/account-dashboard";
+import { AccountSettings, ConfirmEmailBanner, Notifications, Purchases, SecuritySettings, SignOutButton } from "@/components/account-dashboard";
 import { SiteShell } from "@/components/site-shell";
 import { env } from "@/lib/env";
 import { pageAccount } from "@/lib/http/page-auth";
@@ -21,6 +21,7 @@ export default async function AccountPage() {
           <h1 className="account-title">Hello, {v.name.split(" ")[0]}.</h1>
           <SignOutButton />
         </div>
+        <ConfirmEmailBanner v={v} />
         {env().koraMode === "test" ? <p className="note">Kora test mode: purchases run end to end, but no real money moves yet.</p> : null}
         <p className="note">
           {v.isVendor ? <Link href="/vendor">Open your vendor dashboard</Link> : <>Do you sell? <Link href="/vendors/join">Register your business</Link> to receive buyers&apos; requests.</>}

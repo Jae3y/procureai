@@ -1,5 +1,7 @@
 import { db, transaction } from "@/lib/db";
 import type { Order } from "@/lib/generated/prisma/client";
+import { formatNaira, type Kobo, splitStages } from "@/lib/money";
+import { payments } from "@/lib/payments";
 import { DomainError, NotFoundError } from "./errors";
 import { openPayIn } from "./payin";
 import { latestVerifications } from "./recommend";
@@ -13,6 +15,24 @@ import { requestEvent } from "./timeline";
  * Idempotent and resumable: one order per request (unique), so a repeat returns the same order,
  * and if Kora couldn't open the account the first time, the repeat opens it.
  */
+/**
+ * Each stage is one payout, and the payment provider only pays out between its minimum and maximum
+ * (Kora: ₦1,000 to ₦10,000,000). An order whose 30% is below the minimum, or whose 70% is above the
+ * maximum, would get stuck after the buyer paid, so it is refused before any money moves.
+ */
+export function assertPayableInStages(totalKobo: Kobo): void {
+  const { minPayoutKobo, maxPayoutKobo } = payments().limits;
+  const { stage1, stage2 } = splitStages(totalKobo);
+  if (stage1 < minPayoutKobo) {
+    const min = (minPayoutKobo * 100n + 29n) / 30n; // smallest total whose 30% reaches the minimum
+    throw new DomainError("order_too_small", `ProcureAI can protect orders from ${formatNaira(min)}. This one is ${formatNaira(totalKobo)}.`, 409);
+  }
+  if (stage2 > maxPayoutKobo) {
+    const max = (maxPayoutKobo * 100n) / 70n; // largest total whose 70% stays within the maximum
+    throw new DomainError("order_too_large", `For now ProcureAI can protect orders up to ${formatNaira(max)}. This one is ${formatNaira(totalKobo)}; split it into smaller orders.`, 409);
+  }
+}
+
 export async function approve(requestId: string, quoteId: string | null, cause: Cause): Promise<Order> {
   const request = await db().request.findUnique({
     where: { id: requestId },
@@ -32,6 +52,7 @@ export async function approve(requestId: string, quoteId: string | null, cause: 
       throw new DomainError("unverified", `${quote.vendor.label} is not verified, so ProcureAI won't send it money.`, 409);
     }
     const totalKobo = quote.totalKobo;
+    assertPayableInStages(totalKobo);
     order = await transaction(async (tx) => {
       const existing = await tx.order.findUnique({ where: { requestId } });
       if (existing) return existing;

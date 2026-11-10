@@ -8,7 +8,9 @@ export function AchievementsBanner() {
   return (
     <section className="ticker" aria-label="ProcureAI news">
       <div className="ticker-track">
-        {[0, 1, 2, 3].map((copy) => (
+        {/* An even number of identical sets: the track slides by exactly half, so the loop is seamless, and
+            three sets per half keep even very wide screens filled. */}
+        {[0, 1, 2, 3, 4, 5].map((copy) => (
           <ul key={copy} className="ticker-set" aria-hidden={copy > 0 ? "true" : undefined}>
             {ACHIEVEMENTS.map((a) => (
               <li key={a.text}>

@@ -494,3 +494,7 @@ textarea.thread-input { min-height: 64px; font-size: 16px; }
   .ticker-set { flex-wrap: wrap; justify-content: center; }
 }
 .founding-badge { display: inline-block; font: 600 12px/1 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--green); border: 1px solid var(--green); border-radius: 999px; padding: 6px 10px; white-space: nowrap; }
+.google-btn { width: 100%; justify-content: center; gap: 12px; background: var(--surface); }
+.google-btn:hover { background: var(--surface); color: var(--ink); border-color: var(--ink); }
+.or-rule { display: flex; align-items: center; gap: 14px; margin: 20px 0; color: var(--muted); font: 500 13px/1 var(--font-body); }
+.or-rule::before, .or-rule::after { content: ""; flex: 1; height: 1px; background: var(--hairline); }
