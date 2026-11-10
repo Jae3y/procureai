@@ -197,6 +197,8 @@ model VendorContact {
   pendingBankCode       String?
   pendingAccountNumber  String?
   pendingBankEffectiveAt DateTime?
+  /// 1..FOUNDING_VENDOR_LIMIT for the first real businesses to register; a permanent badge, never a ranking boost.
+  foundingNumber        Int?     @unique
   /// The scripted demo vendors. They never receive a real purchase, and real vendors never receive a demo one.
   isDemo        Boolean  @default(false)
   account       Account?

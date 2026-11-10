@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { COMPANY_LINE } from "@/lib/legal";
 import { Logo } from "./ui";
 
 /** The frame for account, vendor and legal pages: logo, a few links, and the footer with the legal pages. */
@@ -26,7 +27,7 @@ export function SiteShell({ signedIn, children }: { signedIn: boolean; children:
       </header>
       {children}
       <footer className="site-foot">
-        <span>ProcureAI</span>
+        <span>ProcureAI · {COMPANY_LINE}</span>
         <span style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
           <Link href="/terms">Terms</Link>
           <Link href="/privacy">Privacy</Link>

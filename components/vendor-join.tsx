@@ -22,7 +22,8 @@ const EMPTY: Fields = { businessName: "", phone: "", sells: "", city: "", rcNumb
 /** Vendor registration: once, on a phone. Afterwards buyers' requests that match find them, and quoting is one message. */
 export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<{ name: string; code: string }>; banksError: string | null; signedInEmail: string | null }) {
   const [f, setF] = useState<Fields>({ ...EMPTY, email: signedInEmail ?? "" });
-  const send = useAction<Partial<Fields>, { id: string; businessName: string }>("/api/vendors/register");
+  const send = useAction<Partial<Fields>, { id: string; businessName: string; foundingNumber: number | null }>("/api/vendors/register");
+  const [founding, setFounding] = useState<number | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const issues = ((send.error?.details as { issues?: Array<{ path: string; message: string }> } | undefined)?.issues ?? []).reduce<Record<string, string>>(
     (acc, i) => ({ ...acc, [i.path]: i.message }),
@@ -58,6 +59,14 @@ export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<
           <p className="note" style={{ fontSize: 14 }}>
             ProcureAI checks your business and bank account each time a buyer considers your quote. You&apos;re paid 30% as soon as the buyer&apos;s payment is confirmed, and 70% when delivery is confirmed.
           </p>
+          {founding ? (
+            <p className="note" style={{ fontSize: 14 }}>
+              <span className="founding-badge">Founding vendor #{founding}</span>
+              <br />
+              <br />
+              You&apos;re one of the first businesses on ProcureAI. The badge stays on your profile for good.
+            </p>
+          ) : null}
           <a className="btn" href="/vendor" style={{ marginTop: 16 }}>
             Open your dashboard
           </a>
@@ -70,7 +79,10 @@ export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<
             e.preventDefault();
             const { password, ...profile } = f;
             void send.run(signedInEmail ? profile : { ...profile, password }).then((r) => {
-              if (r.ok) setDone(r.data.businessName);
+              if (r.ok) {
+                setFounding(r.data.foundingNumber);
+                setDone(r.data.businessName);
+              }
             });
           }}
         >

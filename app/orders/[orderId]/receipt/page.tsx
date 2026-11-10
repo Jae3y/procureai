@@ -5,6 +5,7 @@ import { Logo } from "@/components/ui";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { pageCanSeeOrder } from "@/lib/http/page-auth";
+import { COMPANY_LINE } from "@/lib/legal";
 import { formatNaira } from "@/lib/money";
 import { lagosDay, longOrderRef } from "@/lib/views/format";
 import { buildRecordView } from "@/lib/views/record-view";
@@ -57,6 +58,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ orderI
         <p className="note" style={{ fontSize: 14 }}>
           Payments were collected and paid out by our licensed payment partner. ProcureAI is a record of the purchase, not a tax invoice; ask the vendor for their invoice if you need one.
         </p>
+        <p className="note" style={{ fontSize: 14 }}>Issued by {COMPANY_LINE}.</p>
       </section>
     </main>
   );

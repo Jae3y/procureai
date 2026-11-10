@@ -77,7 +77,7 @@ export async function buildAccountView(account: Account): Promise<AccountView> {
 
 export type VendorDashboardView = {
   notifications: NotificationRow[];
-  profile: { businessName: string; phone: string; sells: string; city: string; rcNumber: string; bankCode: string; accountNumber: string; email: string };
+  profile: { businessName: string; phone: string; sells: string; city: string; rcNumber: string; bankCode: string; accountNumber: string; email: string; foundingNumber: number | null };
   /** A bank change waiting out its 24 hours. */
   pendingBank: { accountEnding: string; effective: string } | null;
   twoStepOn: boolean;
@@ -104,6 +104,7 @@ export async function buildVendorDashboard(account: Account & { vendorContactId:
     notifications,
     profile: {
       businessName: contact.businessName,
+      foundingNumber: contact.foundingNumber,
       phone: contact.phone,
       sells: contact.category,
       city: contact.city,

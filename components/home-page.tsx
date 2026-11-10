@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
+import { AchievementsBanner } from "./achievements-banner";
+import { COMPANY_LINE } from "@/lib/legal";
 import { Logo } from "./ui";
 
 /** In-page links scroll to their section without putting "#section" in the address bar. Without JS the plain href still works. */
@@ -136,6 +138,20 @@ export function HomePage() {
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [drawn, setDrawn] = useState(false);
+  const [founding, setFounding] = useState<{ taken: number; limit: number } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/public/founding-spots")
+      .then((r) => (r.ok ? (r.json() as Promise<{ taken: number; limit: number }>) : null))
+      .then((d) => {
+        if (!cancelled && d) setFounding(d);
+      })
+      .catch((err: unknown) => console.warn("ProcureAI: founding-vendor count unavailable", err));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const iv = setInterval(() => {
@@ -230,6 +246,8 @@ export function HomePage() {
           </nav>
         </div>
       </header>
+
+      <AchievementsBanner />
 
       {/* Hero Section */}
       <section style={{ maxWidth: "var(--max)", margin: "0 auto", padding: "clamp(56px, 8vh, 112px) var(--gutter) 0", boxSizing: "border-box" }}>
@@ -653,7 +671,7 @@ export function HomePage() {
             <div style={{ borderTop: "1px solid var(--on-ink-line)", paddingTop: 24 }}>
               <div style={{ font: "600 26px/1.1 var(--font-display)", letterSpacing: "-0.025em" }}>Reply like you do on WhatsApp</div>
               <p style={{ margin: "12px 0 0", font: "400 17px/1.55 var(--font-body)", color: "var(--on-ink-soft)" }}>
-                Register once. After that, “I fit do am 4,200 each” is a whole quote. No app to install.
+                Register once. After that, “₦4,200 each, 300 pieces, ready Friday” is a whole quote. No app to install.
               </p>
             </div>
           </div>
@@ -665,6 +683,11 @@ export function HomePage() {
               Register your business, it&apos;s free <span className="arrow">→</span>
             </Link>
           </div>
+          {founding && founding.taken < founding.limit ? (
+            <p style={{ margin: "28px 0 0", font: "500 14px/1.5 var(--font-mono)", color: "var(--on-ink-soft)", maxWidth: "62ch" }}>
+              The first {founding.limit} businesses to register become Founding Vendors, with a permanent badge on their profile. {founding.limit - founding.taken} of {founding.limit} spots left.
+            </p>
+          ) : null}
         </div>
       </section>
 
@@ -696,7 +719,7 @@ export function HomePage() {
       {/* Footer */}
       <footer style={{ borderTop: "1px solid var(--hairline)" }}>
         <div style={{ maxWidth: "var(--max)", margin: "0 auto", padding: "40px var(--gutter)", display: "flex", justifyContent: "space-between", gap: 24, flexWrap: "wrap", font: "400 14px/1.5 var(--font-body)", color: "var(--muted)" }}>
-          <span>ProcureAI</span>
+          <span>ProcureAI · {COMPANY_LINE}</span>
           <span style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
             <Link href="/demo" style={{ color: "var(--muted)" }}>
               Demo scenario

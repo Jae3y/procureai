@@ -107,7 +107,7 @@ function QuoteForm({ token, v }: { token: string; v: VendorView }) {
           id="v-reply"
           className="input"
           style={{ border: "1.5px solid var(--ink)", fontSize: 17 }}
-          placeholder="I fit do am 4,200 each, delivery free, ready Thursday"
+          placeholder="₦4,200 each, delivery free, ready Thursday"
           value={f.reply}
           onChange={set("reply")}
           aria-invalid={Boolean(issues.reply)}

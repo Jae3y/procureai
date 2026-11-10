@@ -478,3 +478,19 @@ textarea.thread-input { min-height: 64px; font-size: 16px; }
 .recovery-codes { list-style: none; margin: 12px 0 16px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
 .recovery-codes li { border: 1px solid var(--hairline); border-radius: 8px; padding: 8px 10px; text-align: center; }
 .callout-codes { border: 1px solid var(--hairline); border-radius: 12px; padding: 16px; background: var(--surface); }
+
+/* ── Rolling achievements banner ──────────────────────────────────────── */
+.ticker { background: var(--ink); color: var(--paper); overflow: hidden; }
+.ticker-track { display: flex; width: max-content; animation: ticker-roll 46s linear infinite; }
+.ticker:hover .ticker-track, .ticker:focus-within .ticker-track { animation-play-state: paused; }
+.ticker-set { display: flex; margin: 0; padding: 0; list-style: none; flex-shrink: 0; }
+.ticker-set li { display: flex; align-items: center; gap: 12px; padding: 12px 40px; white-space: nowrap; font: 500 13px/1 var(--font-mono); letter-spacing: 0.01em; }
+.ticker-set li::after { content: ""; width: 4px; height: 4px; border-radius: 50%; background: var(--on-ink-muted, #8c887c); margin-left: 40px; }
+.ticker-tag { font: 600 11px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: #7fd6a4; }
+@keyframes ticker-roll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track { animation: none; width: auto; flex-wrap: wrap; justify-content: center; }
+  .ticker-set[aria-hidden="true"] { display: none; }
+  .ticker-set { flex-wrap: wrap; justify-content: center; }
+}
+.founding-badge { display: inline-block; font: 600 12px/1 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--green); border: 1px solid var(--green); border-radius: 999px; padding: 6px 10px; white-space: nowrap; }

@@ -1,5 +1,6 @@
 import { db, transaction } from "@/lib/db";
 import type { Account } from "@/lib/generated/prisma/client";
+import { claimFoundingSpot } from "@/lib/founding";
 import { notify } from "@/lib/notify/notifications";
 import { DomainError } from "./errors";
 
@@ -33,7 +34,7 @@ export function normalizeNigerianPhone(raw: string): string {
   return `+234 ${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`;
 }
 
-export async function registerVendor(input: VendorRegistration): Promise<{ id: string; businessName: string }> {
+export async function registerVendor(input: VendorRegistration): Promise<{ id: string; businessName: string; foundingNumber: number | null }> {
   if (!input.consent) throw new DomainError("consent_required", "Tick the box to let ProcureAI check your business and bank account.", 400);
   const phone = normalizeNigerianPhone(input.phone);
   const profile = {
@@ -52,11 +53,11 @@ export async function registerVendor(input: VendorRegistration): Promise<{ id: s
     // Only an unregistered directory entry can be claimed, and only once (the WHERE makes two racing sign-ups converge).
     const { count } = await db().vendorContact.updateMany({ where: { id: existing.id, registeredAt: null }, data: profile });
     if (count === 0) throw taken();
-    return { id: existing.id, businessName: profile.businessName };
+    return { id: existing.id, businessName: profile.businessName, foundingNumber: await claimFoundingSpot(existing.id) };
   }
   try {
     const created = await db().vendorContact.create({ data: { ...profile, phone } });
-    return { id: created.id, businessName: created.businessName };
+    return { id: created.id, businessName: created.businessName, foundingNumber: await claimFoundingSpot(created.id) };
   } catch (err) {
     if (typeof err === "object" && err !== null && "code" in err && err.code === "P2002") throw taken();
     throw err;

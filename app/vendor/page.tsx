@@ -32,6 +32,7 @@ export default async function VendorDashboardPage() {
       <section className="account-wide">
         <div className="account-block-head">
           <h1 className="account-title">{v.profile.businessName}</h1>
+          {v.profile.foundingNumber ? <span className="founding-badge">Founding vendor #{v.profile.foundingNumber}</span> : null}
           <SignOutButton />
         </div>
         <p className="note">

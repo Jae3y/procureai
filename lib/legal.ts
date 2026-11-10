@@ -6,9 +6,18 @@ export const LEGAL_REVIEWED = false;
 export const LEGAL_UPDATED = "7 November 2026";
 export const SUPPORT_EMAIL = "hello@procureai.com.ng";
 
+/** The registered company behind ProcureAI, as it appears on the CAC register. No address is published. */
+export const COMPANY_NAME = "PROCUREAI TECHNOLOGIES";
+export const COMPANY_RC = "99763666";
+export const COMPANY_LINE = `${COMPANY_NAME} (RC ${COMPANY_RC})`;
+
 export type LegalSection = { heading: string; paragraphs: string[] };
 
 export const TERMS: LegalSection[] = [
+  {
+    heading: "Who we are",
+    paragraphs: [`ProcureAI is run by ${COMPANY_LINE}, a company registered in Nigeria with the Corporate Affairs Commission.`],
+  },
   {
     heading: "What ProcureAI is",
     paragraphs: [
@@ -48,6 +57,10 @@ export const TERMS: LegalSection[] = [
 ];
 
 export const PRIVACY: LegalSection[] = [
+  {
+    heading: "Who is responsible for your data",
+    paragraphs: [`${COMPANY_LINE} decides how your data is used. Under the Nigeria Data Protection Act 2023, it is the data controller.`],
+  },
   {
     heading: "What we collect",
     paragraphs: [
