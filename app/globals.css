@@ -498,3 +498,34 @@ textarea.thread-input { min-height: 64px; font-size: 16px; }
 .google-btn:hover { background: var(--surface); color: var(--ink); border-color: var(--ink); }
 .or-rule { display: flex; align-items: center; gap: 14px; margin: 20px 0; color: var(--muted); font: 500 13px/1 var(--font-body); }
 .or-rule::before, .or-rule::after { content: ""; flex: 1; height: 1px; background: var(--hairline); }
+
+/* ── Sign-up: name row, intent cards, password helper, honeypot ───────── */
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 520px) { .field-row { grid-template-columns: 1fr; } }
+.intent-set { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; min-width: 0; }
+.intent-set legend { font: 500 14px/1.2 var(--font-body); color: var(--muted); padding: 0 0 8px; }
+.intent-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 520px) { .intent-grid { grid-template-columns: 1fr; } }
+.intent-card { position: relative; display: grid; gap: 4px; align-content: start; border: 1.5px solid var(--hairline); border-radius: 12px; background: var(--surface); padding: 14px 14px 16px; cursor: pointer; min-height: 44px; }
+.intent-card:hover { border-color: var(--muted); }
+.intent-card.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.intent-card:focus-within { outline: 2px solid var(--green); outline-offset: 2px; }
+.intent-card input { position: absolute; opacity: 0; inset: 0; cursor: pointer; }
+.intent-title { font: 600 17px/1.2 var(--font-display); letter-spacing: -0.02em; }
+.intent-hint { font: 400 13px/1.35 var(--font-body); color: var(--muted); }
+.pw-wrap { position: relative; }
+.pw-wrap .input { padding-right: 76px; }
+.pw-toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: 0; padding: 8px 10px; font: 500 14px/1 var(--font-body); color: var(--ink); cursor: pointer; border-radius: 8px; min-height: 36px; }
+.pw-toggle:focus-visible { outline: 2px solid var(--green); }
+.pw-help { display: flex; align-items: center; gap: 12px; }
+.meter { display: flex; gap: 4px; flex: 0 0 120px; }
+.meter span { flex: 1; height: 5px; border-radius: 3px; background: var(--hairline); }
+.meter[data-level="0"] span:nth-child(1) { background: var(--red); }
+.meter[data-level="1"] span:nth-child(1) { background: var(--amber); }
+.meter[data-level="2"] span:nth-child(-n+2) { background: var(--green); }
+.meter[data-level="3"] span { background: var(--green); }
+.pw-rules { margin: 4px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; font: 400 13px/1.4 var(--font-body); color: var(--muted); }
+.pw-rules li::before { content: "○"; margin-right: 8px; }
+.pw-rules li.ok { color: var(--green); }
+.pw-rules li.ok::before { content: "✓"; }
+.hp { position: absolute; left: -10000px; top: auto; width: 1px; height: 1px; overflow: hidden; }

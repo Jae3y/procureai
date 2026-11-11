@@ -60,7 +60,9 @@ export async function resendVerifyEmail(account: Account): Promise<{ sent: boole
   return { sent: await sendVerifyEmail(account) };
 }
 
-export async function signUp(input: { name: string; email: string; password: string }): Promise<Account> {
+export type SignUpProfile = { phone?: string; intent?: "BUY" | "SELL" | "BOTH"; organisation?: string; heardFrom?: string; marketingOptIn?: boolean };
+
+export async function signUp(input: { name: string; email: string; password: string } & SignUpProfile): Promise<Account> {
   const email = normalizeEmail(input.email);
   await assertAcceptablePassword(input.password, { email, name: input.name });
   const passwordHash = await hashPassword(input.password);
@@ -68,7 +70,20 @@ export async function signUp(input: { name: string; email: string; password: str
     const account = await transaction(async (tx) => {
       const buyer = await tx.buyer.create({ data: { name: input.name.trim(), email } });
       return tx.account.create({
-        data: { email, name: input.name.trim(), passwordHash, buyerId: buyer.id, lastLoginAt: new Date(), termsAcceptedAt: new Date(), termsVersion: LEGAL_UPDATED },
+        data: {
+          email,
+          name: input.name.trim(),
+          passwordHash,
+          buyerId: buyer.id,
+          lastLoginAt: new Date(),
+          termsAcceptedAt: new Date(),
+          termsVersion: LEGAL_UPDATED,
+          phone: input.phone ?? null,
+          intent: input.intent ?? null,
+          organisation: input.organisation?.trim() || null,
+          heardFrom: input.heardFrom ?? null,
+          marketingConsentAt: input.marketingOptIn ? new Date() : null,
+        },
       });
     });
     await sendVerifyEmail(account).catch((err: unknown) => log.error({ err }, "verification email failed"));

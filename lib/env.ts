@@ -51,6 +51,9 @@ const EnvSchema = z
     OPS_ALERT_EMAIL: z.string().default(""),
     /** "Continue with Google": the OAuth client from Google Cloud. The button is hidden until both are set. */
     GOOGLE_CLIENT_ID: z.string().default(""),
+    /** Cloudflare Turnstile (free bot check on sign-up). The check is off until both are set. */
+    TURNSTILE_SITE_KEY: z.string().default(""),
+    TURNSTILE_SECRET_KEY: z.string().default(""),
     GOOGLE_CLIENT_SECRET: z.string().default(""),
     /** After the vendor marks an order delivered, the buyer has this long to report a problem before Stage 2 releases by itself. */
     DELIVERY_GRACE_HOURS: z.coerce.number().int().min(1).max(720).default(72),

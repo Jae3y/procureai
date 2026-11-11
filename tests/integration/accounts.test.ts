@@ -18,6 +18,7 @@ import { resetEnvCache } from "@/lib/env";
 import { accountCookieName, accountFrom, buyerSessionCookie } from "@/lib/http/session";
 import type { RequestView } from "@/lib/views/request-view";
 import { makeBuyer } from "../helpers/factories";
+import { signupBody } from "../helpers/signup";
 import { useKoraDouble } from "../helpers/kora";
 
 useKoraDouble();
@@ -50,7 +51,7 @@ const PASSWORD = "correct horse battery";
 
 async function signedIn(email = `buyer+${Date.now()}${Math.random()}@example.com`) {
   const b = new Browser();
-  const r = await b.call(signupPost, "/api/auth/signup", {}, { name: "Ada Obi", email, password: PASSWORD });
+  const r = await b.call(signupPost, "/api/auth/signup", {}, signupBody({ email, password: PASSWORD }));
   expect(r.status).toBe(201);
   return { b, email };
 }
@@ -71,7 +72,7 @@ describe("accounts", () => {
     const account = await db().account.findUniqueOrThrow({ where: { email: "ada@example.com" } });
     expect(account.passwordHash).toMatch(/^scrypt\$/);
 
-    const again = await new Browser().call(signupPost, "/api/auth/signup", {}, { name: "Someone", email, password: PASSWORD });
+    const again = await new Browser().call(signupPost, "/api/auth/signup", {}, signupBody({ firstName: "Someone", lastName: "Else", email, password: PASSWORD }));
     expect(again).toMatchObject({ status: 409, body: { error: { code: "email_taken" } } });
 
     const wrong = await new Browser().call(loginPost, "/api/auth/login", {}, { email, password: "not the password" });
@@ -166,7 +167,7 @@ describe("real purchases and demo purchases stay apart", () => {
     const [k, ...v] = demoCookie.split("=");
     b.jar.set(k ?? "", v.join("="));
     const demoRequest = await db().request.create({ data: { buyerId: demoBuyer.id, rawText: "x", item: "Chairs", quantity: 3, budgetKobo: 100n, deadline: new Date(), specParsedBy: "FALLBACK", isDemo: true } });
-    await b.call(signupPost, "/api/auth/signup", {}, { name: "Ada Obi", email: "both@example.com", password: PASSWORD });
+    await b.call(signupPost, "/api/auth/signup", {}, signupBody({ email: "both@example.com", password: PASSWORD }));
     expect((await b.call(requestGet, `/api/requests/${demoRequest.id}`, { id: demoRequest.id })).status).toBe(200);
   });
 

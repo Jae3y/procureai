@@ -126,6 +126,15 @@ model Account {
   passwordHash        String?
   /// Google's stable account id, set when the person signs in with Google.
   googleSub           String?        @unique
+  /// Nigerian mobile number in "+234 803 412 7781" form. Not unique: a family may share a phone. Not verified by SMS yet.
+  phone               String?
+  /// What they said they'd do: BUY, SELL or BOTH.
+  intent              String?
+  organisation        String?
+  /// Optional "how did you hear about us": WHATSAPP, INSTAGRAM, X, FACEBOOK, FRIEND, EVENT, SEARCH, OTHER.
+  heardFrom           String?
+  /// Opted in to product news. NDPA: marketing needs a separate, unticked-by-default consent.
+  marketingConsentAt  DateTime?
   /// Bumped on password change or reset: every older session cookie stops working.
   sessionVersion      Int            @default(1)
   buyerId             String         @unique

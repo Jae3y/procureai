@@ -14,6 +14,7 @@ import { sha256Hex } from "@/lib/crypto";
 import { db } from "@/lib/db";
 import { applyDueBankChange } from "@/lib/domain/vendor-profiles";
 import { accountFrom } from "@/lib/http/session";
+import { signupBody } from "../helpers/signup";
 import { useKoraDouble } from "../helpers/kora";
 
 useKoraDouble();
@@ -45,7 +46,7 @@ const PASSWORD = "a long and unusual passphrase";
 /** Signs up, turns two-step sign-in on, and returns the secret and recovery codes. */
 async function withTwoStep(email: string) {
   const b = new Browser();
-  expect((await b.call(signupPost, "/api/auth/signup", {}, { name: "Ada Obi", email, password: PASSWORD })).status).toBe(201);
+  expect((await b.call(signupPost, "/api/auth/signup", {}, signupBody({ email, password: PASSWORD }))).status).toBe(201);
   const setup = await b.call(twoFaSetup, "/api/account/2fa/setup", {}, {});
   expect(String(setup.body.qrSvg)).toContain("<svg");
   const secret = String(setup.body.secret);
@@ -62,7 +63,7 @@ async function withTwoStep(email: string) {
 describe("password rules", () => {
   it("refuses common passwords and passwords built from the person's own name or email", async () => {
     for (const password of ["password123", "adaobi-2026-secret", "kemi.adeyemi99", "aaaaaaaaaaaa"]) {
-      const r = await new Browser().call(signupPost, "/api/auth/signup", {}, { name: "Ada Obi", email: "kemi.adeyemi@example.com", password });
+      const r = await new Browser().call(signupPost, "/api/auth/signup", {}, signupBody({ email: "kemi.adeyemi@example.com", password }));
       expect(r.body.error?.code, password).toBe("weak_password");
     }
   });

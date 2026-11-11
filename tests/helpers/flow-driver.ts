@@ -7,6 +7,7 @@ import { POST as verifyRoute } from "@/app/api/requests/[id]/verify/route";
 import { POST as createRequestRoute } from "@/app/api/requests/route";
 import { POST as signupRoute } from "@/app/api/auth/signup/route";
 import { env } from "@/lib/env";
+import { signupBody } from "./signup";
 import { POST as handoverRoute } from "@/app/api/orders/[id]/handover/route";
 import { POST as recheckRoute } from "@/app/api/orders/[id]/recheck/route";
 import { GET as orderGet } from "@/app/api/orders/[id]/route";
@@ -57,7 +58,7 @@ export class FlowDriver {
 
   /** A real purchase needs a signed-in buyer; the demo works without one. */
   async signUp(): Promise<void> {
-    const r = await this.call(signupRoute, "/api/auth/signup", {}, { body: { name: "Tolu Adebayo", email: `tolu+${Date.now()}@example.com`, password: "a-long-test-password" } });
+    const r = await this.call(signupRoute, "/api/auth/signup", {}, { body: signupBody({ firstName: "Tolu", lastName: "Adebayo", email: `tolu+${Date.now()}@example.com`, password: "a-long-test-password" }) });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
   }
 
