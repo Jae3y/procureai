@@ -12,6 +12,8 @@ export type EmailContent = {
   button?: { label: string; url: string };
   /** Small print under the button, e.g. "If you didn't ask for this, ignore this email." */
   footnote?: string;
+  /** Marketing and check-in emails carry a one-click way out. */
+  unsubscribeUrl?: string;
 };
 
 function escapeHtml(s: string): string {
@@ -19,7 +21,7 @@ function escapeHtml(s: string): string {
 }
 
 export function renderEmail(c: EmailContent): { text: string; html: string } {
-  const text = [c.heading, "", ...c.paragraphs.flatMap((p) => [p, ""]), ...(c.button ? [`${c.button.label}: ${c.button.url}`, ""] : []), ...(c.footnote ? [c.footnote, ""] : []), "ProcureAI", COMPANY_LINE].join("\n");
+  const text = [c.heading, "", ...c.paragraphs.flatMap((p) => [p, ""]), ...(c.button ? [`${c.button.label}: ${c.button.url}`, ""] : []), ...(c.footnote ? [c.footnote, ""] : []), "ProcureAI", COMPANY_LINE, ...(c.unsubscribeUrl ? [`Don't want these emails? ${c.unsubscribeUrl}`] : [])].join("\n");
 
   const p = (s: string) => `<p style="margin:0 0 16px;font:400 16px/1.55 Arial,Helvetica,sans-serif;color:#3d3a33;">${escapeHtml(s)}</p>`;
   const button = c.button
@@ -36,7 +38,7 @@ ${c.paragraphs.map(p).join("\n")}
 ${button}
 ${c.footnote ? `<p style="margin:0 0 8px;font:400 13px/1.5 Arial,Helvetica,sans-serif;color:#6b675c;">${escapeHtml(c.footnote)}</p>` : ""}
 </td></tr>
-<tr><td style="padding:16px 32px 28px;border-top:1px solid #ddd7c9;font:400 12px/1.5 Arial,Helvetica,sans-serif;color:#6b675c;">${escapeHtml(COMPANY_LINE)}<br>You're receiving this because of your ProcureAI account.</td></tr>
+<tr><td style="padding:16px 32px 28px;border-top:1px solid #ddd7c9;font:400 12px/1.5 Arial,Helvetica,sans-serif;color:#6b675c;">${escapeHtml(COMPANY_LINE)}<br>You're receiving this because of your ProcureAI account.${c.unsubscribeUrl ? ` <a href="${escapeHtml(c.unsubscribeUrl)}" style="color:#6b675c;">Stop these emails</a>.` : ""}</td></tr>
 </table></td></tr></table></body></html>`;
   return { text, html };
 }

@@ -1,4 +1,5 @@
 import { log } from "@/lib/log";
+import { runLifecycle } from "@/lib/notify/lifecycle";
 import { flushNotificationEmails } from "@/lib/notify/notifications";
 import { processOutboxBatch } from "./outbox";
 import { pollOnce } from "./poller";
@@ -15,6 +16,7 @@ export type TickReport = {
   outbox: Awaited<ReturnType<typeof processOutboxBatch>>;
   poll: Awaited<ReturnType<typeof pollOnce>>;
   emails: Awaited<ReturnType<typeof flushNotificationEmails>>;
+  lifecycle: Awaited<ReturnType<typeof runLifecycle>>;
 };
 
 export function tick(): Promise<TickReport> {
@@ -25,10 +27,14 @@ export function tick(): Promise<TickReport> {
       const outbox = await processOutboxBatch();
       const poll = await pollOnce();
       const emails = await flushNotificationEmails();
+      const lifecycle = await runLifecycle().catch((err: unknown) => {
+        log.error({ err }, "lifecycle emails failed");
+        return { sent: 0, skipped: 0 };
+      });
       if (outbox.processed || outbox.retried || outbox.parked || poll.charges || poll.payouts || poll.refunds || poll.healed || poll.errors || emails.sent || emails.failed) {
         log.info({ outbox, poll, emails }, "tick");
       }
-      return { outbox, poll, emails };
+      return { outbox, poll, emails, lifecycle };
     } finally {
       running = null;
     }

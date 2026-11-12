@@ -31,6 +31,8 @@ export async function sendEmail(mail: Email): Promise<boolean> {
       text,
       html,
       ...(e.EMAIL_REPLY_TO ? { reply_to: e.EMAIL_REPLY_TO } : {}),
+      // One-click unsubscribe (RFC 8058): mail apps show their own "Unsubscribe" button.
+      ...(mail.content.unsubscribeUrl ? { headers: { "List-Unsubscribe": `<${mail.content.unsubscribeUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
     }),
     signal: AbortSignal.timeout(10_000),
   });

@@ -122,12 +122,12 @@ model Buyer {
 /// A person who signs in. Every account can buy; it can also sell once linked to a vendor profile.
 /// A password is null only for an account opened from a vendor profile, until its emailed link is used.
 model Account {
-  id                  String         @id @default(cuid())
-  email               String         @unique
+  id                  String           @id @default(cuid())
+  email               String           @unique
   name                String
   passwordHash        String?
   /// Google's stable account id, set when the person signs in with Google.
-  googleSub           String?        @unique
+  googleSub           String?          @unique
   /// Nigerian mobile number in "+234 803 412 7781" form. Not unique: a family may share a phone. Not verified by SMS yet.
   phone               String?
   /// What they said they'd do: BUY, SELL or BOTH.
@@ -138,14 +138,17 @@ model Account {
   /// Opted in to product news. NDPA: marketing needs a separate, unticked-by-default consent.
   marketingConsentAt  DateTime?
   /// Bumped on password change or reset: every older session cookie stops working.
-  sessionVersion      Int            @default(1)
-  buyerId             String         @unique
-  buyer               Buyer          @relation(fields: [buyerId], references: [id])
-  vendorContactId     String?        @unique
-  vendorContact       VendorContact? @relation(fields: [vendorContactId], references: [id])
+  sessionVersion      Int              @default(1)
+  buyerId             String           @unique
+  buyer               Buyer            @relation(fields: [buyerId], references: [id])
+  vendorContactId     String?          @unique
+  vendorContact       VendorContact?   @relation(fields: [vendorContactId], references: [id])
   /// ProcureAI Plus membership: active while this is in the future.
   plusUntil           DateTime?
   aiUses              AiDailyUse[]
+  lifecycleEmails     LifecycleEmail[]
+  /// Set when they click "stop these emails": no lifecycle email of any kind afterwards (security and order emails still go).
+  emailsOffAt         DateTime?
   emailVerifiedAt     DateTime?
   /// When this person accepted the terms and privacy policy, and which version (LEGAL_UPDATED).
   termsAcceptedAt     DateTime?
@@ -157,10 +160,10 @@ model Account {
   /// The last code step accepted, so a code can't be replayed.
   totpLastStep        Int?
   /// sha256 hashes of the unused recovery codes.
-  recoveryCodeHashes  String[]       @default([])
+  recoveryCodeHashes  String[]         @default([])
   deletionRequestedAt DateTime?
   lastLoginAt         DateTime?
-  createdAt           DateTime       @default(now())
+  createdAt           DateTime         @default(now())
   tokens              AccountToken[]
   notifications       Notification[]
 }
@@ -693,4 +696,18 @@ model AiDailyUse {
   count     Int     @default(0)
 
   @@id([accountId, day])
+}
+
+/// One row per lifecycle email sent (welcome, post-purchase check-in, "hope you're well", tips), so none is ever sent twice.
+/// `ref` makes a kind repeatable: the order id for a check-in, the month for a tip, "" for one-offs.
+model LifecycleEmail {
+  id        BigInt   @id @default(autoincrement())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id])
+  kind      String
+  ref       String   @default("")
+  sentAt    DateTime @default(now())
+
+  @@unique([accountId, kind, ref])
+  @@index([accountId, sentAt])
 }
