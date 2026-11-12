@@ -4,6 +4,7 @@ import { formatNaira, type Kobo, splitStages } from "@/lib/money";
 import { payments } from "@/lib/payments";
 import { DomainError, NotFoundError } from "./errors";
 import { BANK_VERIFIED_MAX_KOBO } from "./matching";
+import { MAX_ORDER_KOBO } from "./payout-parts";
 import { openPayIn } from "./payin";
 import { latestVerifications } from "./recommend";
 import type { Cause } from "./state";
@@ -17,20 +18,21 @@ import { requestEvent } from "./timeline";
  * and if Kora couldn't open the account the first time, the repeat opens it.
  */
 /**
- * Each stage is one payout, and the payment provider only pays out between its minimum and maximum
- * (Kora: ₦1,000 to ₦10,000,000). An order whose 30% is below the minimum, or whose 70% is above the
- * maximum, would get stuck after the buyer paid, so it is refused before any money moves.
+ * Each stage is paid out in one or more transfers, and the payment provider only pays out between its minimum
+ * and maximum per transfer (Kora: ₦1,000 to ₦10,000,000). An order whose 30% is below the minimum would get
+ * stuck after the buyer paid, so it is refused before any money moves. Above the maximum a stage is split into parts.
  */
 export function assertPayableInStages(totalKobo: Kobo): void {
-  const { minPayoutKobo, maxPayoutKobo } = payments().limits;
-  const { stage1, stage2 } = splitStages(totalKobo);
+  const { minPayoutKobo } = payments().limits;
+  const { stage1 } = splitStages(totalKobo);
   if (stage1 < minPayoutKobo) {
     const min = (minPayoutKobo * 100n + 29n) / 30n; // smallest total whose 30% reaches the minimum
     throw new DomainError("order_too_small", `ProcureAI can protect orders from ${formatNaira(min)}. This one is ${formatNaira(totalKobo)}.`, 409);
   }
-  if (stage2 > maxPayoutKobo) {
-    const max = (maxPayoutKobo * 100n) / 70n; // largest total whose 70% stays within the maximum
-    throw new DomainError("order_too_large", `For now ProcureAI can protect orders up to ${formatNaira(max)}. This one is ${formatNaira(totalKobo)}; split it into smaller orders.`, 409);
+  // A stage bigger than the provider's per-transfer maximum is paid in several transfers (see payout-parts.ts),
+  // so the ceiling is ProcureAI's own, not the provider's.
+  if (totalKobo > MAX_ORDER_KOBO) {
+    throw new DomainError("order_too_large", `For now ProcureAI can protect orders up to ${formatNaira(MAX_ORDER_KOBO)}. This one is ${formatNaira(totalKobo)}; split it into smaller orders.`, 409);
   }
 }
 

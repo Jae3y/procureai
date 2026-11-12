@@ -88,8 +88,19 @@ export type OrderView = {
   vendorPhoneLink: string | null;
 };
 
+/**
+ * The payout that best describes a stage. A stage paid in several parts is described by its worst part: a failed
+ * one first, then one still being confirmed, and only when every part has landed by a successful one. So the
+ * screen never says "paid" while any part is outstanding.
+ */
 function latestOf(payouts: Payout[], stage: PayoutStage): Payout | undefined {
-  return payouts.filter((p) => p.stage === stage).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+  const byPart = new Map<number, Payout>();
+  for (const p of payouts.filter((x) => x.stage === stage)) {
+    const cur = byPart.get(p.part);
+    if (!cur || p.attempt > cur.attempt) byPart.set(p.part, p);
+  }
+  const parts = [...byPart.values()].sort((a, b) => a.part - b.part);
+  return parts.find((p) => p.status === "FAILED") ?? parts.find((p) => p.status === "PENDING") ?? parts[0];
 }
 
 function titleFor(status: OrderStatus, s1: Payout | undefined, s2: Payout | undefined, failedStage: string | null): { title: string; tone: "ink" | "red" } {
@@ -143,8 +154,8 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
     .reduce((a, l) => a + (l.direction === "CREDIT" ? l.amountKobo : -l.amountKobo), 0n);
   const s1 = latestOf(order.payouts, "STAGE_1");
   const s2 = latestOf(order.payouts, "STAGE_2");
-  const s1Paid = order.payouts.find((p) => p.stage === "STAGE_1" && p.status === "SUCCESS");
-  const s2Paid = order.payouts.find((p) => p.stage === "STAGE_2" && p.status === "SUCCESS");
+  const s1Paid = s1?.status === "SUCCESS" ? s1 : undefined; // latestOf returns a success only when every part landed
+  const s2Paid = s2?.status === "SUCCESS" ? s2 : undefined;
   const reachedHeld = order.amountAcceptedKobo >= order.amountKobo;
   const successPayIns = order.payIns.filter((p) => p.status === "SUCCESS");
   const firstPaid = successPayIns[0];

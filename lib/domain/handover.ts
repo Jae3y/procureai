@@ -2,7 +2,7 @@ import { transaction, type Tx } from "@/lib/db";
 import { checkHandoverCode, decryptHandoverCode, encryptHandoverCode, generateHandoverCode, hashHandoverCode } from "@/lib/crypto";
 import type { Order } from "@/lib/generated/prisma/client";
 import { DomainError } from "./errors";
-import { dispatchStage } from "./payouts";
+import { dispatchStage, stage1IsPaid } from "./payouts";
 import { lockOrder, transition } from "./state";
 import { orderEvent } from "./timeline";
 
@@ -60,7 +60,7 @@ export async function submitHandoverCode(orderId: string, candidate: string, act
     if (order.status !== "STAGE_1_PAID") {
       throw new DomainError("code_not_now", "The delivery code can't be used at this stage of the order.", 409);
     }
-    const stage1 = await tx.payout.findFirst({ where: { orderId, stage: "STAGE_1", status: "SUCCESS" } });
+    const stage1 = await stage1IsPaid(tx, orderId, order.amountKobo);
     if (!stage1) throw new DomainError("stage1_pending", "Stage 1 hasn't landed with you yet. Try again in a moment.", 409);
 
     if (!checkHandoverCode(orderId, candidate, order.handoverCodeHash)) {

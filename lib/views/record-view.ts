@@ -102,7 +102,8 @@ export async function buildRecordView(orderId: string): Promise<RecordView> {
     money.push({ label: `Paid in · ${lagosDay(p.creditedAt ?? p.createdAt)}`, amount: formatNaira(p.amountAcceptedKobo), ref: p.reference, tone: "green" });
   }
   for (const p of order.payouts) {
-    const stage = p.stage === "STAGE_1" ? "Stage 1" : "Stage 2";
+    const partsInStage = new Set(order.payouts.filter((x) => x.stage === p.stage).map((x) => x.part)).size;
+    const stage = `${p.stage === "STAGE_1" ? "Stage 1" : "Stage 2"}${partsInStage > 1 ? ` (part ${p.part} of ${partsInStage})` : ""}`;
     if (p.status === "SUCCESS") money.push({ label: `${stage} to vendor · ${lagosDay(p.resolvedAt ?? p.createdAt)}`, amount: formatNaira(p.amountKobo), ref: p.reference, tone: "green" });
     if (p.status === "FAILED") money.push({ label: `${stage} attempt failed, nothing sent`, amount: formatNaira(p.amountKobo), ref: p.reference, tone: "red" });
   }

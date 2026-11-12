@@ -436,6 +436,8 @@ model Payout {
   verificationId      String
   verification        VendorVerification @relation(fields: [verificationId], references: [id])
   stage               PayoutStage
+  /// A stage larger than the provider's per-transfer maximum is paid in parts (1..n). Each part is its own transfer.
+  part                Int                @default(1)
   attempt             Int                @default(1)
   reference           String             @unique
   amountKobo          BigInt

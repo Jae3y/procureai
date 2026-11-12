@@ -5,7 +5,7 @@ import type { EvidenceKind, MessageSender } from "@/lib/generated/prisma/client"
 import { formatNaira, splitStages } from "@/lib/money";
 import { DomainError, NotFoundError } from "./errors";
 import { cleanNote, decodePhoto, type EvidenceInput } from "./evidence";
-import { dispatchStage, type DispatchResult } from "./payouts";
+import { dispatchStage, stage1IsPaid, type DispatchResult } from "./payouts";
 import { refundOrder } from "./refunds";
 import { type Cause, lockOrder, transition } from "./state";
 import { orderEvent } from "./timeline";
@@ -35,7 +35,7 @@ export async function markDelivered(orderId: string, vendorId: string, input: Ev
     if (order.vendorId !== vendorId) throw new DomainError("forbidden", "This isn't your order.", 403);
     if (order.deliveredAt && order.autoReleaseAt) return { autoReleaseAt: order.autoReleaseAt };
     if (order.status !== "STAGE_1_PAID") throw new DomainError("not_deliverable", "You can mark delivery once Stage 1 has reached you.", 409);
-    const stage1 = await tx.payout.findFirst({ where: { orderId, stage: "STAGE_1", status: "SUCCESS" } });
+    const stage1 = await stage1IsPaid(tx, orderId, order.amountKobo);
     if (!stage1) throw new DomainError("stage1_pending", "Stage 1 hasn't landed with you yet. Try again in a moment.", 409);
 
     const now = new Date();
@@ -67,7 +67,7 @@ export async function releaseDueDeliveries(now = new Date(), onlyOrderId?: strin
     const moved = await transaction(async (tx) => {
       const order = await lockOrder(tx, id);
       if (order.status !== "STAGE_1_PAID" || !order.autoReleaseAt || order.autoReleaseAt > now) return false;
-      const stage1 = await tx.payout.findFirst({ where: { orderId: id, stage: "STAGE_1", status: "SUCCESS" } });
+      const stage1 = await stage1IsPaid(tx, id, order.amountKobo);
       if (!stage1) return false;
       await tx.order.update({ where: { id }, data: { codeUsedAt: now } });
       await transition(tx, order, "CODE_VERIFIED", {
@@ -123,7 +123,7 @@ export async function resolveDispute(
   const order = await transaction(async (tx) => {
     const o = await lockOrder(tx, orderId);
     if (o.status !== "DISPUTED") throw new DomainError("not_disputed", "Only a disputed order can be resolved.", 409);
-    const stage1 = await tx.payout.findFirst({ where: { orderId, stage: "STAGE_1", status: "SUCCESS" } });
+    const stage1 = await stage1IsPaid(tx, orderId, o.amountKobo);
     if (!stage1) throw new DomainError("stage1_not_paid", "Stage 1 never reached the vendor, so this dispute can only end in a refund.", 409);
     // A refund already sent (or done) owns the held money: the vendor can't be paid it as well.
     const refund = await tx.refund.findFirst({ where: { orderId, status: { not: "FAILED" } } });

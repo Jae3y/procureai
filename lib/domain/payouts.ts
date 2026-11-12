@@ -1,9 +1,10 @@
-import { db, transaction } from "@/lib/db";
+import { db, transaction, type Tx } from "@/lib/db";
 import type { Payout, PayoutRoute, PayoutStage } from "@/lib/generated/prisma/client";
 import { isProviderError, payments, providerFor, type PaymentProvider, type ProviderError } from "@/lib/payments";
 import { log } from "@/lib/log";
 import { formatNaira, type Kobo, splitStages } from "@/lib/money";
 import { DomainError, NotFoundError, UnknownReferenceError } from "./errors";
+import { payoutReference, splitIntoParts, stageIsPaid } from "./payout-parts";
 import { recordApiEvent, toJson } from "./kora-events";
 import { getSetting } from "./settings";
 import { type Cause, canTransition, lockOrder, retryTarget, transition } from "./state";
@@ -24,7 +25,7 @@ import { orderEvent } from "./timeline";
  * trigger I1 refuses anything else — except, with a test key, Kora's documented sandbox accounts.
  */
 
-const STAGE_TAG: Record<PayoutStage, string> = { STAGE_1: "S1", STAGE_2: "S2" };
+const STAGE_TAG: Record<PayoutStage, "S1" | "S2"> = { STAGE_1: "S1", STAGE_2: "S2" };
 const STAGE_LABEL: Record<PayoutStage, string> = { STAGE_1: "Stage 1", STAGE_2: "Stage 2" };
 
 const SANDBOX_ACCOUNTS = {
@@ -88,7 +89,11 @@ async function checkVendorEmail(orderId: string, stage: PayoutStage, email: stri
   return { kind: "blocked", reason: "vendor-email-missing", message };
 }
 
-/** Dispatch a stage's first payout. Idempotent: a second call finds the order already moved on. */
+/**
+ * Dispatch a stage. A stage within the provider's per-transfer maximum is one payout; a bigger one is several
+ * ("parts"), all written under the same order lock as the state change and then sent one by one. Idempotent:
+ * a second call finds the order already moved on.
+ */
 export async function dispatchStage(orderId: string, stage: PayoutStage, cause: Cause): Promise<DispatchResult> {
   const expected = stage === "STAGE_1" ? "HELD" : "CODE_VERIFIED";
   const pre = await db().order.findUnique({ where: { id: orderId }, include: { verification: true, vendor: true } });
@@ -97,74 +102,112 @@ export async function dispatchStage(orderId: string, stage: PayoutStage, cause: 
 
   const amountKobo = stageAmount(pre.amountKobo, stage);
   const provider = payments();
+  const parts = splitIntoParts(amountKobo, provider.limits.maxPayoutKobo);
   const blocked = (await checkVendorEmail(orderId, stage, pre.vendor.email)) ?? (await checkBalance(provider, orderId, stage, amountKobo));
   if (blocked) return blocked;
   const dest = await chooseRoute(provider, pre.verification);
 
-  const payout = await transaction(async (tx) => {
+  const created = await transaction(async (tx) => {
     const order = await lockOrder(tx, orderId);
     if (order.status !== expected) return null; // someone else dispatched while we checked the balance
-    const created = await tx.payout.create({
-      data: {
-        orderId,
-        verificationId: order.verificationId,
-        stage,
-        attempt: 1,
-        reference: `PO-${orderId}-${STAGE_TAG[stage]}`,
-        provider: provider.id,
-        amountKobo,
-        route: dest.route,
-        destinationBankCode: dest.bank,
-        destinationAccount: dest.account,
-      },
+    const rows: Payout[] = [];
+    for (const [i, part] of parts.entries()) {
+      rows.push(
+        await tx.payout.create({
+          data: {
+            orderId,
+            verificationId: order.verificationId,
+            stage,
+            part: i + 1,
+            attempt: 1,
+            reference: payoutReference(orderId, STAGE_TAG[stage], i + 1, 1),
+            provider: provider.id,
+            amountKobo: part,
+            route: dest.route,
+            destinationBankCode: dest.bank,
+            destinationAccount: dest.account,
+          },
+        }),
+      );
+    }
+    const first = rows[0] as Payout;
+    await transition(tx, order, stage === "STAGE_1" ? "STAGE_1_PAID" : "RELEASED", {
+      ...cause,
+      note: rows.length > 1 ? `${first.reference} and ${rows.length - 1} more parts` : first.reference,
     });
-    await transition(tx, order, stage === "STAGE_1" ? "STAGE_1_PAID" : "RELEASED", { ...cause, note: created.reference });
-    return created;
+    return rows;
   });
-  if (!payout) return { kind: "skipped", reason: "already dispatched" };
-  return sendPayout(payout, cause);
+  if (!created) return { kind: "skipped", reason: "already dispatched" };
+  return sendParts(created, cause);
 }
 
-/** Retry the most recent failed payout of a PAYOUT_FAILED order under a new reference. */
+/** True when every part of Stage 1 has landed with the vendor (one part is not enough). */
+export async function stage1IsPaid(tx: Tx, orderId: string, orderAmountKobo: Kobo): Promise<boolean> {
+  const rows = await tx.payout.findMany({ where: { orderId, stage: "STAGE_1" }, select: { stage: true, status: true, amountKobo: true } });
+  return stageIsPaid(rows, "STAGE_1", splitStages(orderAmountKobo).stage1);
+}
+
+/** Sends every part of a stage. All are attempted; the answer reports the most important outcome (failed, then unknown, then sent). */
+async function sendParts(rows: Payout[], cause: Cause): Promise<DispatchResult> {
+  const results: DispatchResult[] = [];
+  for (const row of rows) results.push(await sendPayout(row, cause, rows.length));
+  return results.find((r) => r.kind === "failed") ?? results.find((r) => r.kind === "pending-unknown") ?? (results[0] as DispatchResult);
+}
+
+/**
+ * Retry the failed payout parts of a PAYOUT_FAILED order's stage, each under a new reference. Parts that
+ * already landed, or are still being confirmed, are left alone: a retry never pays anything twice.
+ */
 export async function retryPayout(orderId: string, cause: Cause): Promise<DispatchResult> {
   const pre = await db().order.findUnique({ where: { id: orderId }, include: { verification: true, vendor: true } });
   if (!pre) throw new NotFoundError("Order");
   if (pre.status !== "PAYOUT_FAILED") throw new DomainError("not_failed", "There is no failed payout to retry on this order.", 409);
-  const failed = await db().payout.findFirst({ where: { orderId, status: "FAILED", retriedBy: null }, orderBy: { createdAt: "desc" } });
-  if (!failed) throw new DomainError("not_failed", "There is no failed payout to retry on this order.", 409);
+  const latest = await db().payout.findFirst({ where: { orderId, status: "FAILED", retriedBy: null }, orderBy: { createdAt: "desc" } });
+  if (!latest) throw new DomainError("not_failed", "There is no failed payout to retry on this order.", 409);
+  const failedParts = await db().payout.findMany({ where: { orderId, stage: latest.stage, status: "FAILED", retriedBy: null }, orderBy: { part: "asc" } });
+  const needed = failedParts.reduce((a, p) => a + p.amountKobo, 0n);
 
   const provider = payments();
-  const blocked = (await checkVendorEmail(orderId, failed.stage, pre.vendor.email)) ?? (await checkBalance(provider, orderId, failed.stage, failed.amountKobo));
+  const blocked = (await checkVendorEmail(orderId, latest.stage, pre.vendor.email)) ?? (await checkBalance(provider, orderId, latest.stage, needed));
   if (blocked) return blocked;
   const dest = await chooseRoute(provider, pre.verification);
 
-  const payout = await transaction(async (tx) => {
+  const created = await transaction(async (tx) => {
     const order = await lockOrder(tx, orderId);
     if (order.status !== "PAYOUT_FAILED") return null;
-    const attempt = failed.attempt + 1;
-    const created = await tx.payout.create({
-      data: {
-        orderId,
-        verificationId: order.verificationId,
-        stage: failed.stage,
-        attempt,
-        reference: `PO-${orderId}-${STAGE_TAG[failed.stage]}-R${attempt}`,
-        provider: provider.id,
-        amountKobo: failed.amountKobo,
-        route: dest.route,
-        destinationBankCode: dest.bank,
-        destinationAccount: dest.account,
-        retryOfId: failed.id,
-      },
+    const rows: Payout[] = [];
+    for (const failed of failedParts) {
+      const attempt = failed.attempt + 1;
+      rows.push(
+        await tx.payout.create({
+          data: {
+            orderId,
+            verificationId: order.verificationId,
+            stage: failed.stage,
+            part: failed.part,
+            attempt,
+            reference: payoutReference(orderId, STAGE_TAG[failed.stage], failed.part, attempt),
+            provider: provider.id,
+            amountKobo: failed.amountKobo,
+            route: dest.route,
+            destinationBankCode: dest.bank,
+            destinationAccount: dest.account,
+            retryOfId: failed.id,
+          },
+        }),
+      );
+    }
+    await transition(tx, order, retryTarget(latest.stage), {
+      ...cause,
+      note: `retry of ${failedParts.map((f) => f.reference).join(", ")} as ${rows.map((r) => r.reference).join(", ")}`,
     });
-    await transition(tx, order, retryTarget(failed.stage), { ...cause, note: `retry of ${failed.reference} as ${created.reference}` });
-    return created;
+    return rows;
   });
-  if (!payout) return { kind: "skipped", reason: "already retried" };
-  return sendPayout(payout, cause);
+  if (!created) return { kind: "skipped", reason: "already retried" };
+  return sendParts(created, cause);
 }
 
-async function sendPayout(payout: Payout, cause: Cause): Promise<DispatchResult> {
+async function sendPayout(payout: Payout, cause: Cause, partCount = 1): Promise<DispatchResult> {
   const order = await db().order.findUniqueOrThrow({ where: { id: payout.orderId }, include: { vendor: true } });
   const vendorEmail = order.vendor.email;
   if (!vendorEmail) throw new DomainError("vendor_email_missing", "The vendor has no email on file.", 409);
@@ -177,9 +220,9 @@ async function sendPayout(payout: Payout, cause: Cause): Promise<DispatchResult>
       amountKobo: payout.amountKobo,
       bankCode: payout.destinationBankCode,
       accountNumber: payout.destinationAccount,
-      narration: `ProcureAI ${orderRef} ${STAGE_LABEL[payout.stage].toLowerCase()}`,
+      narration: `ProcureAI ${orderRef} ${STAGE_LABEL[payout.stage].toLowerCase()}${partCount > 1 ? ` part ${payout.part}/${partCount}` : ""}`,
       recipient: { name: vendorName, email: vendorEmail },
-      metadata: { orderId: order.id, stage: STAGE_TAG[payout.stage], attempt: String(payout.attempt) },
+      metadata: { orderId: order.id, stage: STAGE_TAG[payout.stage], attempt: String(payout.attempt), part: String(payout.part) },
     });
     await transaction(async (tx) => {
       await tx.payout.update({ where: { id: payout.id }, data: { dispatchedAt: new Date(), feeKobo: res.data.feeKobo, koraErrorKind: null } });
@@ -274,7 +317,11 @@ export async function applyPayoutOutcome(reference: string, outcome: PayoutOutco
         signature,
       });
       if (payout.stage === "STAGE_2" && order.status === "RELEASED") {
-        order = await transition(tx, order, "COMPLETE", { ...cause, note: reference });
+        // The order is complete only when every part of the last stage has landed, not when one has.
+        const stage2Parts = await tx.payout.findMany({ where: { orderId: order.id, stage: "STAGE_2" }, select: { stage: true, status: true, amountKobo: true } });
+        if (stageIsPaid(stage2Parts, "STAGE_2", stageAmount(order.amountKobo, "STAGE_2"))) {
+          order = await transition(tx, order, "COMPLETE", { ...cause, note: reference });
+        }
       }
       return { changed: true };
     }
