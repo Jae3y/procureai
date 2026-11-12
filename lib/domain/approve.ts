@@ -3,6 +3,7 @@ import type { Order } from "@/lib/generated/prisma/client";
 import { formatNaira, type Kobo, splitStages } from "@/lib/money";
 import { payments } from "@/lib/payments";
 import { DomainError, NotFoundError } from "./errors";
+import { BANK_VERIFIED_MAX_KOBO } from "./matching";
 import { openPayIn } from "./payin";
 import { latestVerifications } from "./recommend";
 import type { Cause } from "./state";
@@ -52,6 +53,13 @@ export async function approve(requestId: string, quoteId: string | null, cause: 
       throw new DomainError("unverified", `${quote.vendor.label} is not verified, so ProcureAI won't send it money.`, 409);
     }
     const totalKobo = quote.totalKobo;
+    if (verification.matchMethod === "ACCOUNT_OWNER" && totalKobo > BANK_VERIFIED_MAX_KOBO) {
+      throw new DomainError(
+        "over_seller_limit",
+        `For now, purchases from sellers without a CAC registration are protected up to ${formatNaira(BANK_VERIFIED_MAX_KOBO)}. This quote is ${formatNaira(totalKobo)}. You can ask ${quote.vendor.label} for a smaller first order, or choose a registered business.`,
+        409,
+      );
+    }
     assertPayableInStages(totalKobo);
     order = await transaction(async (tx) => {
       const existing = await tx.order.findUnique({ where: { requestId } });

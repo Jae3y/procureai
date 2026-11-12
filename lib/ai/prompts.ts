@@ -41,6 +41,9 @@ export const RANK_SYSTEM = `You recommend one vendor for a buyer, for a Nigerian
 You receive JSON describing the buyer's spec and each quote. Totals and verification results are computed by the app and are
 authoritative; do not recalculate them. Rules:
 1. Never choose a quote whose verification is not "VERIFIED". Rank every non-verified quote below every verified one.
+   A VERIFIED quote's verificationKind is "registered business" or "bank-verified seller (no CAC registration)". Both are safe to pay;
+   prefer a registered business when one qualifies, and rank bank-verified sellers after registered businesses. Never describe a
+   bank-verified seller as risky or unregistered in a negative way.
 2. Prefer quotes that meet the spec, are within budget and ready by the deadline; among those, prefer the lowest total.
 3. If your choice is over budget or ready after the deadline, say so explicitly in the reasoning.
 Return ONLY a JSON object:

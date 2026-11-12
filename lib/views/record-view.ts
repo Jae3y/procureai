@@ -80,7 +80,10 @@ export async function buildRecordView(orderId: string): Promise<RecordView> {
   for (const v of request.vendors) {
     const ver = latest.get(v.id);
     if (!ver) continue;
-    if (ver.verdict === "VERIFIED") {
+    if (ver.verdict === "VERIFIED" && ver.matchMethod === "ACCOUNT_OWNER") {
+      checks.push({ text: `${v.label.replace("Vendor ", "")} · ${v.name ?? v.label} · bank-verified seller`, ref: ver.accountReference ?? "", tone: "green" });
+      if (v.id === order.vendorId) checks.push({ text: "The bank confirmed the payout account is in the seller's own name", ref: ver.accountReference ?? "", tone: "green" });
+    } else if (ver.verdict === "VERIFIED") {
       checks.push({ text: `${v.label.replace("Vendor ", "")} · ${ver.registeredName ?? v.name ?? v.label} · ${ver.rcNumber} · ${ver.companyStatus ? ver.companyStatus.charAt(0) + ver.companyStatus.slice(1).toLowerCase() : ""}${isSandboxTestCompany(ver.rcNumber) ? " · Test company (sandbox)" : ""}`, ref: ver.cacReference ?? "", tone: "green" });
       if (v.id === order.vendorId) {
         checks.push({

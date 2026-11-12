@@ -24,6 +24,8 @@ enum RequestStatus {
 enum MatchMethod {
   COMPANY
   DIRECTOR
+  /// No CAC record: the bank confirmed the payout account is in the seller's own name.
+  ACCOUNT_OWNER
   NONE
 }
 
@@ -204,6 +206,8 @@ model VendorContact {
   /// Set when the vendor registered on ProcureAI: their quotes then reuse these details (Kora still checks them on every purchase).
   registeredAt  DateTime?
   rcNumber      String?
+  /// Full name as on the bank account. Used to check the account when there is no CAC number.
+  ownerName     String?
   bankCode      String?
   accountNumber String?
   email         String?
@@ -255,6 +259,7 @@ model Vendor {
   label           String
   name            String?
   rcNumber        String?
+  ownerName       String?
   bankCode        String?
   accountNumber   String?
   contactPhone    String

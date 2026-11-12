@@ -26,27 +26,28 @@ export type QuoteSubmission = {
   reply: string;
   businessName?: string;
   rcNumber?: string;
+  ownerName?: string;
   bankCode?: string;
   accountNumber?: string;
   email?: string;
   consent?: boolean;
 };
 
-type BusinessDetails = { businessName: string; rcNumber: string; bankCode: string; accountNumber: string; email: string };
+type BusinessDetails = { businessName: string; rcNumber: string; ownerName: string; bankCode: string; accountNumber: string; email: string };
 
 /** The details Kora will check: the vendor's ProcureAI profile if they registered, otherwise what they typed in the form. */
 async function detailsFor(vendor: Vendor, input: QuoteSubmission): Promise<BusinessDetails> {
   if (vendor.contactId) await applyDueBankChange(vendor.contactId);
   const contact = vendor.contactId ? await db().vendorContact.findUnique({ where: { id: vendor.contactId } }) : null;
-  if (contact?.registeredAt && contact.rcNumber && contact.bankCode && contact.accountNumber && contact.email) {
-    return { businessName: contact.businessName, rcNumber: contact.rcNumber, bankCode: contact.bankCode, accountNumber: contact.accountNumber, email: contact.email };
+  if (contact?.registeredAt && (contact.rcNumber || contact.ownerName) && contact.bankCode && contact.accountNumber && contact.email) {
+    return { businessName: contact.businessName, rcNumber: contact.rcNumber ?? "", ownerName: contact.ownerName ?? "", bankCode: contact.bankCode, accountNumber: contact.accountNumber, email: contact.email };
   }
   if (!input.consent) throw new DomainError("consent_required", "Tick the box to let ProcureAI check your business and bank account.", 400);
-  const { businessName, rcNumber, bankCode, accountNumber, email } = input;
-  if (!businessName || !rcNumber || !bankCode || !accountNumber || !email) {
-    throw new DomainError("details_required", "Add your business name, CAC number, bank, account number and email.", 400);
+  const { businessName, rcNumber = "", ownerName = "", bankCode, accountNumber, email } = input;
+  if (!businessName || !bankCode || !accountNumber || !email || (!rcNumber && !ownerName)) {
+    throw new DomainError("details_required", "Add your business name, bank, account number, email, and either your CAC number or the name on your bank account.", 400);
   }
-  return { businessName, rcNumber, bankCode, accountNumber, email };
+  return { businessName, rcNumber, ownerName, bankCode, accountNumber, email };
 }
 
 /** One reply per invite, with the business details Kora will check. */
@@ -65,7 +66,8 @@ export async function submitQuote(token: string, input: QuoteSubmission) {
     where: { id: vendor.id },
     data: {
       name: details.businessName.trim(),
-      rcNumber: details.rcNumber.trim().toUpperCase(),
+      rcNumber: details.rcNumber.trim().toUpperCase() || null,
+      ownerName: details.ownerName.trim() || null,
       bankCode: details.bankCode.trim(),
       accountNumber: details.accountNumber.trim(),
       email: details.email.trim().toLowerCase(),

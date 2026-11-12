@@ -313,34 +313,43 @@ function VendorRow({ c, index, simulated, sandbox }: { c: CheckRow; index: numbe
           <div style={{ margin: "28px 0 0 64px", display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
             <span className="fail-stamp">✕ {c.failureReason}</span>
             <span className="mono red" style={{ fontSize: 13, animation: "riseIn 500ms 900ms both" }}>
-              CAC · {c.cacReference ?? c.rcNumber} · {c.registeredName ? "Not matched" : "Not found"}
+              {c.rcNumber ? <>CAC · {c.cacReference ?? c.rcNumber} · {c.registeredName ? "Not matched" : "Not found"}</> : <>Bank account · Not matched</>}
             </span>
           </div>
         </>
       ) : c.chosen ? (
         <div className="vfacts">
-          <div className="vfact" style={{ animationDelay: "700ms" }}>
-            <span className="green" aria-hidden="true">✓</span>
-            <span>
-              Registered as {c.registeredName}{" "}
-              <span className="mono muted" style={{ fontSize: 14 }}>
-                {c.rcNumber}
-              </span>
-            </span>
-          </div>
-          <div className="vfact" style={{ animationDelay: "820ms" }}>
-            <span className="green" aria-hidden="true">✓</span>
-            <span>
-              Status: <span className="green">{c.companyStatus}</span>
-            </span>
-          </div>
+          {c.bankVerified ? (
+            <div className="vfact" style={{ animationDelay: "700ms" }}>
+              <span className="green" aria-hidden="true">✓</span>
+              <span>Bank-verified seller</span>
+            </div>
+          ) : (
+            <>
+              <div className="vfact" style={{ animationDelay: "700ms" }}>
+                <span className="green" aria-hidden="true">✓</span>
+                <span>
+                  Registered as {c.registeredName}{" "}
+                  <span className="mono muted" style={{ fontSize: 14 }}>
+                    {c.rcNumber}
+                  </span>
+                </span>
+              </div>
+              <div className="vfact" style={{ animationDelay: "820ms" }}>
+                <span className="green" aria-hidden="true">✓</span>
+                <span>
+                  Status: <span className="green">{c.companyStatus}</span>
+                </span>
+              </div>
+            </>
+          )}
           <div className="vfact" style={{ animationDelay: "940ms" }}>
             <span className="green" aria-hidden="true">✓</span>
             <span>{c.ownerLine}</span>
           </div>
           <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
             <span className="stamp press green" style={{ animationDelay: "1100ms" }}>
-              VERIFIED · {c.cacReference}
+              VERIFIED · {c.cacReference ?? c.accountReference}
             </span>
             {simulated || c.simulated ? <span className="sim-badge">SIMULATED IDENTITY</span> : null}
             {sandbox && isSandboxTestCompany(c.rcNumber) ? <span className="sandbox-badge">Test company (sandbox)</span> : null}
@@ -349,13 +358,13 @@ function VendorRow({ c, index, simulated, sandbox }: { c: CheckRow; index: numbe
       ) : c.verdict === "VERIFIED" ? (
         <div style={{ margin: "24px 0 0 64px", display: "flex", gap: 20, flexWrap: "wrap", alignItems: "center", animation: "riseIn 500ms 1300ms both" }}>
           <span className="green" style={{ font: "500 15px var(--font-body)" }}>
-            ✓ Verified
+            ✓ {c.bankVerified ? "Bank-verified seller" : "Verified"}
           </span>
           <span className="muted" style={{ font: "400 15px var(--font-body)" }}>
             Not chosen.{c.differenceFromChosen ? ` ${c.differenceFromChosen} more for the same order.` : ""}
           </span>
           <span className="mono muted" style={{ fontSize: 13 }}>
-            {c.cacReference}
+            {c.cacReference ?? c.accountReference}
           </span>
         </div>
       ) : (

@@ -19,7 +19,9 @@ export type VendorRegistration = {
   phone: string;
   sells: string;
   city: string;
-  rcNumber: string;
+  /** Optional. Without it, the bank account is checked against ownerName instead. */
+  rcNumber?: string | undefined;
+  ownerName?: string | undefined;
   bankCode: string;
   accountNumber: string;
   email: string;
@@ -41,7 +43,8 @@ export async function registerVendor(input: VendorRegistration): Promise<{ id: s
     businessName: input.businessName.trim(),
     category: input.sells.trim().toLowerCase().replace(/[,;/]+/g, " ").replace(/\s+/g, " "),
     city: input.city.trim(),
-    rcNumber: input.rcNumber.trim().toUpperCase().replace(/\s+/g, ""),
+    rcNumber: (input.rcNumber ?? "").trim().toUpperCase().replace(/\s+/g, "") || null,
+    ownerName: input.ownerName?.trim() || null,
     bankCode: input.bankCode.trim(),
     accountNumber: input.accountNumber.trim(),
     email: input.email.trim().toLowerCase(),
@@ -101,7 +104,8 @@ export async function updateVendorProfile(account: Account, input: VendorProfile
         businessName: input.businessName.trim(),
         category: input.sells.trim().toLowerCase().replace(/[,;/]+/g, " ").replace(/\s+/g, " "),
         city: input.city.trim(),
-        rcNumber: input.rcNumber.trim().toUpperCase().replace(/\s+/g, ""),
+        rcNumber: (input.rcNumber ?? "").trim().toUpperCase().replace(/\s+/g, "") || null,
+        ownerName: input.ownerName?.trim() || null,
         email: input.email.trim().toLowerCase(),
         ...(bankChanged
           ? { pendingBankCode: bankCode, pendingAccountNumber: accountNumber, pendingBankEffectiveAt: effectiveAt }

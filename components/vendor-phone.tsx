@@ -53,10 +53,10 @@ function Note({ title, body, detail }: { title: string; body: string; detail?: s
   );
 }
 
-type Fields = { reply: string; businessName: string; rcNumber: string; bankCode: string; accountNumber: string; email: string; consent: boolean };
+type Fields = { reply: string; businessName: string; rcNumber: string; ownerName: string; bankCode: string; accountNumber: string; email: string; consent: boolean };
 
 function QuoteForm({ token, v }: { token: string; v: VendorView }) {
-  const [f, setF] = useState<Fields>({ reply: "", businessName: "", rcNumber: "", bankCode: "", accountNumber: "", email: "", consent: false });
+  const [f, setF] = useState<Fields>({ reply: "", businessName: "", rcNumber: "", ownerName: "", bankCode: "", accountNumber: "", email: "", consent: false });
   const send = useAction<Fields>(`/api/vendors/${token}/quote`);
   const issues = ((send.error?.details as { issues?: Array<{ path: string; message: string }> } | undefined)?.issues ?? []).reduce<Record<string, string>>(
     (acc, i) => ({ ...acc, [i.path]: i.message }),
@@ -123,7 +123,7 @@ function QuoteForm({ token, v }: { token: string; v: VendorView }) {
           <div className="label">Sending as your registered business</div>
           <div className="profile-name">{v.profile.businessName}</div>
           <div className="profile-meta">
-            {v.profile.rcNumber} · account {v.profile.account} · {v.profile.email}
+            {v.profile.rcNumber ?? "Bank-verified seller"} · account {v.profile.account} · {v.profile.email}
           </div>
           <p className="note" style={{ fontSize: 13, margin: "10px 0 0" }}>
             ProcureAI checks these details again if {v.buyerName} considers your quote, so we can pay you.
@@ -135,7 +135,11 @@ function QuoteForm({ token, v }: { token: string; v: VendorView }) {
           Your business. ProcureAI checks these so we can pay you.
         </div>
         {field("businessName", "Business name", { autoComplete: "organization" })}
-        {field("rcNumber", "CAC registration number", { placeholder: "RC1482093", autoCapitalize: "characters" })}
+        {field("rcNumber", "CAC registration number (optional)", { placeholder: "RC1482093", autoCapitalize: "characters" })}
+        {field("ownerName", f.rcNumber.trim() ? "Full name on your bank account (optional)" : "Full name on your bank account", { autoComplete: "name", placeholder: "e.g. Ngozi Okafor" })}
+        <p className="note" style={{ margin: 0, fontSize: 13 }}>
+          {f.rcNumber.trim() ? "Registered businesses are shown to buyers first." : "No CAC number? No problem. We confirm with the bank that your payout account is in your name."}
+        </p>
         <div className="field">
           <label htmlFor="v-bankCode">Bank</label>
           <select id="v-bankCode" className="input" value={f.bankCode} onChange={set("bankCode")} aria-invalid={Boolean(issues.bankCode)} disabled={v.banks.length === 0}>

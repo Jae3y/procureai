@@ -1,5 +1,6 @@
 import { humanizeDates } from "./dates";
 import { z } from "zod";
+import { BANK_VERIFIED_MAX_KOBO } from "@/lib/domain/matching";
 import { formatNaira, koboToNairaDecimal, type Kobo } from "@/lib/money";
 import { AiUnavailableError, chatJson } from "./client";
 import type { CivilDate } from "./dates";
@@ -25,7 +26,7 @@ export type RankQuote = {
   registeredName: string | null;
   verdict: "VERIFIED" | "FAILED" | "UNCHECKED";
   failureReason: string | null;
-  matchMethod: "COMPANY" | "DIRECTOR" | "NONE" | null;
+  matchMethod: "COMPANY" | "DIRECTOR" | "ACCOUNT_OWNER" | "NONE" | null;
   totalKobo: Kobo | null;
   meetsSpec: boolean;
   readyDate: CivilDate | null;
@@ -48,7 +49,10 @@ const AiRank = z.object({
 
 const withinBudget = (q: RankQuote, spec: Spec) => q.totalKobo !== null && q.totalKobo <= spec.budgetKobo;
 const onTime = (q: RankQuote, spec: Spec) => q.readyDate === null || q.readyDate <= spec.deadline;
-const eligible = (q: RankQuote) => q.verdict === "VERIFIED" && q.totalKobo !== null && q.meetsSpec;
+/** A seller with no CAC registration, verified through the bank account's owner. */
+const bankOnly = (q: RankQuote) => q.matchMethod === "ACCOUNT_OWNER";
+const withinBankLimit = (q: RankQuote) => !bankOnly(q) || (q.totalKobo !== null && q.totalKobo <= BANK_VERIFIED_MAX_KOBO);
+const eligible = (q: RankQuote) => q.verdict === "VERIFIED" && q.totalKobo !== null && q.meetsSpec && withinBankLimit(q);
 
 function byTotal(a: RankQuote, b: RankQuote): number {
   if (a.totalKobo === null) return 1;
@@ -69,12 +73,20 @@ function whyNot(q: RankQuote): string {
 export function rankFallback(spec: Spec, quotes: RankQuote[]): Omit<RankResult, "parsedBy" | "model" | "note"> {
   const sorted = [...quotes].sort(byTotal);
   const ok = sorted.filter(eligible);
-  const ideal = ok.filter((q) => withinBudget(q, spec) && onTime(q, spec));
-  const chosen = ideal[0] ?? ok[0] ?? null;
+  const best = (list: RankQuote[]) => {
+    const ideal = list.filter((q) => withinBudget(q, spec) && onTime(q, spec));
+    return { ideal, rest: list.filter((q) => !ideal.includes(q)) };
+  };
+  // CAC-registered sellers come first; sellers verified through their bank account follow. Both can be chosen by the buyer.
+  const registered = best(ok.filter((q) => !bankOnly(q)));
+  const bank = best(ok.filter(bankOnly));
+  const chosen = registered.ideal[0] ?? registered.rest[0] ?? bank.ideal[0] ?? bank.rest[0] ?? null;
 
   const ranked = [
-    ...ideal,
-    ...ok.filter((q) => !ideal.includes(q)),
+    ...registered.ideal,
+    ...registered.rest,
+    ...bank.ideal,
+    ...bank.rest,
     ...sorted.filter((q) => q.verdict === "VERIFIED" && !eligible(q)),
     ...sorted.filter((q) => q.verdict !== "VERIFIED"),
   ].map((q) => q.id);
@@ -88,14 +100,14 @@ export function rankFallback(spec: Spec, quotes: RankQuote[]): Omit<RankResult, 
   if (cheapest && cheapest.id !== chosen.id && cheapest.verdict !== "VERIFIED") {
     sentences.push(`${cheapest.label} quoted the lowest price, but ${whyNot(cheapest)}, so ProcureAI will not send it money.`);
   }
-  const owner = chosen.matchMethod === "COMPANY" ? "is in the company's own name" : "belongs to one of its directors";
-  const runnerUp = ok.find((q) => q.id !== chosen.id);
+  const runnerUp = ok.find((q) => q.id !== chosen.id && q.totalKobo !== null);
+  const standing = bankOnly(chosen)
+    ? "has no CAC registration, but the bank confirmed its payout account is in the seller's own name"
+    : `is registered and active, and its payout account ${chosen.matchMethod === "COMPANY" ? "is in the company's own name" : "belongs to one of its directors"}`;
   if (runnerUp && runnerUp.totalKobo !== null && chosen.totalKobo !== null && runnerUp.totalKobo > chosen.totalKobo) {
-    sentences.push(
-      `${chosen.label} is ${formatNaira(runnerUp.totalKobo - chosen.totalKobo)} cheaper than ${runnerUp.label}, is registered and active, and its payout account ${owner}.`,
-    );
+    sentences.push(`${chosen.label} is ${formatNaira(runnerUp.totalKobo - chosen.totalKobo)} cheaper than ${runnerUp.label}${bankOnly(chosen) ? " and" : ","} ${standing}.`);
   } else {
-    sentences.push(`${chosen.label} is registered and active, and its payout account ${owner}.`);
+    sentences.push(`${chosen.label} ${standing}.`);
   }
   if (!withinBudget(chosen, spec) && chosen.totalKobo !== null) {
     sentences.push(`It is ${formatNaira(chosen.totalKobo - spec.budgetKobo)} over your budget; no verified vendor came in under it.`);
@@ -118,6 +130,7 @@ export async function reviewAndRank(spec: Spec, quotes: RankQuote[]): Promise<Ra
           label: q.label,
           registeredName: q.registeredName,
           verification: q.verdict,
+          verificationKind: q.verdict !== "VERIFIED" ? null : bankOnly(q) ? "bank-verified seller (no CAC registration)" : "registered business",
           verificationNote: q.verdict === "VERIFIED" ? null : whyNot(q),
           totalNaira: q.totalKobo === null ? null : koboToNairaDecimal(q.totalKobo),
           meetsSpec: q.meetsSpec,
@@ -132,6 +145,7 @@ export async function reviewAndRank(spec: Spec, quotes: RankQuote[]): Promise<Ra
     const chosen = data.chosenQuoteId === null ? null : byId.get(data.chosenQuoteId);
     if (data.chosenQuoteId !== null && !chosen) return reject("AI chose a quote that doesn't exist");
     if (chosen && !eligible(chosen)) return reject("AI chose a vendor that isn't verified or can't meet the order");
+    if (chosen && bankOnly(chosen) && quotes.some((q) => eligible(q) && !bankOnly(q))) return reject("AI chose a bank-verified seller although a registered business qualifies");
     if (!chosen && fallback.chosenQuoteId) return reject("AI declined to choose although a verified vendor qualifies");
     if (chosen && !withinBudget(chosen, spec) && !/budget|over|more than|above/i.test(data.reasoning)) {
       return reject("AI chose a vendor over budget without saying so");
@@ -146,7 +160,8 @@ export async function reviewAndRank(spec: Spec, quotes: RankQuote[]): Promise<Ra
     const aiOrder = data.rankedQuoteIds.filter((id) => ids.has(id) && !seen.has(id) && seen.add(id));
     const completed = [...aiOrder, ...fallback.rankedQuoteIds.filter((id) => !seen.has(id))];
     const verifiedFirst = [
-      ...completed.filter((id) => byId.get(id)?.verdict === "VERIFIED"),
+      ...completed.filter((id) => byId.get(id)?.verdict === "VERIFIED" && !bankOnly(byId.get(id) as RankQuote)),
+      ...completed.filter((id) => byId.get(id)?.verdict === "VERIFIED" && bankOnly(byId.get(id) as RankQuote)),
       ...completed.filter((id) => byId.get(id)?.verdict !== "VERIFIED"),
     ];
     if (chosen && verifiedFirst[0] !== chosen.id) {

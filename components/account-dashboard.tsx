@@ -386,7 +386,7 @@ export function VendorProfileForm({
   banksError: string | null;
 }) {
   const router = useRouter();
-  const [f, setF] = useState({ businessName: profile.businessName, sells: profile.sells, city: profile.city, rcNumber: profile.rcNumber, bankCode: profile.bankCode, accountNumber: profile.accountNumber, email: profile.email, password: "", code: "" });
+  const [f, setF] = useState({ businessName: profile.businessName, sells: profile.sells, city: profile.city, rcNumber: profile.rcNumber, ownerName: profile.ownerName, bankCode: profile.bankCode, accountNumber: profile.accountNumber, email: profile.email, password: "", code: "" });
   const bankChanging = f.bankCode !== profile.bankCode || f.accountNumber !== profile.accountNumber;
   const [saved, setSaved] = useState(false);
   const send = useAction<typeof f>("/api/vendor/profile");
@@ -422,7 +422,9 @@ export function VendorProfileForm({
         <Field id="vp-name" label="Business name" value={f.businessName} onChange={set("businessName")} error={issueFor(send.error, "businessName")} />
         <Field id="vp-sells" label="What you sell" value={f.sells} onChange={set("sells")} error={issueFor(send.error, "sells")} />
         <Field id="vp-city" label="City" value={f.city} onChange={set("city")} error={issueFor(send.error, "city")} />
-        <Field id="vp-rc" label="CAC registration number" value={f.rcNumber} onChange={set("rcNumber")} error={issueFor(send.error, "rcNumber")} />
+        <Field id="vp-rc" label="CAC registration number (optional)" value={f.rcNumber} onChange={set("rcNumber")} error={issueFor(send.error, "rcNumber")} />
+        <Field id="vp-owner" label="Full name on your bank account (needed if you have no CAC number)" value={f.ownerName} onChange={set("ownerName")} error={issueFor(send.error, "ownerName")} />
+        {f.rcNumber.trim() ? null : <p className="note" style={{ margin: 0, fontSize: 14 }}>No CAC number? You can sell on ProcureAI anyway. We confirm with the bank that your payout account is in your name. Adding a CAC number later lets buyers see you as a registered business.</p>}
         <div className="field">
           <label htmlFor="vp-bank">Bank</label>
           <select id="vp-bank" className="input" value={f.bankCode} onChange={set("bankCode")} disabled={banks.length === 0}>

@@ -49,6 +49,8 @@ export type CheckRow = {
   ownerLine: string | null;
   failureReason: string | null;
   cacReference: string | null;
+  /** Verified through the bank account owner, with no CAC registration. */
+  bankVerified: boolean;
   accountReference: string | null;
   simulated: boolean;
   chosen: boolean;
@@ -108,6 +110,7 @@ function flagNote(flags: unknown): string {
 }
 
 function ownerLine(method: string | null, person: string | null): string | null {
+  if (method === "ACCOUNT_OWNER") return "The bank confirmed the payout account is in the seller's own name.";
   if (method === "COMPANY") return "Payout account is in the company's own name.";
   if (method === "DIRECTOR") return person?.includes("shareholder") ? "Payout account belongs to a registered shareholder." : "Payout account belongs to a registered director.";
   return null;
@@ -182,6 +185,7 @@ export async function buildRequestView(requestId: string, opts: { includeInvites
         ownerLine: ver?.verdict === "VERIFIED" ? ownerLine(ver.matchMethod, ver.matchedPerson) : null,
         failureReason: ver?.failureReason ?? null,
         cacReference: ver?.cacReference ?? null,
+        bankVerified: ver?.verdict === "VERIFIED" && ver.matchMethod === "ACCOUNT_OWNER",
         accountReference: ver?.accountReference ?? null,
         simulated: ver?.simulated ?? false,
         chosen,

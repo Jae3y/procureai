@@ -1,11 +1,11 @@
 import { db } from "@/lib/db";
-import type { VendorVerification } from "@/lib/generated/prisma/client";
+import type { Vendor, VendorVerification } from "@/lib/generated/prisma/client";
 import { isProviderError, payments, type ProviderError } from "@/lib/payments";
 import { log } from "@/lib/log";
-import { type CacOutcome, matchVendor } from "./matching";
+import { type CacOutcome, matchAccountOwner, matchVendor } from "./matching";
 import { DomainError, NotFoundError } from "./errors";
 import { toJson } from "./kora-events";
-import { requestEvent } from "./timeline";
+import { requestEvent, type TimelineSignature } from "./timeline";
 
 /**
  * THE IDENTITY GATE — runs before any recommendation, for every vendor that replied.
@@ -33,6 +33,64 @@ function definitiveRefusal(e: ProviderError): boolean {
   return e.outcomeKnown && e.kind !== "auth" && e.kind !== "access";
 }
 
+/**
+ * A seller with no CAC number: the bank is the check. The provider resolves the payout account's name and
+ * matchAccountOwner compares it to the name the seller gave. Same rule as above for outages: only a definitive
+ * answer writes a row; a provider that can't be reached writes nothing and the reason comes back.
+ */
+async function verifyByAccountOwner(
+  requestId: string,
+  v: Vendor,
+  d: { bankCode: string; accountNumber: string; consent: boolean },
+  signature: TimelineSignature,
+): Promise<VerifyOutcome> {
+  const k = payments();
+  let accountName: string | null = null;
+  let accountReference: string | null = null;
+  let rawAccount: unknown = null;
+  try {
+    const a = await k.verifyBankAccount({ accountNumber: d.accountNumber, bankCode: d.bankCode, consent: d.consent });
+    accountName = a.data.accountName;
+    accountReference = a.data.reference;
+    rawAccount = a.raw;
+  } catch (e) {
+    if (!isProviderError(e) || !definitiveRefusal(e)) throw e;
+    rawAccount = e.body ?? { error: e.toJSON() };
+  }
+  const match = matchAccountOwner(accountName, v.ownerName, v.name);
+  const verification = await db().vendorVerification.create({
+    data: {
+      vendorId: v.id,
+      provider: k.id,
+      rcNumber: "",
+      cacReference: null,
+      registeredName: null,
+      companyStatus: null,
+      directors: toJson([]),
+      bankCode: d.bankCode,
+      accountNumber: d.accountNumber,
+      accountReference,
+      accountName,
+      matchMethod: match.matchMethod,
+      matchScoreBp: match.matchScoreBp,
+      matchedPerson: null,
+      verdict: match.verdict,
+      failureReason: match.failureReason,
+      simulated: k.identitySimulated,
+      rawCac: toJson({ skipped: "no CAC registration number; checked by bank account owner" }),
+      rawAccount: rawAccount === null ? undefined : toJson(rawAccount),
+    },
+  });
+  await requestEvent(requestId, {
+    kind: "kora",
+    title: "identity.account",
+    detail: match.verdict === "VERIFIED" ? `${v.label} · the bank confirmed the payout account is in the seller's own name` : `${v.label} · ${match.failureReason ?? "account did not match"}`,
+    koraReference: accountReference,
+    signature,
+  });
+  return { vendorId: v.id, label: v.label, verification, error: null };
+}
+
 export async function verifyVendors(requestId: string): Promise<VerifyOutcome[]> {
   const request = await db().request.findUnique({
     where: { id: requestId },
@@ -42,7 +100,7 @@ export async function verifyVendors(requestId: string): Promise<VerifyOutcome[]>
   if (request.status === "APPROVED" || request.status === "CANCELLED") {
     throw new DomainError("closed", "This request is closed.", 409);
   }
-  const vendors = request.vendors.filter((v) => v.quote && v.rcNumber && v.bankCode && v.accountNumber);
+  const vendors = request.vendors.filter((v) => v.quote && (v.rcNumber || v.ownerName) && v.bankCode && v.accountNumber);
   if (vendors.length === 0) throw new DomainError("no_quotes", "No vendor has replied with business details yet.", 409);
 
   await db().request.update({ where: { id: requestId }, data: { status: "VERIFYING" } });
@@ -56,6 +114,10 @@ export async function verifyVendors(requestId: string): Promise<VerifyOutcome[]>
     const accountNumber = v.accountNumber ?? "";
     const consent = Boolean(v.consentAt);
     try {
+      if (!rc) {
+        outcomes.push(await verifyByAccountOwner(requestId, v, { bankCode, accountNumber, consent }, signature));
+        continue;
+      }
       let cac: CacOutcome;
       let rawCac: unknown;
       let cacReference: string | null = null;

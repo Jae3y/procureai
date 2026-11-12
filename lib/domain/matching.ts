@@ -26,7 +26,7 @@ export type CacOutcome =
 
 export type MatchResult = {
   verdict: "VERIFIED" | "FAILED";
-  matchMethod: "COMPANY" | "DIRECTOR" | "NONE";
+  matchMethod: "COMPANY" | "DIRECTOR" | "ACCOUNT_OWNER" | "NONE";
   matchScoreBp: number;
   matchedPerson: string | null;
   failureReason: string | null;
@@ -153,3 +153,31 @@ export function matchVendor(cac: CacOutcome, accountName: string | null): MatchR
     bestScore,
   );
 }
+
+/**
+ * Sellers without a CAC registration. Most Nigerian sellers are sole traders, so they can sell on ProcureAI too.
+ * There is no registry record to check, so the bank is the check: the payout account's name, as the bank resolves it,
+ * must be the seller's own name (the person) or their business name. Same token rules as people and companies above:
+ * at least two words, every word of the shorter name present in the longer, so a bare first name never passes.
+ *
+ * The result is VERIFIED but with matchMethod ACCOUNT_OWNER, which ranks after CAC-registered sellers and has a
+ * per-purchase limit (BANK_VERIFIED_MAX_KOBO) enforced when the buyer approves.
+ */
+export function matchAccountOwner(accountName: string | null, ownerName: string | null | undefined, businessName: string | null | undefined): MatchResult {
+  const fail = (failureReason: string, matchScoreBp = 0): MatchResult => ({ verdict: "FAILED", matchMethod: "NONE", matchScoreBp, matchedPerson: null, failureReason });
+  if (!accountName || !accountName.trim()) return fail("The bank could not confirm the payout account's name.");
+  const account = normalizeName(accountName);
+  const candidates = [ownerName, businessName].filter((n): n is string => Boolean(n && n.trim())).map((n) => ({ name: n.trim(), tokens: normalizeName(n) }));
+  if (candidates.length === 0) return fail("Add the name on your bank account so ProcureAI can check it.");
+  let best = 0;
+  for (const c of candidates) {
+    if (personMatches(account, c.tokens)) {
+      return { verdict: "VERIFIED", matchMethod: "ACCOUNT_OWNER", matchScoreBp: overlapBp(account, c.tokens), matchedPerson: null, failureReason: null };
+    }
+    best = Math.max(best, overlapBp(account, c.tokens));
+  }
+  return fail(`The payout account is in the name of ${accountName.trim().toUpperCase()}, which doesn't match the name you gave us. Use an account in your own or your business's name.`, best);
+}
+
+/** The most a seller without a CAC registration can be paid on one purchase: ₦500,000 for now. Raised as ProcureAI builds a track record. */
+export const BANK_VERIFIED_MAX_KOBO = 50_000_000n;

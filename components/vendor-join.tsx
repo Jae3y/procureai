@@ -10,6 +10,7 @@ type Fields = {
   sells: string;
   city: string;
   rcNumber: string;
+  ownerName: string;
   bankCode: string;
   accountNumber: string;
   email: string;
@@ -17,7 +18,7 @@ type Fields = {
   password: string;
 };
 
-const EMPTY: Fields = { businessName: "", phone: "", sells: "", city: "", rcNumber: "", bankCode: "", accountNumber: "", email: "", consent: false, password: "" };
+const EMPTY: Fields = { businessName: "", phone: "", sells: "", city: "", rcNumber: "", ownerName: "", bankCode: "", accountNumber: "", email: "", consent: false, password: "" };
 
 /** Vendor registration: once, on a phone. Afterwards buyers' requests that match find them, and quoting is one message. */
 export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<{ name: string; code: string }>; banksError: string | null; signedInEmail: string | null }) {
@@ -96,7 +97,13 @@ export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<
           {field("phone", "Phone (where buyers' requests reach you)", { type: "tel", inputMode: "tel", autoComplete: "tel", placeholder: "0803 412 7781" })}
           {field("sells", "What you sell", { placeholder: "e.g. T-shirts, printing, branded merch" })}
           {field("city", "City", { autoComplete: "address-level2", placeholder: "Owerri" })}
-          {field("rcNumber", "CAC registration number", { placeholder: "RC1482093", autoCapitalize: "characters" })}
+          {field("rcNumber", "CAC registration number (optional)", { placeholder: "RC1482093", autoCapitalize: "characters" })}
+          {field("ownerName", f.rcNumber.trim() ? "Full name on your bank account (optional)" : "Full name on your bank account", { autoComplete: "name", placeholder: "e.g. Ngozi Okafor" })}
+          <p className="note" style={{ margin: 0, fontSize: 14 }}>
+            {f.rcNumber.trim()
+              ? "Registered businesses are shown to buyers first."
+              : "No CAC number? You can still sell on ProcureAI. We confirm with the bank that your payout account is in your name, and you're paid the same way: 30% when the buyer's payment is confirmed and 70% on delivery. You can add a CAC number later."}
+          </p>
           <div className="field">
             <label htmlFor="j-bankCode">Bank</label>
             <select id="j-bankCode" className="input" value={f.bankCode} onChange={set("bankCode")} aria-invalid={Boolean(issues.bankCode)} disabled={banks.length === 0}>
