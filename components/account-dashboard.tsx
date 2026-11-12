@@ -229,6 +229,7 @@ export function AccountSettings({ v }: { v: AccountView }) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [saved, setSaved] = useState<string | null>(null);
+  const [changing, setChanging] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const profile = useAction<{ name: string }>("/api/account/profile");
   const password = useAction<{ current: string; next: string }>("/api/account/password");
@@ -260,32 +261,52 @@ export function AccountSettings({ v }: { v: AccountView }) {
           <button type="submit" className="btn-2" disabled={profile.pending}>{profile.pending ? <Spinner label="Saving" /> : "Save name"}</button>
         </div>
       </form>
-      <form
-        noValidate
-        className="account-form"
-        style={{ marginTop: 28 }}
-        onSubmit={(e) => {
-          e.preventDefault();
-          void password.run({ current, next }).then((r) => {
-            if (r.ok) {
-              setCurrent("");
-              setNext("");
-              setSaved("Password changed. Other devices have been signed out.");
-            }
-          });
-        }}
-      >
-        {v.hasPassword ? (
-          <Field id="set-current" label="Current password" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} error={issueFor(password.error, "current")} />
-        ) : (
-          <p className="note" style={{ margin: 0 }}>You sign in with Google. Set a password too, so you can sign in either way and confirm sensitive changes.</p>
-        )}
-        <Field id="set-next" label="New password (at least 10 characters)" type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} error={issueFor(password.error, "next")} />
-        <div>
-          <button type="submit" className="btn-2" disabled={password.pending}>{password.pending ? <Spinner label="Saving" /> : v.hasPassword ? "Change password" : "Set password"}</button>
-        </div>
-        {password.error && !hasIssues(password.error) ? <p className="form-error">{password.error.message}</p> : null}
-      </form>
+      <div style={{ marginTop: 28 }}>
+        <p className="note" style={{ margin: 0 }} role="status">
+          {v.hasPassword ? (
+            <>
+              <span className="green">✓ Password set.</span> You can sign in with your email and password{v.signsInWithGoogle ? " or with Google" : ""}.
+            </>
+          ) : (
+            <>You sign in with Google and have no password yet. Set one below so you can sign in either way and confirm sensitive changes.</>
+          )}
+        </p>
+        {v.hasPassword && !changing ? (
+          <p style={{ margin: "10px 0 0" }}>
+            <button type="button" className="btn-text" onClick={() => setChanging(true)}>Change password</button>
+          </p>
+        ) : null}
+      </div>
+      {!v.hasPassword || changing ? (
+        <form
+          noValidate
+          className="account-form"
+          style={{ marginTop: 16 }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            const first = !v.hasPassword;
+            void password.run({ current, next }).then((r) => {
+              if (r.ok) {
+                setCurrent("");
+                setNext("");
+                setChanging(false);
+                setSaved(first ? "Password set. Your account is now protected with a password, and other devices have been signed out." : "Password changed. Other devices have been signed out.");
+                router.refresh();
+              }
+            });
+          }}
+        >
+          {v.hasPassword ? (
+            <Field id="set-current" label="Current password" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} error={issueFor(password.error, "current")} />
+          ) : null}
+          <Field id="set-next" label={v.hasPassword ? "New password (at least 10 characters)" : "Choose a password (at least 10 characters)"} type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} error={issueFor(password.error, "next")} />
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <button type="submit" className="btn-2" disabled={password.pending}>{password.pending ? <Spinner label="Saving" /> : v.hasPassword ? "Change password" : "Set password"}</button>
+            {v.hasPassword ? <button type="button" className="btn-text" onClick={() => { setChanging(false); setCurrent(""); setNext(""); }}>Cancel</button> : null}
+          </div>
+          {password.error && !hasIssues(password.error) ? <p className="form-error">{password.error.message}</p> : null}
+        </form>
+      ) : null}
       <div aria-live="polite">{saved ? <p className="note">{saved}</p> : null}</div>
       <div style={{ marginTop: 32, borderTop: "1px solid var(--hairline)", paddingTop: 20 }}>
         <p className="note" style={{ marginTop: 0 }}>

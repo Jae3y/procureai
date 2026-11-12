@@ -46,6 +46,8 @@ export type AccountView = {
   emailWorks: boolean;
   /** False for accounts that only sign in with Google: they set a first password instead of changing one. */
   hasPassword: boolean;
+  /** The account is linked to a Google sign-in. */
+  signsInWithGoogle: boolean;
   deletionRequested: boolean;
   isVendor: boolean;
   twoStep: { on: boolean; recoveryCodesLeft: number };
@@ -64,6 +66,7 @@ export async function buildAccountView(account: Account): Promise<AccountView> {
     emailVerified: Boolean(account.emailVerifiedAt),
     emailWorks: emailEnabled(),
     hasPassword: Boolean(account.passwordHash),
+    signsInWithGoogle: Boolean(account.googleSub),
     deletionRequested: Boolean(account.deletionRequestedAt),
     isVendor: Boolean(account.vendorContactId),
     twoStep: { on: Boolean(account.totpEnabledAt), recoveryCodesLeft: account.recoveryCodeHashes.length },

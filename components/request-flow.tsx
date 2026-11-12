@@ -231,7 +231,11 @@ function YourVendors({ v }: { v: RequestView }) {
     <div style={{ marginTop: 56, borderTop: "1px solid var(--hairline)", paddingTop: 32, display: "grid", gap: 24, maxWidth: 720 }}>
       <div>
         <div className="eyebrow" style={{ marginBottom: 12 }}>Your vendors</div>
-        <p className="note" style={{ margin: 0 }}>Know someone who sells this? Add them. They get the same link and the same checks as everyone else.</p>
+        <p className="note" style={{ margin: 0 }}>
+          Know someone who sells this? Add their business name and phone number. ProcureAI makes a private quote link for this request only, and you send it to them on WhatsApp.
+          They don&apos;t need an account: they open the link, write their price, and give their business and bank details, which ProcureAI checks before you can choose them.
+          Adding someone here doesn&apos;t register them on ProcureAI, and we don&apos;t message them for you.
+        </p>
       </div>
       {(v.invites ?? []).length > 0 ? (
         <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 12 }}>
