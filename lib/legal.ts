@@ -40,13 +40,21 @@ export const TERMS: LegalSection[] = [
     ],
   },
   {
+    heading: "The marketplace",
+    paragraphs: [
+      "Sellers can list what they sell, with photos and prices. A seller is responsible for their listings being true, legal, and theirs to sell. We remove listings that are misleading, illegal, counterfeit, or unsafe, and may close the seller's account.",
+      "You never pay a seller directly from a listing. Requesting from a listing opens a normal ProcureAI purchase, with the same checks, the same held payment, and the same delivery code.",
+      "A listed price is the seller's guide. The price you pay is the one in the seller's quote, which you see before you approve.",
+    ],
+  },
+  {
     heading: "Fees",
     paragraphs: ["ProcureAI is free while we run pilots. Before we charge anything, we will show the fee on the screen before you approve a purchase. Vendors cannot pay to be ranked higher."],
   },
   {
     heading: "What we are not responsible for",
     paragraphs: [
-      "We check that a vendor is a registered business and that the payout account belongs to it. We do not inspect goods. Use the delivery code, the photos and the problem report to protect yourself, as described on the refunds page.",
+      "We check that a vendor's payout account belongs to them: for a registered business, against its CAC record; for a seller without a CAC registration, with their bank. We do not inspect goods. Use the delivery code, the photos and the problem report to protect yourself, as described on the refunds page.",
       "The AI that reads quotes can make mistakes. Read the vendor's own words, which we always show next to our reading of them.",
     ],
   },

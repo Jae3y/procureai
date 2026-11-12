@@ -93,12 +93,14 @@ export type VendorDashboardView = {
   twoStepOn: boolean;
   invitations: Array<{ id: string; title: string; deadline: string; status: string; href: string; quoted: boolean; total: string | null }>;
   orders: Array<{ id: string; ref: string; title: string; amount: string; status: string; href: string }>;
+  /** The seller's marketplace products (removed ones are left out). */
+  listings: Array<{ id: string; title: string; description: string; category: string; price: string; unit: string; minOrder: number; status: "ACTIVE" | "PAUSED"; hasPhoto: boolean }>;
 };
 
 /** Everything goes through the vendor's own invite link, so the dashboard and a shared link show the same screen. */
 export async function buildVendorDashboard(account: Account & { vendorContactId: string }): Promise<VendorDashboardView> {
   await applyDueBankChange(account.vendorContactId);
-  const [notifications, contact, vendors] = await Promise.all([
+  const [notifications, contact, vendors, listings] = await Promise.all([
     notificationsOf(account.id),
     db().vendorContact.findUniqueOrThrow({ where: { id: account.vendorContactId } }),
     db().vendor.findMany({
@@ -106,6 +108,11 @@ export async function buildVendorDashboard(account: Account & { vendorContactId:
       orderBy: { inviteExpiresAt: "desc" },
       take: 50,
       include: { quote: { select: { totalKobo: true } }, request: { select: { id: true, item: true, quantity: true, deadline: true, status: true, order: { select: { id: true, number: true, vendorId: true, amountKobo: true, status: true } } } } },
+    }),
+    db().listing.findMany({
+      where: { contactId: account.vendorContactId, status: { not: "REMOVED" } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, title: true, description: true, category: true, priceKobo: true, unit: true, minOrder: true, status: true, photoType: true },
     }),
   ]);
   const titleOf = (v: (typeof vendors)[number]) => `${v.request.quantity.toLocaleString("en-NG")} × ${v.request.item}`;
@@ -144,5 +151,16 @@ export async function buildVendorDashboard(account: Account & { vendorContactId:
       const o = v.request.order;
       return o && o.vendorId === v.id ? [{ id: o.id, ref: orderRef(o.number), title: titleOf(v), amount: formatNaira(o.amountKobo), status: ORDER_WORDS[o.status].replace("your payment", "the buyer's payment"), href: hrefOf(v) }] : [];
     }),
+    listings: listings.map((l) => ({
+      id: l.id,
+      title: l.title,
+      description: l.description,
+      category: l.category,
+      price: l.priceKobo === null ? "" : formatNaira(l.priceKobo).replace("₦", ""),
+      unit: l.unit,
+      minOrder: l.minOrder,
+      status: l.status === "PAUSED" ? ("PAUSED" as const) : ("ACTIVE" as const),
+      hasPhoto: Boolean(l.photoType),
+    })),
   };
 }

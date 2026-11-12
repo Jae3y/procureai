@@ -10,6 +10,9 @@ export function SiteShell({ signedIn, children }: { signedIn: boolean; children:
         <div className="header-in">
           <Logo />
           <nav className="site-nav" aria-label="Account">
+            <Link href="/market" className="btn-text" style={{ textDecoration: "none" }}>
+              Marketplace
+            </Link>
             {signedIn ? (
               <Link href="/account" className="btn-text" style={{ textDecoration: "none" }}>
                 Your account

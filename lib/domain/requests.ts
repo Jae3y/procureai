@@ -4,7 +4,7 @@ import type { Spec, SpecDraft } from "@/lib/ai/fallback";
 import { inviteTokenFor, sha256Hex } from "@/lib/crypto";
 import { ensureDemoDirectory } from "@/lib/demo/directory";
 import { db } from "@/lib/db";
-import { shortlist } from "./sourcing";
+import { MAX_SHORTLIST, shortlist } from "./sourcing";
 import { env } from "@/lib/env";
 import type { Request } from "@/lib/generated/prisma/client";
 import { notify } from "@/lib/notify/notifications";
@@ -93,13 +93,20 @@ export function directoryFilter(isDemo: boolean) {
 }
 
 /** Invites the matching vendors. A real purchase can start with none: the buyer can add vendors they know. */
-export async function inviteVendors(requestId: string): Promise<Invite[]> {
+/**
+ * `pinnedContactId` (a purchase started from a marketplace listing) asks that seller first; with `onlyPinned`
+ * nobody else is asked, otherwise the usual matching sellers follow so the buyer can compare.
+ */
+export async function inviteVendors(requestId: string, opts: { pinnedContactId?: string; onlyPinned?: boolean } = {}): Promise<Invite[]> {
   const request = await db().request.findUnique({ where: { id: requestId }, include: { vendors: true } });
   if (!request) throw new NotFoundError("Request");
   if (request.status !== "DRAFT") throw new DomainError("already_invited", "Vendors have already been asked for this request.", 409);
   await seedDemoDirectory();
   const directory = await db().vendorContact.findMany({ where: directoryFilter(request.isDemo), orderBy: { createdAt: "asc" }, include: { account: { select: { id: true } } } });
-  const contacts = shortlist(directory, request.item);
+  const pinned = opts.pinnedContactId ? directory.find((c) => c.id === opts.pinnedContactId) : undefined;
+  if (opts.pinnedContactId && !pinned) throw new DomainError("seller_unavailable", "This seller isn't taking requests right now.", 409);
+  const others = opts.onlyPinned ? [] : shortlist(directory.filter((c) => c.id !== pinned?.id), request.item, pinned ? MAX_SHORTLIST - 1 : MAX_SHORTLIST);
+  const contacts = pinned ? [pinned, ...others] : others;
   if (contacts.length === 0 && request.isDemo) throw new DomainError("no_vendors", "There are no vendors in the directory to ask yet.", 409);
 
   const expires = new Date(request.deadline.getTime() + 14 * 86_400_000);

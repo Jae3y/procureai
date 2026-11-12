@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Notifications, SignOutButton, VendorInvitations, VendorProfileForm } from "@/components/account-dashboard";
+import { ListingsManager } from "@/components/marketplace";
 import { SiteShell } from "@/components/site-shell";
+import { CATEGORIES } from "@/lib/domain/listings";
 import { pageAccount } from "@/lib/http/page-auth";
 import { isProviderError, payments } from "@/lib/payments";
 import { log } from "@/lib/log";
@@ -40,6 +42,7 @@ export default async function VendorDashboardPage() {
         </p>
         <Notifications rows={v.notifications} />
         <VendorInvitations v={v} />
+        <ListingsManager listings={v.listings} categories={CATEGORIES} />
         <VendorProfileForm profile={v.profile} pendingBank={v.pendingBank} twoStepOn={v.twoStepOn} banks={banks} banksError={banksError} />
       </section>
     </SiteShell>

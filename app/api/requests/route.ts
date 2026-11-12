@@ -2,6 +2,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { DEMO_BUYER } from "@/lib/demo/script";
 import { verifySession } from "@/lib/crypto";
+import { refundAiRequest, useAiRequest } from "@/lib/domain/ai-allowance";
 import { DomainError } from "@/lib/domain/errors";
 import { createRequest, IncompleteSpecError } from "@/lib/domain/requests";
 import { env } from "@/lib/env";
@@ -30,10 +31,13 @@ export const POST = route({ name: "requests.create", input: Body, idempotent: tr
     buyerId = buyer.id;
     cookies.push(buyerSessionCookie(buyer.id));
   }
+  // A signed-in buyer's purchase uses one of today's AI requests; the demo is limited by IP above.
+  if (account) await useAiRequest(account);
   try {
     const request = await createRequest({ rawText: input.text, buyerId, isDemo: !account });
     return { status: 201, body: { id: request.id }, cookies };
   } catch (err) {
+    if (account) await refundAiRequest(account);
     if (err instanceof IncompleteSpecError) {
       const d = err.draft;
       return {
