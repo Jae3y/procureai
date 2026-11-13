@@ -22,7 +22,7 @@ export default async function UnsubscribePage({ searchParams }: { searchParams: 
             <UnsubscribeButton token={t} />
           </>
         ) : (
-          <p className="note">This link isn&apos;t valid any more. You can also turn updates off from your account page, or reply to any of our emails and we&apos;ll do it for you.</p>
+          <p className="note">This link isn&apos;t valid any more. Reply to any of our emails and we&apos;ll stop them for you.</p>
         )}
       </section>
     </SiteShell>
