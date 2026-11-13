@@ -4,6 +4,7 @@ import type { Account, Listing, ListingStatus, Request } from "@/lib/generated/p
 import type { Kobo } from "@/lib/money";
 import { DomainError, NotFoundError } from "./errors";
 import { decodePhoto } from "./evidence";
+import { AUTO_PAUSE_AFTER_REPORTS } from "./moderation";
 import { inviteVendors } from "./requests";
 import { requestEvent } from "./timeline";
 
@@ -97,6 +98,11 @@ export async function updateListing(account: Account, listingId: string, input: 
 
 export async function setListingStatus(account: Account, listingId: string, status: ListingStatus): Promise<void> {
   await ownListing(account, listingId);
+  if (status === "ACTIVE") {
+    // A listing paused because several people reported it stays paused until ProcureAI has looked at it.
+    const open = await db().listingReport.count({ where: { listingId, resolvedAt: null } });
+    if (open >= AUTO_PAUSE_AFTER_REPORTS) throw new DomainError("under_review", "This product is being reviewed after reports from buyers. We'll tell you as soon as we've looked at it.", 409);
+  }
   // Removed listings stay in the database: purchases that started from them still point at them.
   await db().listing.update({ where: { id: listingId }, data: { status, ...(status === "REMOVED" ? { photo: null, photoType: null } : {}) } });
 }

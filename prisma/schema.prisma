@@ -669,22 +669,26 @@ enum ListingStatus {
 /// Something a registered seller offers on the marketplace. Buying always goes through a ProcureAI purchase,
 /// so the seller is checked and the money is held exactly as for any other order.
 model Listing {
-  id          String        @id @default(cuid())
-  contactId   String
-  contact     VendorContact @relation(fields: [contactId], references: [id])
-  title       String
-  description String
-  category    String
+  id               String          @id @default(cuid())
+  contactId        String
+  contact          VendorContact   @relation(fields: [contactId], references: [id])
+  title            String
+  description      String
+  category         String
   /// Price per unit in kobo; null means "price on request".
-  priceKobo   BigInt?
-  unit        String
-  minOrder    Int           @default(1)
-  photo       Bytes?
-  photoType   String?
-  status      ListingStatus @default(ACTIVE)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  requests    Request[]
+  priceKobo        BigInt?
+  unit             String
+  minOrder         Int             @default(1)
+  photo            Bytes?
+  photoType        String?
+  status           ListingStatus   @default(ACTIVE)
+  /// Set when ProcureAI takes a listing down. The seller can't show it again; they see the reason.
+  removedByAdminAt DateTime?
+  moderationNote   String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  requests         Request[]
+  reports          ListingReport[]
 
   @@index([status, category])
   @@index([contactId])
@@ -712,4 +716,21 @@ model LifecycleEmail {
 
   @@unique([accountId, kind, ref])
   @@index([accountId, sentAt])
+}
+
+/// Someone reported a listing (misleading, illegal, counterfeit, unsafe, a scam). The owner reviews it at /admin/listings.
+model ListingReport {
+  id         String    @id @default(cuid())
+  listingId  String
+  listing    Listing   @relation(fields: [listingId], references: [id])
+  reason     String
+  note       String    @default("")
+  /// The signed-in account that reported it, if any. Reports from visitors are allowed (rate-limited).
+  accountId  String?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  resolution String?
+
+  @@index([resolvedAt, createdAt])
+  @@index([listingId])
 }

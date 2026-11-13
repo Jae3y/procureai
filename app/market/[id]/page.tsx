@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { priceLine, StandingBadge, TrustNote } from "@/components/market-cards";
 import { ListingRequestForm } from "@/components/marketplace";
+import { ReportListing } from "@/components/moderation";
 import { SiteShell } from "@/components/site-shell";
 import { publicListing, standingOf } from "@/lib/domain/listings";
 import { pageAccount } from "@/lib/http/page-auth";
@@ -82,6 +83,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
               )}
             </div>
             <TrustNote />
+            {own ? null : <ReportListing listingId={l.id} />}
           </div>
         </div>
       </section>
