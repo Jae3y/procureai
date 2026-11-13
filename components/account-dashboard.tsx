@@ -308,6 +308,7 @@ export function AccountSettings({ v }: { v: AccountView }) {
         </form>
       ) : null}
       <div aria-live="polite">{saved ? <p className="note">{saved}</p> : null}</div>
+      <EmailChoices v={v} />
       <div style={{ marginTop: 32, borderTop: "1px solid var(--hairline)", paddingTop: 20 }}>
         <p className="note" style={{ marginTop: 0 }}>
           <a href="/api/account/export" download="procureai-my-data.json">Download my data</a>
@@ -325,6 +326,41 @@ export function AccountSettings({ v }: { v: AccountView }) {
           <button type="button" className="btn-text" onClick={() => setConfirmDelete(true)}>Delete my account</button>
         )}
       </div>
+    </div>
+  );
+}
+
+/** The person's own email choices. Security and order emails always go; these are the friendly extras. */
+function EmailChoices({ v }: { v: AccountView }) {
+  const [checkins, setCheckins] = useState(v.emails.checkins);
+  const [tips, setTips] = useState(v.emails.tips);
+  const save = useAction<{ checkins: boolean; tips: boolean }, { checkins: boolean; tips: boolean }>("/api/account/emails");
+  const [note, setNote] = useState<string | null>(null);
+  const change = (next: { checkins: boolean; tips: boolean }) => {
+    setNote(null);
+    void save.run(next).then((r) => {
+      if (r.ok) {
+        setCheckins(r.data.checkins);
+        setTips(r.data.tips);
+        setNote("Saved.");
+      }
+    });
+  };
+  return (
+    <div style={{ marginTop: 28 }}>
+      <h3 style={{ margin: "0 0 8px", font: "600 17px/1.2 var(--font-display)" }}>Emails from us</h3>
+      <label className="check">
+        <input type="checkbox" checked={checkins} disabled={save.pending} onChange={(e) => change({ checkins: e.target.checked, tips: e.target.checked ? tips : false })} />
+        <span>Check-ins, like &quot;did your order arrive well?&quot;</span>
+      </label>
+      <label className="check">
+        <input type="checkbox" checked={tips} disabled={save.pending || !checkins} onChange={(e) => change({ checkins, tips: e.target.checked })} />
+        <span>Occasional tips and news, at most one a week</span>
+      </label>
+      <p className="note" style={{ fontSize: 14, margin: "6px 0 0" }}>
+        Emails about your sign-ins, payments and orders always come, because they keep your account and money safe.
+      </p>
+      <div aria-live="polite">{note ? <p className="note" style={{ fontSize: 14 }}>{note}</p> : null}{save.error ? <p className="form-error">{save.error.message}</p> : null}</div>
     </div>
   );
 }

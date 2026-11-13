@@ -48,6 +48,8 @@ export type AccountView = {
   hasPassword: boolean;
   /** The account is linked to a Google sign-in. */
   signsInWithGoogle: boolean;
+  /** Email choices: check-ins (welcome, "did it arrive well?") and occasional tips (marketing consent). */
+  emails: { checkins: boolean; tips: boolean };
   deletionRequested: boolean;
   isVendor: boolean;
   twoStep: { on: boolean; recoveryCodesLeft: number };
@@ -67,6 +69,7 @@ export async function buildAccountView(account: Account): Promise<AccountView> {
     emailWorks: emailEnabled(),
     hasPassword: Boolean(account.passwordHash),
     signsInWithGoogle: Boolean(account.googleSub),
+    emails: { checkins: !account.emailsOffAt, tips: Boolean(account.marketingConsentAt) && !account.emailsOffAt },
     deletionRequested: Boolean(account.deletionRequestedAt),
     isVendor: Boolean(account.vendorContactId),
     twoStep: { on: Boolean(account.totpEnabledAt), recoveryCodesLeft: account.recoveryCodeHashes.length },
