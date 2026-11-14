@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
 import type { OrderStatus, Payout, PayoutStage } from "@/lib/generated/prisma/client";
 import { inviteTokenFor, signRecordId } from "@/lib/crypto";
 import { instalmentsFor } from "@/lib/kora/limits";
-import { formatNaira, splitStages } from "@/lib/money";
+import { formatNaira, splitStages, stage1Percent } from "@/lib/money";
 import { itemPhrase, lagosDay, lagosTime, longOrderRef, orderRef, spacedAccount, spacedCode } from "./format";
 import type { KoraRow } from "./request-view";
 
@@ -32,6 +32,8 @@ export type OrderView = {
   amount: string;
   stage1Amount: string;
   stage2Amount: string;
+  /** "30%" or "10%": this order's first-payout share, fixed at approval. */
+  stage1Share: string;
   screen: "pay" | "track";
   pay: {
     state: "opening" | "open" | "short" | "paid" | "expired";
@@ -106,7 +108,7 @@ function latestOf(payouts: Payout[], stage: PayoutStage): Payout | undefined {
 function titleFor(status: OrderStatus, s1: Payout | undefined, s2: Payout | undefined, failedStage: string | null): { title: string; tone: "ink" | "red" } {
   switch (status) {
     case "HELD":
-      return { title: "Held. Paying the vendor's 30%.", tone: "ink" };
+      return { title: "Held. Paying the vendor's first part.", tone: "ink" };
     case "STAGE_1_PAID":
       return s1?.status === "SUCCESS" ? { title: "Stage 1 paid. Waiting for delivery.", tone: "ink" } : { title: "Held. Sending Stage 1.", tone: "ink" };
     case "CODE_VERIFIED":
@@ -148,7 +150,7 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
     }),
   ]);
   const e = env();
-  const { stage1, stage2 } = splitStages(order.amountKobo);
+  const { stage1, stage2 } = splitStages(order.amountKobo, order.stage1Bp);
   const held = order.ledger
     .filter((l) => l.account === "HELD")
     .reduce((a, l) => a + (l.direction === "CREDIT" ? l.amountKobo : -l.amountKobo), 0n);
@@ -297,6 +299,7 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
     amount: formatNaira(order.amountKobo),
     stage1Amount: formatNaira(stage1),
     stage2Amount: formatNaira(stage2),
+    stage1Share: stage1Percent(order.stage1Bp),
     screen: ["CREATED", "AWAITING_PAYMENT", "UNDERPAID"].includes(order.status) ? "pay" : "track",
     pay: {
       state: payState,

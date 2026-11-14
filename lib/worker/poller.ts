@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { ensureOpenPayIn, reconcileCharge } from "@/lib/domain/payin";
 import { releaseDueDeliveries } from "@/lib/domain/delivery";
-import { dispatchStage, reconcilePayout } from "@/lib/domain/payouts";
+import { dispatchStage, OWNER_APPROVAL_ABOVE_KOBO, reconcilePayout } from "@/lib/domain/payouts";
 import { reconcileRefund } from "@/lib/domain/refunds";
 import { isKoraError } from "@/lib/kora/errors";
 import { log } from "@/lib/log";
@@ -112,7 +112,12 @@ async function selfHeal(now: Date): Promise<number> {
   const cause = { type: "SYSTEM" as const, id: "self-heal" };
 
   const heldNoStage1 = await db().order.findMany({
-    where: { status: "HELD", payouts: { none: { stage: "STAGE_1", status: { not: "FAILED" } } } },
+    where: {
+      status: "HELD",
+      payouts: { none: { stage: "STAGE_1", status: { not: "FAILED" } } },
+      // Large orders wait for the owner's approval; retrying them before that is pointless.
+      OR: [{ amountKobo: { lte: OWNER_APPROVAL_ABOVE_KOBO } }, { payoutApprovedAt: { not: null } }],
+    },
     select: { id: true },
     take: 10,
   });

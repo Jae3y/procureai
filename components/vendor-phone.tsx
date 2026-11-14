@@ -266,7 +266,7 @@ function OrderScreen({ token, v }: { token: string; v: VendorView }) {
   const o = v.order!;
   const s = o.vendor;
   const stage1Paid = s.stage1.state === "paid";
-  const progress = s.stage2.state === "paid" ? "100%" : stage1Paid ? "30%" : "0%";
+  const progress = s.stage2.state === "paid" ? "100%" : stage1Paid ? o.stage1Share : "0%";
 
   if (s.screen === "waiting") {
     return <Note title="You were chosen." body={`Waiting for ${v.buyerName}'s payment. ProcureAI holds it, then sends you ${o.stage1Amount}.`} detail={`Order ${o.ref}`} />;

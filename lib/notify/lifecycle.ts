@@ -35,7 +35,7 @@ export const TIPS: ReadonlyArray<{ heading: string; body: string[] }> = [
     heading: "Buying in bulk? Ask for a smaller first order",
     body: [
       "If you've never bought from a seller before, a smaller first order is a sensible way to learn how they work, and sellers usually agree happily.",
-      "Your money stays protected either way: 30% goes to the seller when your payment is confirmed, and 70% only when you confirm delivery.",
+      "Your money stays protected either way: the seller gets a first payment when your payment is confirmed (10% for sellers new to ProcureAI), and the rest only when you confirm delivery.",
     ],
   },
   {
@@ -73,7 +73,7 @@ function welcome(a: Account): Draft {
       heading: `Welcome, ${firstName(a)}`,
       paragraphs: seller
         ? [
-            "We're really glad you're here. ProcureAI is built so good sellers get found and get paid properly: 30% when a buyer's payment is confirmed, and the rest when the goods arrive.",
+            "We're really glad you're here. ProcureAI is built so good sellers get found and get paid properly: a first payment when a buyer's payment is confirmed (10% on your first 3 orders, then 30%), and the rest when the goods arrive.",
             "The best first step is to add what you sell, with a clear photo and a price. It takes a few minutes, and it's free.",
           ]
         : [

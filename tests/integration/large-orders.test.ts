@@ -11,11 +11,15 @@ const user = { type: "USER" as const, id: "buyer-test" };
 const poller = { type: "POLLER" as const, id: "t" };
 const NAIRA = 100n;
 const HUNDRED_MILLION = 100_000_000n * NAIRA;
+/** Past the 24-hour safety hold that applies above NGN 20M. */
+const AFTER_HOLD = new Date(Date.now() + 25 * 60 * 60 * 1000);
 
 async function heldOrder(amountKobo: bigint) {
   assertPayableInStages(amountKobo);
   const f = await makeOrderFixture({ amountKobo });
   await fundOrder(f.order.id, amountKobo);
+  // Orders above NGN 5M wait for the owner's approval (and above NGN 20M, 24 hours): these tests are about the split, so approve.
+  await db().order.update({ where: { id: f.order.id }, data: { payoutApprovedAt: new Date() } });
   double.availableKobo = amountKobo; // the Kora wallet holds the buyer's money
   return f.order.id;
 }
@@ -30,7 +34,7 @@ describe("a NGN 100,000,000 order: each stage is paid in several transfers", () 
     const order = () => db().order.findUniqueOrThrow({ where: { id: orderId } });
 
     // Stage 1
-    const r1 = await dispatchStage(orderId, "STAGE_1", user);
+    const r1 = await dispatchStage(orderId, "STAGE_1", user, AFTER_HOLD);
     expect(r1.kind).toBe("sent");
     const s1 = await payoutsOf(orderId, "STAGE_1");
     expect(s1.map((p) => p.part)).toEqual([1, 2, 3]);
@@ -41,9 +45,9 @@ describe("a NGN 100,000,000 order: each stage is paid in several transfers", () 
 
     // Two of three parts landed: the stage is NOT paid, so the vendor can't be told "delivered" yet.
     for (const p of s1.slice(0, 2)) await reconcilePayout(p.reference, poller);
-    expect(await db().$transaction((tx) => stage1IsPaid(tx as never, orderId, HUNDRED_MILLION))).toBe(false);
+    expect(await db().$transaction((tx) => stage1IsPaid(tx as never, orderId, { amountKobo: HUNDRED_MILLION, stage1Bp: 3000 }))).toBe(false);
     await reconcilePayout((s1[2] as { reference: string }).reference, poller);
-    expect(await db().$transaction((tx) => stage1IsPaid(tx as never, orderId, HUNDRED_MILLION))).toBe(true);
+    expect(await db().$transaction((tx) => stage1IsPaid(tx as never, orderId, { amountKobo: HUNDRED_MILLION, stage1Bp: 3000 }))).toBe(true);
 
     // Stage 2
     await moveOrder(orderId, ["CODE_VERIFIED"]);
@@ -64,7 +68,7 @@ describe("a NGN 100,000,000 order: each stage is paid in several transfers", () 
 
   it("every transfer sent to Kora is within Kora's NGN 10,000,000 limit, and the total paid out is exactly the order", async () => {
     const orderId = await heldOrder(HUNDRED_MILLION);
-    await dispatchStage(orderId, "STAGE_1", user);
+    await dispatchStage(orderId, "STAGE_1", user, AFTER_HOLD);
     const sent = double.calls.filter((c) => c.path === "/transactions/disburse").map((c) => (c.body as { destination: { amount: number } }).destination.amount);
     expect(sent).toHaveLength(3);
     expect(Math.max(...sent)).toBeLessThanOrEqual(10_000_000);
@@ -74,7 +78,7 @@ describe("a NGN 100,000,000 order: each stage is paid in several transfers", () 
   it("one failed part puts the order in PAYOUT_FAILED; a retry resends ONLY that part, under a new reference, and never pays the others twice", async () => {
     const orderId = await heldOrder(HUNDRED_MILLION);
     double.next("POST /transactions/disburse", { status: 400, body: { status: false, message: "Invalid account", data: null } }); // part 1 is refused
-    const r = await dispatchStage(orderId, "STAGE_1", user);
+    const r = await dispatchStage(orderId, "STAGE_1", user, AFTER_HOLD);
     expect(r.kind).toBe("failed");
     const first = await payoutsOf(orderId, "STAGE_1");
     expect(first.map((p) => p.status)).toEqual(["FAILED", "PENDING", "PENDING"]);
@@ -92,7 +96,7 @@ describe("a NGN 100,000,000 order: each stage is paid in several transfers", () 
     expect((await db().order.findUniqueOrThrow({ where: { id: orderId } })).status).toBe("STAGE_1_PAID");
 
     await reconcilePayout((retried as { reference: string }).reference, poller);
-    expect(await db().$transaction((tx) => stage1IsPaid(tx as never, orderId, HUNDRED_MILLION))).toBe(true);
+    expect(await db().$transaction((tx) => stage1IsPaid(tx as never, orderId, { amountKobo: HUNDRED_MILLION, stage1Bp: 3000 }))).toBe(true);
     const paid = (await payoutsOf(orderId, "STAGE_1")).filter((p) => p.status === "SUCCESS").reduce((a, p) => a + p.amountKobo, 0n);
     expect(paid).toBe(30_000_000n * NAIRA);
     await expectMoneyInvariants(orderId);
@@ -100,7 +104,7 @@ describe("a NGN 100,000,000 order: each stage is paid in several transfers", () 
 
   it("the database refuses a second live payout for the same part, but allows different parts", async () => {
     const orderId = await heldOrder(HUNDRED_MILLION);
-    await dispatchStage(orderId, "STAGE_1", user);
+    await dispatchStage(orderId, "STAGE_1", user, AFTER_HOLD);
     const one = (await payoutsOf(orderId, "STAGE_1"))[0];
     await expect(
       db().payout.create({
@@ -121,7 +125,7 @@ describe("a NGN 100,000,000 order: each stage is paid in several transfers", () 
 
   it("an ordinary order is still one transfer per stage, with the original references", async () => {
     const orderId = await heldOrder(126_000_000n);
-    await dispatchStage(orderId, "STAGE_1", user);
+    await dispatchStage(orderId, "STAGE_1", user, AFTER_HOLD);
     const s1 = await payoutsOf(orderId, "STAGE_1");
     expect(s1).toHaveLength(1);
     expect(s1[0]?.reference).toBe(`PO-${orderId}-S1`);

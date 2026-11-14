@@ -58,7 +58,7 @@ export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<
             WhatsApp.
           </p>
           <p className="note" style={{ fontSize: 14 }}>
-            ProcureAI checks your business and bank account each time a buyer considers your quote. You&apos;re paid 30% as soon as the buyer&apos;s payment is confirmed, and 70% when delivery is confirmed.
+            ProcureAI checks your business and bank account each time a buyer considers your quote. You&apos;re paid 30% as soon as the buyer&apos;s payment is confirmed, and the rest when delivery is confirmed. Your first 3 orders start with 10% while you build a track record.
           </p>
           {founding ? (
             <p className="note" style={{ fontSize: 14 }}>
@@ -91,7 +91,7 @@ export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<
           <h1>Register once. Get paid before you start.</h1>
           <p className="note" style={{ margin: "4px 0 8px" }}>
             Buyers type what they need and ProcureAI sends the request to registered vendors who sell it. You reply in your own words. When a buyer picks you, 30% goes to your
-            business account as soon as their payment is confirmed, and the other 70% is held for you until delivery. Registering is free.
+            business account as soon as their payment is confirmed (10% on your first 3 orders), and the rest is held for you until delivery. Registering is free.
           </p>
           {field("businessName", "Business name", { autoComplete: "organization" })}
           {field("phone", "Phone (where buyers' requests reach you)", { type: "tel", inputMode: "tel", autoComplete: "tel", placeholder: "0803 412 7781" })}
@@ -102,7 +102,7 @@ export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<
           <p className="note" style={{ margin: 0, fontSize: 14 }}>
             {f.rcNumber.trim()
               ? "Registered businesses are shown to buyers first."
-              : "No CAC number? You can still sell on ProcureAI. We confirm with the bank that your payout account is in your name, and you're paid the same way: 30% when the buyer's payment is confirmed and 70% on delivery. You can add a CAC number later."}
+              : "No CAC number? You can still sell on ProcureAI. We confirm with the bank that your payout account is in your name, and you're paid the same way as everyone: a first payment when the buyer's payment is confirmed and the rest on delivery. You can add a CAC number later."}
           </p>
           <div className="field">
             <label htmlFor="j-bankCode">Bank</label>

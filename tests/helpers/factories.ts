@@ -96,7 +96,7 @@ export async function makeQuote(requestId: string, vendorId: string, totalKobo =
 }
 
 /** A request with one vendor, a VERIFIED verification, a quote, and an order in CREATED. */
-export async function makeOrderFixture(opts: { amountKobo?: bigint } = {}) {
+export async function makeOrderFixture(opts: { amountKobo?: bigint; stage1Bp?: number } = {}) {
   const request = await makeRequest();
   const vendor = await makeVendor(request.id, { label: "Vendor B" });
   const verification = await makeVerification(vendor.id, "VERIFIED");
@@ -109,6 +109,7 @@ export async function makeOrderFixture(opts: { amountKobo?: bigint } = {}) {
       vendorId: vendor.id,
       verificationId: verification.id,
       amountKobo,
+      ...(opts.stage1Bp ? { stage1Bp: opts.stage1Bp } : {}),
     },
   });
   return { request, vendor, verification, quote, order };

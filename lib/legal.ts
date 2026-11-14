@@ -21,7 +21,7 @@ export const TERMS: LegalSection[] = [
   {
     heading: "What ProcureAI is",
     paragraphs: [
-      "ProcureAI helps a buyer get quotes from vendors, checks each vendor's business registration and bank account, and pays the chosen vendor in two stages: 30% once the buyer's money is held, and 70% on delivery.",
+      "ProcureAI helps a buyer get quotes from vendors, checks each vendor's business registration and bank account, and pays the chosen vendor in two stages: usually 30% once the buyer's money is held and 70% on delivery. A seller's first 3 completed orders start with 10% and 90%, while they build a track record. Large orders get a check by a person before the first payment.",
       "We are not a party to the sale. The contract for the goods is between the buyer and the vendor. We arrange the checks and the payments, and keep a record of both.",
     ],
   },
@@ -122,14 +122,14 @@ export const REFUNDS: LegalSection[] = [
   {
     heading: "How the money is protected",
     paragraphs: [
-      "Your money is held by our licensed payment processor once you pay. The vendor gets 30% to start the order. The other 70% is released only when you enter the six-digit delivery code, or when the vendor marks the order delivered and you don't report a problem within the window shown on the order (72 hours unless stated otherwise).",
+      "Your money is held by our licensed payment processor once you pay. The vendor gets their first payment (30%, or 10% for a seller's first 3 orders) to start the order. The rest is released only when you enter the six-digit delivery code, or when the vendor marks the order delivered and you don't report a problem within the window shown on the order (72 hours unless stated otherwise).",
     ],
   },
   {
     heading: "If something goes wrong",
     paragraphs: [
       "Report a problem on the order page before Stage 2 is released. That stops the release. Both sides can add photos and notes, and a person at ProcureAI decides from that evidence.",
-      "The decision can be to release Stage 2 to the vendor or to refund the held part to you. The 30% already paid to the vendor is a matter between you and the vendor.",
+      "The decision can be to release Stage 2 to the vendor or to refund the held part to you. The first payment already made to the vendor is a matter between you and the vendor.",
     ],
   },
   {

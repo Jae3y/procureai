@@ -34,7 +34,7 @@ type Copy = { title: string; body: (item: string) => string };
 
 const BUYER_COPY: Partial<Record<OrderStatus, Copy>> = {
   UNDERPAID: { title: "Your transfer was short", body: (i) => `The transfer for ${i} came in below the amount due. Open the order to pay the rest.` },
-  HELD: { title: "Your money is held", body: (i) => `Your payment for ${i} is confirmed. The vendor gets 30% now and the rest on delivery.` },
+  HELD: { title: "Your money is held", body: (i) => `Your payment for ${i} is confirmed. The vendor gets their first payment now and the rest on delivery.` },
   COMPLETE: { title: "Purchase complete", body: (i) => `Your purchase of ${i} is complete. Your record and receipt are ready.` },
   PAYOUT_FAILED: { title: "A vendor payout didn't go through", body: (i) => `A payout for ${i} failed. Your money is safe and we are on it.` },
   DISPUTED: { title: "Problem reported", body: (i) => `A problem was reported on ${i}. Stage 2 is on hold until it is resolved.` },
@@ -42,9 +42,9 @@ const BUYER_COPY: Partial<Record<OrderStatus, Copy>> = {
 };
 
 const SELLER_COPY: Partial<Record<OrderStatus, Copy>> = {
-  HELD: { title: "The buyer's money is held", body: (i) => `The buyer has paid for ${i}. Your 30% is on its way.` },
-  STAGE_1_PAID: { title: "Stage 1 sent to your account", body: (i) => `30% for ${i} has been sent to your account. You can start the order.` },
-  RELEASED: { title: "Stage 2 sent to your account", body: (i) => `The final 70% for ${i} has been sent to your account.` },
+  HELD: { title: "The buyer's money is held", body: (i) => `The buyer has paid for ${i}. Your first payment is on its way.` },
+  STAGE_1_PAID: { title: "Stage 1 sent to your account", body: (i) => `Your first payment for ${i} has been sent to your account. You can start the order.` },
+  RELEASED: { title: "Stage 2 sent to your account", body: (i) => `The rest of the payment for ${i} has been sent to your account.` },
   COMPLETE: { title: "Order complete", body: (i) => `The order for ${i} is complete and fully paid.` },
   PAYOUT_FAILED: { title: "A payout to you didn't go through", body: (i) => `A payout for ${i} failed. We'll retry it, and contact you if your bank details need checking.` },
   DISPUTED: { title: "The buyer reported a problem", body: (i) => `The buyer reported a problem on ${i}. Stage 2 is on hold. Open your order to add your side.` },

@@ -60,7 +60,7 @@ export async function submitHandoverCode(orderId: string, candidate: string, act
     if (order.status !== "STAGE_1_PAID") {
       throw new DomainError("code_not_now", "The delivery code can't be used at this stage of the order.", 409);
     }
-    const stage1 = await stage1IsPaid(tx, orderId, order.amountKobo);
+    const stage1 = await stage1IsPaid(tx, orderId, order);
     if (!stage1) throw new DomainError("stage1_pending", "Stage 1 hasn't landed with you yet. Try again in a moment.", 409);
 
     if (!checkHandoverCode(orderId, candidate, order.handoverCodeHash)) {

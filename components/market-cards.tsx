@@ -55,8 +55,8 @@ export function ListingCard({ l, standing }: { l: CardListing; standing?: Seller
 export function TrustNote() {
   return (
     <p className="note mk-trust">
-      You never pay a seller directly. When you buy, ProcureAI checks the seller with the bank (and CAC, if they&apos;re registered), holds your money, and pays them 30% when
-      your payment is confirmed and 70% when you confirm delivery.
+      You never pay a seller directly. When you buy, ProcureAI checks the seller with the bank (and CAC, if they&apos;re registered), holds your money, and pays them a first part when
+      your payment is confirmed (30%, or 10% for sellers new to ProcureAI) and the rest when you confirm delivery.
     </p>
   );
 }

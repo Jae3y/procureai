@@ -22,11 +22,24 @@ import { requestEvent } from "./timeline";
  * and maximum per transfer (Kora: ₦1,000 to ₦10,000,000). An order whose 30% is below the minimum would get
  * stuck after the buyer paid, so it is refused before any money moves. Above the maximum a stage is split into parts.
  */
-export function assertPayableInStages(totalKobo: Kobo): void {
+/** Sellers with fewer completed orders than this get the smaller first payout. */
+export const TRACK_RECORD_ORDERS = 3;
+export const NEW_SELLER_STAGE1_BP = 1000; // 10%
+export const STANDARD_STAGE1_BP = 3000; // 30%
+
+/** 10% first for a seller still building a track record (fewer than 3 completed orders on ProcureAI), else 30%. */
+export async function stage1ShareFor(vendor: { contactId: string | null }): Promise<number> {
+  if (!vendor.contactId) return NEW_SELLER_STAGE1_BP;
+  const completed = await db().order.count({ where: { status: "COMPLETE", vendor: { contactId: vendor.contactId } } });
+  return completed >= TRACK_RECORD_ORDERS ? STANDARD_STAGE1_BP : NEW_SELLER_STAGE1_BP;
+}
+
+export function assertPayableInStages(totalKobo: Kobo, stage1Bp = STANDARD_STAGE1_BP): void {
   const { minPayoutKobo } = payments().limits;
-  const { stage1 } = splitStages(totalKobo);
+  const { stage1 } = splitStages(totalKobo, stage1Bp);
   if (stage1 < minPayoutKobo) {
-    const min = (minPayoutKobo * 100n + 29n) / 30n; // smallest total whose 30% reaches the minimum
+    const bp = BigInt(stage1Bp);
+    const min = (minPayoutKobo * 10_000n + bp - 1n) / bp; // smallest total whose first payout reaches the minimum
     throw new DomainError("order_too_small", `ProcureAI can protect orders from ${formatNaira(min)}. This one is ${formatNaira(totalKobo)}.`, 409);
   }
   // A stage bigger than the provider's per-transfer maximum is paid in several transfers (see payout-parts.ts),
@@ -55,6 +68,7 @@ export async function approve(requestId: string, quoteId: string | null, cause: 
       throw new DomainError("unverified", `${quote.vendor.label} is not verified, so ProcureAI won't send it money.`, 409);
     }
     const totalKobo = quote.totalKobo;
+    const stage1Bp = await stage1ShareFor(quote.vendor);
     if (verification.matchMethod === "ACCOUNT_OWNER" && totalKobo > BANK_VERIFIED_MAX_KOBO) {
       throw new DomainError(
         "over_seller_limit",
@@ -62,12 +76,12 @@ export async function approve(requestId: string, quoteId: string | null, cause: 
         409,
       );
     }
-    assertPayableInStages(totalKobo);
+    assertPayableInStages(totalKobo, stage1Bp);
     order = await transaction(async (tx) => {
       const existing = await tx.order.findUnique({ where: { requestId } });
       if (existing) return existing;
       const created = await tx.order.create({
-        data: { requestId, quoteId: quote.id, vendorId: quote.vendorId, verificationId: verification.id, amountKobo: totalKobo },
+        data: { requestId, quoteId: quote.id, vendorId: quote.vendorId, verificationId: verification.id, amountKobo: totalKobo, stage1Bp },
       });
       await tx.request.update({ where: { id: requestId }, data: { status: "APPROVED" } });
       await tx.orderEvent.create({

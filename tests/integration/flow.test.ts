@@ -80,14 +80,15 @@ describe("P4 · the full flow, headless", () => {
     double.pay(second.reference, 26_000_000n);
     await deliver(double.chargeWebhook(second.reference));
     const s1 = await db().payout.findFirstOrThrow({ where: { orderId, stage: "STAGE_1" } });
-    expect(s1.amountKobo).toBe(37_800_000n);
+    // A seller new to ProcureAI (fewer than 3 completed orders) gets 10% first, then 90% on delivery.
+    expect(s1.amountKobo).toBe(12_600_000n);
     await deliver(double.transferWebhook(s1.reference, "success"));
 
     o = await d.order(orderId);
     expect(o.screen).toBe("track");
     expect(o.track.title).toBe("Stage 1 paid. Waiting for delivery.");
     expect(o.track.nodes.map((n) => n.state)).toEqual(["done", "held", "done", "pending", "pending", "pending"]);
-    expect(o.track.held.amount).toBe("₦882,000");
+    expect(o.track.held.amount).toBe("₦1,134,000");
     expect(o.track.code).toMatch(/^\d{3} \d{3}$/);
     expect(o.events.some((e) => e.name === "charge.success" && e.signature === "VERIFIED")).toBe(true);
     expect(o.events.some((e) => e.name === "identity.cac")).toBe(true);
@@ -100,7 +101,7 @@ describe("P4 · the full flow, headless", () => {
     expect(right.status).toBe(200);
 
     const s2 = await db().payout.findFirstOrThrow({ where: { orderId, stage: "STAGE_2" } });
-    expect(s2.amountKobo).toBe(88_200_000n);
+    expect(s2.amountKobo).toBe(113_400_000n);
     await deliver(double.transferWebhook(s2.reference, "success"));
 
     o = await d.order(orderId);

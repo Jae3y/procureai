@@ -1,3 +1,4 @@
+import { NEW_SELLER_STAGE1_BP, stage1ShareFor } from "@/lib/domain/approve";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { vendorByToken } from "@/lib/domain/vendors";
@@ -21,7 +22,7 @@ export type VendorView = {
   /** Set when the picker shows Kora's payout bank list because its verification list came back empty. */
   banksNote: string | null;
   order:
-    | (Pick<OrderView, "ref" | "status" | "stage1Amount" | "stage2Amount" | "amount" | "vendor" | "events" | "lastEventId"> & {
+    | (Pick<OrderView, "ref" | "status" | "stage1Amount" | "stage2Amount" | "stage1Share" | "amount" | "vendor" | "events" | "lastEventId"> & {
         id: string;
         heldAmount: string;
         recordPath: string | null;
@@ -64,6 +65,7 @@ export async function buildVendorView(token: string): Promise<VendorView> {
     }
   }
 
+  const share = await stage1ShareFor({ contactId: vendor.contactId });
   let order: VendorView["order"] = null;
   if (request.order && request.order.vendorId === vendor.id) {
     const v = await buildOrderView(request.order.id, "vendor");
@@ -75,6 +77,7 @@ export async function buildVendorView(token: string): Promise<VendorView> {
       amount: v.amount,
       stage1Amount: v.stage1Amount,
       stage2Amount: v.stage2Amount,
+      stage1Share: v.stage1Share,
       vendor: v.vendor,
       events: v.events.filter((e) => e.name.startsWith("transfer.")),
       lastEventId: v.lastEventId,
@@ -95,7 +98,10 @@ export async function buildVendorView(token: string): Promise<VendorView> {
       { label: "Quantity", value: request.quantity.toLocaleString("en-NG") },
       { label: "Deliver by", value: civilDay(request.deadline) },
     ],
-    terms: "If chosen, you're paid 30% when the buyer's money is held and 70% on delivery, straight to your business account.",
+    terms:
+      share === NEW_SELLER_STAGE1_BP
+        ? "If chosen, you're paid 10% when the buyer's money is held and 90% on delivery, straight to your business account. After 3 completed orders on ProcureAI, your first payment becomes 30%."
+        : "If chosen, you're paid 30% when the buyer's money is held and 70% on delivery, straight to your business account.",
     quote: quote ? { raw: quote.rawReply, total: quote.totalKobo !== null ? formatNaira(quote.totalKobo) : "No price read", parsedBy: quote.parsedBy } : null,
     banks,
     banksError,

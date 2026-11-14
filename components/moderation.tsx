@@ -90,3 +90,31 @@ export function ModerateListing({ listingId, removed }: { listingId: string; rem
     </div>
   );
 }
+
+/** Admin: approve a large order's first payout. */
+export function ApprovePayoutButton({ orderId }: { orderId: string }) {
+  const router = useRouter();
+  const act = useAction<Record<string, never>, { result: string; message?: string }>(`/api/admin/orders/${orderId}/approve-payout`);
+  const [note, setNote] = useState<string | null>(null);
+  return (
+    <div style={{ marginTop: 8 }}>
+      <button
+        type="button"
+        className="btn-2"
+        disabled={act.pending}
+        onClick={() =>
+          void act.run({}).then((r) => {
+            if (r.ok) {
+              setNote(r.data.result === "sent" ? "Approved. The first payout is on its way." : (r.data.message ?? "Approved."));
+              router.refresh();
+            }
+          })
+        }
+      >
+        {act.pending ? <Spinner label="Approving" /> : "Approve first payout"}
+      </button>
+      {note ? <p className="note" style={{ fontSize: 14 }}>{note}</p> : null}
+      {act.error ? <p className="form-error">{act.error.message}</p> : null}
+    </div>
+  );
+}

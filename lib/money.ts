@@ -90,13 +90,25 @@ export function koboToString(kobo: Kobo): string {
 }
 
 /**
- * The 30/70 split. stage1 = floor(total × 30 / 100), stage2 = total − stage1, so the two stages
- * always sum to the total and no kobo is lost to rounding.
+ * The two-stage split. stage1 = floor(total × stage1Bp / 10000), stage2 = total − stage1, so the two stages
+ * always sum to the total and no kobo is lost to rounding. stage1Bp is fixed on each order at approval:
+ * 3000 (30%) normally, 1000 (10%) for a seller still building a track record.
  */
-export function splitStages(totalKobo: Kobo): { stage1: Kobo; stage2: Kobo } {
+export function splitStages(totalKobo: Kobo, stage1Bp = 3000): { stage1: Kobo; stage2: Kobo } {
   if (totalKobo <= 0n) throw new MoneyError("order total must be positive");
-  const stage1 = (totalKobo * 30n) / 100n; // bigint division truncates toward zero = floor for positives
+  if (!Number.isInteger(stage1Bp) || stage1Bp <= 0 || stage1Bp >= 10_000) throw new MoneyError("stage 1 share must be between 0% and 100%");
+  const stage1 = (totalKobo * BigInt(stage1Bp)) / 10_000n; // bigint division truncates toward zero = floor for positives
   return { stage1, stage2: totalKobo - stage1 };
+}
+
+/** "30%" / "10%" for an order's first payout share. */
+export function stage1Percent(stage1Bp: number): string {
+  return `${stage1Bp / 100}%`;
+}
+
+/** "70%" / "90%" for the rest. */
+export function stage2Percent(stage1Bp: number): string {
+  return `${(10_000 - stage1Bp) / 100}%`;
 }
 
 export function minKobo(a: Kobo, b: Kobo): Kobo {

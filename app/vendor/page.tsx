@@ -38,7 +38,7 @@ export default async function VendorDashboardPage() {
           <SignOutButton />
         </div>
         <p className="note">
-          You&apos;re paid through ProcureAI: 30% when the buyer&apos;s money is held, 70% on delivery. <Link href="/account">Your buyer account</Link>
+          You&apos;re paid through ProcureAI: 30% when the buyer&apos;s money is held (10% on your first 3 orders), the rest on delivery. <Link href="/account">Your buyer account</Link>
         </p>
         <Notifications rows={v.notifications} />
         <VendorInvitations v={v} />

@@ -370,6 +370,11 @@ model Order {
   verification       VendorVerification @relation(fields: [verificationId], references: [id])
   amountKobo         BigInt
   status             OrderStatus        @default(CREATED)
+  /// The first payout's share in basis points, fixed at approval: 3000 (30%) normally, 1000 (10%) for a seller with
+  /// fewer than 3 completed orders. The rest is paid on delivery. Frozen by trigger I1.
+  stage1Bp           Int                @default(3000)
+  /// The owner approved the first payout of a large order (above the approval threshold).
+  payoutApprovedAt   DateTime?
   chargeReference    String?            @unique
   virtualAccount     Json?
   amountPaidKobo     BigInt             @default(0)

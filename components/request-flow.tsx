@@ -198,7 +198,7 @@ function Quotes({ v }: { v: RequestView }) {
           </ol>
           <div className="qfoot">
             <p className="note" style={{ margin: 0, maxWidth: "62ch" }}>
-              Prices are for {v.spec.quantity} pieces. Whatever a vendor asks upfront, ProcureAI pays 30% once your money is held and 70% on delivery.
+              Prices are for {v.spec.quantity} pieces. Whatever a vendor asks upfront, ProcureAI pays 30% once your money is held (10% for a seller new to ProcureAI) and the rest on delivery.
               {v.repliedCount < v.invitedCount
                 ? ` ${v.invitedCount - v.repliedCount} vendor${v.invitedCount - v.repliedCount === 1 ? " hasn't" : "s haven't"} replied yet: you can check these ${v.repliedCount} now and add later replies.`
                 : ""}
@@ -446,7 +446,7 @@ function Decision({ v }: { v: RequestView }) {
               ))}
             </div>
             <div className="note" style={{ marginTop: 20, fontSize: 15 }}>
-              You approve once. Your money is held until delivery: 30% goes to {rec.chosenLabel} once it&apos;s held, 70% when you confirm delivery.
+              You approve once. Your money is held until delivery: a first part goes to {rec.chosenLabel} once it&apos;s held (30%, or 10% if they&apos;re new to ProcureAI), the rest when you confirm delivery.
             </div>
             {rec.split ? (
               <div className="split-note" role="note">

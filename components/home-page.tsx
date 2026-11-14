@@ -420,7 +420,7 @@ export function HomePage() {
                 Get paid before you start.
               </h1>
               <p className="body-lg" style={{ marginTop: 32, color: "var(--muted)", maxWidth: "42ch" }}>
-                Buyers send you a link. Reply in your own words. When a buyer picks you and their payment is confirmed, 30% goes straight to your business account for materials. The other 70% is already held for you, and it&apos;s released when delivery is confirmed.
+                Buyers send you a link. Reply in your own words. When a buyer picks you and their payment is confirmed, 30% goes straight to your business account for materials (10% on your first 3 orders, while you build a track record). The rest is already held for you, and it&apos;s released when delivery is confirmed.
               </p>
               <div style={{ marginTop: 40, display: "flex", gap: 24, alignItems: "center", flexWrap: "wrap" }}>
                 <Link href="/vendors/join" className="btn btn-lg">
@@ -589,7 +589,7 @@ export function HomePage() {
                 You approve once
               </div>
               <p style={{ margin: "14px 0 0", font: "400 17px/1.55 var(--font-body)", color: "var(--muted)", maxWidth: "34ch" }}>
-                Pay into an account made for this purchase. It&apos;s held, then released in two stages: 30% once your money is held, 70% on delivery.
+                Pay into an account made for this purchase. It&apos;s held, then released in two stages: 30% once your money is held (10% for a seller new to ProcureAI), the rest on delivery.
               </p>
             </div>
           </div>
@@ -659,13 +659,13 @@ export function HomePage() {
             <div style={{ borderTop: "1px solid var(--on-ink-line)", paddingTop: 24 }}>
               <div style={{ font: "600 26px/1.1 var(--font-display)", letterSpacing: "-0.025em" }}>30% in your account upfront</div>
               <p style={{ margin: "12px 0 0", font: "400 17px/1.55 var(--font-body)", color: "var(--on-ink-soft)" }}>
-                The moment the buyer&apos;s payment is confirmed, 30% is sent to your business account. Use it for materials. Start with confidence.
+                The moment the buyer&apos;s payment is confirmed, 30% is sent to your business account. Use it for materials. Start with confidence. Your first 3 orders start with 10% while you build a track record.
               </p>
             </div>
             <div style={{ borderTop: "1px solid var(--on-ink-line)", paddingTop: 24 }}>
               <div style={{ font: "600 26px/1.1 var(--font-display)", letterSpacing: "-0.025em" }}>The rest is already waiting</div>
               <p style={{ margin: "12px 0 0", font: "400 17px/1.55 var(--font-body)", color: "var(--on-ink-soft)" }}>
-                The other 70% is held for you from day one, and you can see it. It&apos;s released when delivery is confirmed.
+                The rest is held for you from day one, and you can see it. It&apos;s released when delivery is confirmed.
               </p>
             </div>
             <div style={{ borderTop: "1px solid var(--on-ink-line)", paddingTop: 24 }}>

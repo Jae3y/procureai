@@ -6,6 +6,7 @@ import { formatNaira, type Kobo, splitStages } from "@/lib/money";
 import { DomainError, NotFoundError, UnknownReferenceError } from "./errors";
 import { payoutReference, splitIntoParts, stageIsPaid } from "./payout-parts";
 import { recordApiEvent, toJson } from "./kora-events";
+import { notifyOps } from "@/lib/notify/notifications";
 import { getSetting } from "./settings";
 import { type Cause, canTransition, lockOrder, retryTarget, transition } from "./state";
 import { orderEvent } from "./timeline";
@@ -37,11 +38,41 @@ export type DispatchResult =
   | { kind: "sent"; payout: Payout }
   | { kind: "pending-unknown"; payout: Payout; error: ProviderError }
   | { kind: "failed"; payout: Payout; error: ProviderError }
-  | { kind: "blocked"; reason: "unfunded" | "balance-unavailable" | "vendor-email-missing"; message: string }
+  | { kind: "blocked"; reason: "unfunded" | "balance-unavailable" | "vendor-email-missing" | "awaiting-owner-approval" | "safety-hold"; message: string }
   | { kind: "skipped"; reason: string };
 
-function stageAmount(totalKobo: Kobo, stage: PayoutStage): Kobo {
-  const { stage1, stage2 } = splitStages(totalKobo);
+/**
+ * Big-order safeguards (owner's decision, 13 Nov 2026). Above OWNER_APPROVAL_ABOVE_KOBO the first payout waits
+ * until the owner approves it in /admin/approvals; above SAFETY_HOLD_ABOVE_KOBO it also waits 24 hours after the
+ * buyer's money is held. The background job retries held orders, so the payout goes out by itself once both
+ * conditions are met. Nothing here moves money; it only waits.
+ */
+export const OWNER_APPROVAL_ABOVE_KOBO: Kobo = 500_000_000n; // ₦5,000,000
+export const SAFETY_HOLD_ABOVE_KOBO: Kobo = 2_000_000_000n; // ₦20,000,000
+export const SAFETY_HOLD_MS = 24 * 60 * 60 * 1000;
+
+async function bigOrderCheck(order: { id: string; amountKobo: Kobo; payoutApprovedAt: Date | null }, now = new Date()): Promise<DispatchResult | null> {
+  if (order.amountKobo > OWNER_APPROVAL_ABOVE_KOBO && !order.payoutApprovedAt) {
+    const told = await db().orderEvent.findFirst({ where: { orderId: order.id, title: "Waiting for ProcureAI's approval" } });
+    if (!told) {
+      await transaction(async (tx) => {
+        await orderEvent(tx, order.id, { kind: "info", title: "Waiting for ProcureAI's approval", detail: `Orders above ${formatNaira(OWNER_APPROVAL_ABOVE_KOBO)} get a quick check by a person before the first payout.` });
+        await notifyOps(tx, { kind: "ops.payout-approval", title: "A large order needs your approval", body: `${formatNaira(order.amountKobo)} is held. Approve the first payout when you're satisfied.`, href: "/admin/approvals" });
+      });
+    }
+    return { kind: "blocked", reason: "awaiting-owner-approval", message: "Waiting for ProcureAI's approval before the first payout." };
+  }
+  if (order.amountKobo > SAFETY_HOLD_ABOVE_KOBO) {
+    const held = await db().orderTransition.findFirst({ where: { orderId: order.id, toState: "HELD" }, orderBy: { seq: "desc" } });
+    if (held && now.getTime() - held.at.getTime() < SAFETY_HOLD_MS) {
+      return { kind: "blocked", reason: "safety-hold", message: `Large orders wait 24 hours after payment before the first payout. This one can go after ${new Date(held.at.getTime() + SAFETY_HOLD_MS).toISOString().slice(0, 16).replace("T", " ")} UTC.` };
+    }
+  }
+  return null;
+}
+
+function stageAmount(totalKobo: Kobo, stage: PayoutStage, stage1Bp: number): Kobo {
+  const { stage1, stage2 } = splitStages(totalKobo, stage1Bp);
   return stage === "STAGE_1" ? stage1 : stage2;
 }
 
@@ -94,13 +125,17 @@ async function checkVendorEmail(orderId: string, stage: PayoutStage, email: stri
  * ("parts"), all written under the same order lock as the state change and then sent one by one. Idempotent:
  * a second call finds the order already moved on.
  */
-export async function dispatchStage(orderId: string, stage: PayoutStage, cause: Cause): Promise<DispatchResult> {
+export async function dispatchStage(orderId: string, stage: PayoutStage, cause: Cause, now: Date = new Date()): Promise<DispatchResult> {
   const expected = stage === "STAGE_1" ? "HELD" : "CODE_VERIFIED";
   const pre = await db().order.findUnique({ where: { id: orderId }, include: { verification: true, vendor: true } });
   if (!pre) throw new NotFoundError("Order");
   if (pre.status !== expected) return { kind: "skipped", reason: `order is ${pre.status}` };
 
-  const amountKobo = stageAmount(pre.amountKobo, stage);
+  if (stage === "STAGE_1") {
+    const waiting = await bigOrderCheck(pre, now);
+    if (waiting) return waiting;
+  }
+  const amountKobo = stageAmount(pre.amountKobo, stage, pre.stage1Bp);
   const provider = payments();
   const parts = splitIntoParts(amountKobo, provider.limits.maxPayoutKobo);
   const blocked = (await checkVendorEmail(orderId, stage, pre.vendor.email)) ?? (await checkBalance(provider, orderId, stage, amountKobo));
@@ -141,10 +176,24 @@ export async function dispatchStage(orderId: string, stage: PayoutStage, cause: 
   return sendParts(created, cause);
 }
 
+/** The owner approves a large order's first payout; it goes out now unless the 24-hour hold still applies. */
+export async function approveLargePayout(orderId: string, cause: Cause): Promise<DispatchResult> {
+  const order = await db().order.findUnique({ where: { id: orderId } });
+  if (!order) throw new NotFoundError("Order");
+  if (order.status !== "HELD") throw new DomainError("not_held", "Only an order whose money is held and whose first payout hasn't gone can be approved.", 409);
+  if (!order.payoutApprovedAt) {
+    await transaction(async (tx) => {
+      await tx.order.update({ where: { id: orderId }, data: { payoutApprovedAt: new Date() } });
+      await orderEvent(tx, orderId, { kind: "info", title: "Approved by ProcureAI", detail: "The first payout can go." });
+    });
+  }
+  return dispatchStage(orderId, "STAGE_1", cause);
+}
+
 /** True when every part of Stage 1 has landed with the vendor (one part is not enough). */
-export async function stage1IsPaid(tx: Tx, orderId: string, orderAmountKobo: Kobo): Promise<boolean> {
+export async function stage1IsPaid(tx: Tx, orderId: string, order: { amountKobo: Kobo; stage1Bp: number }): Promise<boolean> {
   const rows = await tx.payout.findMany({ where: { orderId, stage: "STAGE_1" }, select: { stage: true, status: true, amountKobo: true } });
-  return stageIsPaid(rows, "STAGE_1", splitStages(orderAmountKobo).stage1);
+  return stageIsPaid(rows, "STAGE_1", splitStages(order.amountKobo, order.stage1Bp).stage1);
 }
 
 /** Sends every part of a stage. All are attempted; the answer reports the most important outcome (failed, then unknown, then sent). */
@@ -319,7 +368,7 @@ export async function applyPayoutOutcome(reference: string, outcome: PayoutOutco
       if (payout.stage === "STAGE_2" && order.status === "RELEASED") {
         // The order is complete only when every part of the last stage has landed, not when one has.
         const stage2Parts = await tx.payout.findMany({ where: { orderId: order.id, stage: "STAGE_2" }, select: { stage: true, status: true, amountKobo: true } });
-        if (stageIsPaid(stage2Parts, "STAGE_2", stageAmount(order.amountKobo, "STAGE_2"))) {
+        if (stageIsPaid(stage2Parts, "STAGE_2", stageAmount(order.amountKobo, "STAGE_2", order.stage1Bp))) {
           order = await transition(tx, order, "COMPLETE", { ...cause, note: reference });
         }
       }
