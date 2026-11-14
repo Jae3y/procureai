@@ -34,6 +34,8 @@ const EnvSchema = z
     RECORD_SIGNING_SECRET: z.string().min(32, "use at least 32 random characters"),
     ADMIN_TOKEN: z.string().default(""),
     DEMO_MODE: bool.default(false),
+    /** The separate demo site (e.g. https://demo.procureai.com.ng). With DEMO_MODE off, /demo sends visitors there. */
+    DEMO_SITE_URL: z.string().default(""),
     SIMULATE_IDENTITY: bool.default(false),
     ENABLE_CHECKOUT_REDIRECT: bool.default(false),
     LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),

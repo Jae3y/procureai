@@ -15,7 +15,11 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: Request): Promise<Response> {
   const e = env();
-  if (!e.DEMO_MODE) return new Response("Demo mode is off.", { status: 404 });
+  if (!e.DEMO_MODE) {
+    // The real site keeps its "Demo" links working by sending visitors to the separate demo site.
+    if (/^https:\/\/[a-z0-9.-]+$/i.test(e.DEMO_SITE_URL)) return Response.redirect(`${e.DEMO_SITE_URL}/demo`, 307);
+    return new Response("Demo mode is off.", { status: 404 });
+  }
   const url = new URL(req.url);
   if (e.ADMIN_TOKEN && !isAdmin(req)) {
     const own = await db().buyer.create({ data: { ...DEMO_BUYER } });
