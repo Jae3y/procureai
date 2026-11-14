@@ -1,3 +1,5 @@
+import { alertOwner } from "@/lib/notify/alerts";
+import { runAfterResponse } from "./after";
 import { z } from "zod";
 import { DomainError } from "@/lib/domain/errors";
 import { EnvError } from "@/lib/env";
@@ -113,6 +115,14 @@ export function route<I = undefined, P extends Record<string, string> = Record<s
           return json({ error: { code: "not_configured", message: err.message } }, 503);
         }
         log.error({ err, route: opts.name }, "unhandled route error");
+        const cid = currentCorrelationId();
+        runAfterResponse("owner-alert", () =>
+          alertOwner(`route:${opts.name}`, "Something broke on the site", [
+            `An unexpected error happened in "${opts.name}". The person saw "Something went wrong on our side."`,
+            `Error: ${err instanceof Error ? err.message.slice(0, 200) : "unknown"}`,
+            `Correlation id (search the logs for it): ${cid ?? "none"}`,
+          ]).then(() => undefined),
+        );
         return json({ error: { code: "internal", message: "Something went wrong on our side.", correlationId: currentCorrelationId() } }, 500);
       }
     });
