@@ -16,12 +16,13 @@ import { expectMoneyInvariants, heldBalance, ledgerNet } from "../helpers/ledger
 
 const run = hasSandboxKey ? describe : describe.skip;
 
-async function until<T>(label: string, fn: () => Promise<T>, ok: (v: T) => boolean, timeoutMs = 90_000): Promise<T> {
+/** Polls every 6 s: Re-check is limited to 12 presses a minute per order (the app's own guard), and this stays under it. */
+async function until<T>(label: string, fn: () => Promise<T>, ok: (v: T) => boolean, timeoutMs = 150_000): Promise<T> {
   const end = Date.now() + timeoutMs;
   let last = await fn();
   while (!ok(last)) {
     if (Date.now() > end) throw new Error(`timed out waiting for ${label}; last: ${JSON.stringify(last)}`);
-    await new Promise((r) => setTimeout(r, 3000));
+    await new Promise((r) => setTimeout(r, 6000));
     last = await fn();
   }
   return last;

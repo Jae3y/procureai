@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
+import { submitQuote } from "@/lib/domain/vendors";
 import { revealHandoverCode, submitHandoverCode } from "@/lib/domain/handover";
 import { openPayIn, reconcileCharge } from "@/lib/domain/payin";
 import { dispatchStage, reconcilePayout, retryPayout } from "@/lib/domain/payouts";
@@ -7,7 +9,7 @@ import { setSetting } from "@/lib/domain/settings";
 import { receiveKoraWebhook } from "@/lib/webhooks/receive";
 import { processOutboxBatch } from "@/lib/worker/outbox";
 import { pollOnce } from "@/lib/worker/poller";
-import { makeOrderFixture } from "../helpers/factories";
+import { makeOrderFixture, makeRequest, makeVendor } from "../helpers/factories";
 import { useKoraDouble } from "../helpers/kora";
 import { expectMoneyInvariants } from "../helpers/ledger";
 
@@ -121,5 +123,26 @@ describe("racing money actions", () => {
     expect(sent).toHaveLength(1);
     expect(await db().payout.count({ where: { orderId: order.id, retryOfId: s1.id } })).toBe(1);
     await expectMoneyInvariants(order.id);
+  });
+});
+
+describe("two quotes racing for the same invite", () => {
+  it("one wins; the loser gets a clean refusal and changes nothing, bank details included", async () => {
+    const request = await makeRequest();
+    const vendor = await makeVendor(request.id, { label: "Vendor R" });
+    const token = "race-token-for-one-invite-0001";
+    await db().vendor.update({ where: { id: vendor.id }, data: { inviteTokenHash: createHash("sha256").update(token).digest("hex"), contactId: null } });
+    const send = (account: string) =>
+      submitQuote(token, { reply: "N4,200 each, ready Thursday", businessName: "Kwik Threads", rcNumber: "RC00000011", bankCode: "058", accountNumber: account, email: "orders@kwikthreads.test", consent: true });
+    const results = await Promise.allSettled([send("1111111111"), send("2222222222")]);
+    const won = results.filter((r) => r.status === "fulfilled");
+    const lost = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+    expect(won).toHaveLength(1);
+    expect(lost).toHaveLength(1);
+    expect(lost[0]?.reason).toMatchObject({ code: "already_quoted", status: 409 });
+    expect(await db().quote.count({ where: { vendorId: vendor.id } })).toBe(1);
+    // The saved bank account is the winner's, never the loser's.
+    const winner = results.findIndex((r) => r.status === "fulfilled");
+    expect((await db().vendor.findUniqueOrThrow({ where: { id: vendor.id } })).accountNumber).toBe(winner === 0 ? "1111111111" : "2222222222");
   });
 });

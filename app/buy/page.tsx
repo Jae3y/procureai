@@ -1,9 +1,11 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { RequestComposer } from "@/components/request-composer";
 import { env } from "@/lib/env";
 import { initialsOf, pageAccount } from "@/lib/http/page-auth";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Start a purchase · ProcureAI" };
 
 /** Signed in: a real purchase. Not signed in: the demo if this deployment offers one, otherwise sign in. */
 export default async function NewRequestPage({ searchParams }: { searchParams: Promise<{ text?: string }> }) {

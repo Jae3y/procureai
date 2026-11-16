@@ -77,7 +77,10 @@ export class FlowDriver {
       const r = await this.call(quoteRoute, `/api/vendors/${token}/quote`, { token }, {
         body: { reply: v.reply(ask) ?? "", businessName: v.businessName, rcNumber: v.rcNumber, bankCode: v.bankCode, accountNumber: v.accountNumber, email: v.email, consent: true },
       });
-      expect(r.status).toBe(201);
+      // In demo mode the scripted vendor may have replied first with this same quote (the real AI is slower
+      // than the rules reader, so this happens against the sandbox): that's the same reply, already in.
+      const scriptedFirst = r.status === 409 && (r.body.error as { code?: string } | undefined)?.code === "already_quoted";
+      expect(scriptedFirst || r.status === 201, JSON.stringify(r.body)).toBe(true);
     }
     return requestId;
   }

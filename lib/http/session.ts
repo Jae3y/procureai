@@ -94,6 +94,15 @@ export function clearAccountCookie(): string {
   return cookieHeader(accountCookieName(), "", 0);
 }
 
+/**
+ * Everything that keeps this browser signed in, cleared: the account session (under both cookie names, in case
+ * the site moved between http and https), a half-finished two-step sign-in, and the demo visitor's buyer, whose
+ * purchases would otherwise still open after "Sign out".
+ */
+export function signOutCookies(): string[] {
+  return [ACCOUNT_COOKIE, ACCOUNT_COOKIE_PLAIN, LOGIN_TICKET_COOKIE, BUYER_COOKIE, OAUTH_COOKIE].map((name) => cookieHeader(name, "", 0));
+}
+
 /** The signed-in account for a raw cookie value, or null if it is missing, expired or from before a password change. */
 export async function accountForCookie(value: string | undefined): Promise<Account | null> {
   const subject = verifySession("account-session", value);

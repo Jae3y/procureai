@@ -40,6 +40,7 @@ export function RequestComposer({ mode, testMode, initialText, initials }: { mod
     <main className="page">
       <Header current="Request" reached={0} initials={initials} />
       <section className="request" aria-labelledby="new-purchase">
+        <h1 className="sr-only">Start a purchase</h1>
         <form onSubmit={submit} className="rise" noValidate>
           <label id="new-purchase" htmlFor="request-text" className="eyebrow" style={{ display: "block", marginBottom: 32 }}>
             New purchase

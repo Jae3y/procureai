@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { POST as passwordPost } from "@/app/api/account/password/route";
 import { GET as exportGet } from "@/app/api/account/export/route";
 import { POST as loginPost } from "@/app/api/auth/login/route";
+import { POST as logoutPost } from "@/app/api/auth/logout/route";
 import { POST as resetPost } from "@/app/api/auth/reset/route";
 import { POST as signupPost } from "@/app/api/auth/signup/route";
 import { POST as inviteRoute } from "@/app/api/requests/[id]/invite/route";
@@ -201,6 +202,17 @@ describe("real purchases and demo purchases stay apart", () => {
     expect(quote.status).toBe(201);
     const account = await db().account.findUniqueOrThrow({ where: { email } });
     expect(await db().notification.findMany({ where: { accountId: account.id }, select: { kind: true, href: true } })).toEqual([{ kind: "quote", href: `/buy/${id}` }]);
+  });
+});
+
+describe("signing out", () => {
+  it("clears every cookie that keeps this browser signed in, the demo buyer included", async () => {
+    const { b } = await signedIn();
+    b.jar.set("pa_buyer", buyerSessionCookie("someone").split(";")[0]?.split("=")[1] ?? "");
+    expect(await accountFrom(new Request("http://localhost:3000/", { headers: { cookie: b.cookieHeader() } }))).not.toBeNull();
+    expect((await b.call(logoutPost, "/api/auth/logout", {}, {})).status).toBe(200);
+    for (const name of [accountCookieName(), "pa_buyer", "pa_login"]) expect(b.jar.get(name) ?? "").toBe("");
+    expect(await accountFrom(new Request("http://localhost:3000/", { headers: { cookie: b.cookieHeader() } }))).toBeNull();
   });
 });
 

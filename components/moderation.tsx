@@ -74,7 +74,7 @@ export function ModerateListing({ listingId, removed }: { listingId: string; rem
   return (
     <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
       {removed ? null : (
-        <input className="input" placeholder="Reason the seller will see, e.g. The photo isn't of the product." value={note} onChange={(e) => setNote(e.target.value)} />
+        <input className="input" aria-label="Reason the seller will see" placeholder="Reason the seller will see, e.g. The photo isn't of the product." value={note} onChange={(e) => setNote(e.target.value)} />
       )}
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         {removed ? null : (

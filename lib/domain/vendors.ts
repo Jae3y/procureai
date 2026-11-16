@@ -1,6 +1,6 @@
 import { normalizeQuote } from "@/lib/ai/normalize";
 import { sha256Hex } from "@/lib/crypto";
-import { db } from "@/lib/db";
+import { db, transaction } from "@/lib/db";
 import type { Vendor } from "@/lib/generated/prisma/client";
 import { formatNaira } from "@/lib/money";
 import { notify } from "@/lib/notify/notifications";
@@ -62,34 +62,45 @@ export async function submitQuote(token: string, input: QuoteSubmission) {
   const details = await detailsFor(vendor, input);
 
   const { quote, parsedBy, model, note } = await normalizeQuote(input.reply, specOf(request), createdDateOf(request));
-  await db().vendor.update({
-    where: { id: vendor.id },
-    data: {
-      name: details.businessName.trim(),
-      rcNumber: details.rcNumber.trim().toUpperCase() || null,
-      ownerName: details.ownerName.trim() || null,
-      bankCode: details.bankCode.trim(),
-      accountNumber: details.accountNumber.trim(),
-      email: details.email.trim().toLowerCase(),
-      consentAt: new Date(),
-    },
-  });
-  const created = await db().quote.create({
-    data: {
-      requestId: request.id,
-      vendorId: vendor.id,
-      rawReply: input.reply.trim(),
-      unitPriceKobo: quote.unitPriceKobo,
-      totalKobo: quote.totalKobo,
-      deliveryKobo: quote.deliveryKobo,
-      quantityOffered: quote.quantityOffered,
-      upfrontPercent: quote.upfrontPercent,
-      readyDate: quote.readyDate ? new Date(`${quote.readyDate}T00:00:00Z`) : null,
-      meetsSpec: quote.meetsSpec,
-      flags: quote.flags,
-      parsedBy,
-      model,
-    },
+  // The quote and the details it was sent with are saved together. Two submissions racing for the same invite
+  // (a double tap, two phones) used to let the loser overwrite the bank details behind the winner's quote,
+  // then fail with a server error. Now the quote's unique vendor row decides, and the loser changes nothing.
+  const created = await transaction(async (tx) => {
+    const q = await tx.quote.create({
+      data: {
+        requestId: request.id,
+        vendorId: vendor.id,
+        rawReply: input.reply.trim(),
+        unitPriceKobo: quote.unitPriceKobo,
+        totalKobo: quote.totalKobo,
+        deliveryKobo: quote.deliveryKobo,
+        quantityOffered: quote.quantityOffered,
+        upfrontPercent: quote.upfrontPercent,
+        readyDate: quote.readyDate ? new Date(`${quote.readyDate}T00:00:00Z`) : null,
+        meetsSpec: quote.meetsSpec,
+        flags: quote.flags,
+        parsedBy,
+        model,
+      },
+    });
+    await tx.vendor.update({
+      where: { id: vendor.id },
+      data: {
+        name: details.businessName.trim(),
+        rcNumber: details.rcNumber.trim().toUpperCase() || null,
+        ownerName: details.ownerName.trim() || null,
+        bankCode: details.bankCode.trim(),
+        accountNumber: details.accountNumber.trim(),
+        email: details.email.trim().toLowerCase(),
+        consentAt: new Date(),
+      },
+    });
+    return q;
+  }).catch((err: unknown) => {
+    if (typeof err === "object" && err !== null && "code" in err && err.code === "P2002") {
+      throw new DomainError("already_quoted", "You've already sent a quote for this request.", 409);
+    }
+    throw err;
   });
   await requestEvent(request.id, {
     kind: "info",

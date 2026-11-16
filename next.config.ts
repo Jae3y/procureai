@@ -36,6 +36,14 @@ const config: NextConfig = {
    */
   async redirects() {
     return [
+      // One address only. A browser keeps a separate sign-in for www and for the bare domain, and Google sign-in
+      // always lands on the bare domain, so with both open a person could sign out of one and still be signed in on the other.
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.procureai.com.ng" }],
+        destination: "https://procureai.com.ng/:path*",
+        permanent: true,
+      },
       {
         source: "/:path((?!api/webhooks/|api/cron/).*)",
         has: [{ type: "host", value: "procureai-six.vercel.app" }],

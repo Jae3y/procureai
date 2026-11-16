@@ -130,7 +130,7 @@ function parseText(t: string): ParsedRequest {
 /** Landing tagline: edit here. */
 const TAGLINE = ["Buy like you checked everyone.", "Because we did."];
 
-export function HomePage() {
+export function HomePage({ signedIn = false }: { signedIn?: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<"buy" | "sell">("buy");
   const [text, setText] = useState("");
@@ -237,8 +237,8 @@ export function HomePage() {
             <a href="#vendors" onClick={(e) => scrollToSection(e, "vendors")} className="btn-text nav-extra" style={{ textDecoration: "none" }}>
               For vendors
             </a>
-            <Link href="/account" className="btn-text" style={{ textDecoration: "none" }}>
-              Sign in
+            <Link href={signedIn ? "/account" : "/login"} className="btn-text" style={{ textDecoration: "none" }}>
+              {signedIn ? "Your account" : "Sign in"}
             </Link>
             <Link href="/buy" className="btn btn-sm">
               Start a purchase
@@ -246,6 +246,8 @@ export function HomePage() {
           </nav>
         </div>
       </header>
+
+      <main id="main">
 
       <AchievementsBanner />
 
@@ -299,6 +301,7 @@ export function HomePage() {
 
             <form
               onSubmit={handleSubmit}
+              className="hero-ask"
               style={{
                 marginTop: "clamp(48px, 6vh, 80px)",
                 border: "1.5px solid var(--ink)",
@@ -312,6 +315,7 @@ export function HomePage() {
               }}
             >
               <input
+                aria-label="What do you need? Say what, how many, your budget and by when"
                 value={text}
                 onChange={(e) => {
                   setText(e.target.value);
@@ -584,7 +588,7 @@ export function HomePage() {
               </p>
             </div>
             <div style={{ borderTop: "2px solid var(--amber)", paddingTop: 28 }}>
-              <div style={{ font: "500 clamp(56px, 5vw, 96px)/1 var(--font-mono)", letterSpacing: "-0.06em", color: "var(--amber)" }}>03</div>
+              <div style={{ font: "500 clamp(56px, 5vw, 96px)/1 var(--font-mono)", letterSpacing: "-0.06em", color: "var(--amber-ink)" }}>03</div>
               <div style={{ marginTop: 28, font: "600 clamp(26px, 2.2vw, 36px)/1 var(--font-display)", letterSpacing: "-0.03em" }}>
                 You approve once
               </div>
@@ -717,7 +721,9 @@ export function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer style={{ borderTop: "1px solid var(--hairline)" }}>
+      </main>
+
+      <footer className="home-foot" style={{ borderTop: "1px solid var(--hairline)" }}>
         <div style={{ maxWidth: "var(--max)", margin: "0 auto", padding: "40px var(--gutter)", display: "flex", justifyContent: "space-between", gap: 24, flexWrap: "wrap", font: "400 14px/1.5 var(--font-body)", color: "var(--muted)" }}>
           <span>ProcureAI · {COMPANY_LINE}</span>
           <span style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>

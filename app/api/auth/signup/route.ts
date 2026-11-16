@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/auth/password";
+import { assertAcceptablePassword } from "@/lib/auth/password-policy";
 import { verifyTurnstile } from "@/lib/auth/turnstile";
-import { signUp } from "@/lib/domain/accounts";
+import { db } from "@/lib/db";
+import { normalizeEmail, signUp } from "@/lib/domain/accounts";
 import { DomainError } from "@/lib/domain/errors";
 import { normalizeNigerianPhone } from "@/lib/domain/vendor-profiles";
 import { route } from "@/lib/http/route";
@@ -41,7 +43,6 @@ export const POST = route<z.output<typeof Body>>(
     if (age < MIN_FILL_MS || age > MAX_FILL_MS) {
       throw new DomainError("too_fast", "That was quick. Check your details and press the button again.", 400);
     }
-    await verifyTurnstile(input.turnstileToken, ip);
     let phone: string;
     try {
       phone = normalizeNigerianPhone(input.phone);
@@ -49,8 +50,17 @@ export const POST = route<z.output<typeof Body>>(
       if (err instanceof DomainError) throw new DomainError(err.code, err.userMessage, 400, { issues: [{ path: "phone", message: err.userMessage }] });
       throw err;
     }
+    // Cloudflare's token works once. Everything that can refuse the form is checked first, so a refused password
+    // or a taken email doesn't spend it and make the next try fail the bot check.
+    const name = `${input.firstName} ${input.lastName}`;
+    await assertAcceptablePassword(input.password, { email: normalizeEmail(input.email), name });
+    if (await db().account.findUnique({ where: { email: normalizeEmail(input.email) }, select: { id: true } })) {
+      throw new DomainError("email_taken", "There's already an account with this email. Sign in instead.", 409, { issues: [{ path: "email", message: "This email already has an account. Sign in instead." }] });
+    }
+    await verifyTurnstile(input.turnstileToken, ip);
     const account = await signUp({
-      name: `${input.firstName} ${input.lastName}`,
+      name,
+      passwordChecked: true,
       email: input.email,
       password: input.password,
       phone,

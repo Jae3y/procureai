@@ -57,6 +57,27 @@ describe("sign-up", () => {
     expect(await db().account.count()).toBe(0);
   });
 
+  it("a refused password or a taken email doesn't spend the one-time bot-check token", async () => {
+    Object.assign(process.env, { TURNSTILE_SITE_KEY: "site-key", TURNSTILE_SECRET_KEY: "secret-key" });
+    resetEnvCache();
+    const calls: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        calls.push(String(url));
+        return new Response(JSON.stringify({ success: true }), { status: 200 });
+      }),
+    );
+    const weak = await post(signupBody({ email: "weak@example.com", password: "password123", turnstileToken: "t1" }));
+    expect(weak.body.error?.code).toBe("weak_password");
+    await post(signupBody({ email: "taken@example.com", turnstileToken: "t2" }));
+    const taken = await post(signupBody({ email: "taken@example.com", turnstileToken: "t3" }));
+    expect(taken.body.error?.code).toBe("email_taken");
+    expect(taken.body.error?.details?.issues?.[0]?.path).toBe("email");
+    // Only the one sign-up that went through asked Cloudflare.
+    expect(calls.filter((u) => u.includes("challenges.cloudflare.com"))).toHaveLength(1);
+  });
+
   it("with the bot check switched on, a missing or failed token is refused", async () => {
     Object.assign(process.env, { TURNSTILE_SITE_KEY: "site-key", TURNSTILE_SECRET_KEY: "secret-key" });
     resetEnvCache();

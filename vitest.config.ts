@@ -39,7 +39,7 @@ export default defineConfig({
           setupFiles: ["tests/setup/sandbox-env.ts", "tests/setup/integration.ts"],
           globalSetup: ["tests/setup/global-db.ts"],
           fileParallelism: false,
-          testTimeout: 180_000,
+          testTimeout: 480_000,
           hookTimeout: 120_000,
         },
       },

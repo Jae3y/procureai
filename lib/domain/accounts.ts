@@ -62,9 +62,10 @@ export async function resendVerifyEmail(account: Account): Promise<{ sent: boole
 
 export type SignUpProfile = { phone?: string; intent?: "BUY" | "SELL" | "BOTH"; organisation?: string; heardFrom?: string; marketingOptIn?: boolean };
 
-export async function signUp(input: { name: string; email: string; password: string } & SignUpProfile): Promise<Account> {
+/** `passwordChecked`: the caller already ran the password rules (saves a second breach lookup). */
+export async function signUp(input: { name: string; email: string; password: string; passwordChecked?: boolean } & SignUpProfile): Promise<Account> {
   const email = normalizeEmail(input.email);
-  await assertAcceptablePassword(input.password, { email, name: input.name });
+  if (!input.passwordChecked) await assertAcceptablePassword(input.password, { email, name: input.name });
   const passwordHash = await hashPassword(input.password);
   try {
     const account = await transaction(async (tx) => {

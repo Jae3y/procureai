@@ -42,9 +42,16 @@ export function ConfirmEmailBanner({ v }: { v: AccountView }) {
 export function SignOutButton() {
   const out = useAction("/api/auth/logout");
   return (
-    <button type="button" className="btn-text" disabled={out.pending} onClick={() => void out.run().then((r) => r.ok && window.location.assign("/"))}>
-      Sign out
-    </button>
+    <span style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end" }}>
+      <button type="button" className="btn-text" disabled={out.pending} onClick={() => void out.run().then((r) => r.ok && window.location.assign("/"))}>
+        {out.pending ? <Spinner label="Signing out" /> : "Sign out"}
+      </button>
+      {out.error ? (
+        <span className="form-error" role="alert" style={{ marginTop: 4 }}>
+          You&apos;re still signed in. {out.error.message}
+        </span>
+      ) : null}
+    </span>
   );
 }
 

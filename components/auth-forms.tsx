@@ -213,18 +213,58 @@ function PasswordField({
 
 declare global {
   interface Window {
-    turnstile?: { render: (el: HTMLElement, opts: { sitekey: string; callback: (token: string) => void; "expired-callback": () => void }) => string; remove: (id: string) => void };
+    turnstile?: {
+      render: (
+        el: HTMLElement,
+        opts: { sitekey: string; callback: (token: string) => void; "expired-callback": () => void; "error-callback": () => boolean; "timeout-callback": () => void; "refresh-expired": "auto" },
+      ) => string;
+      reset: (id: string) => void;
+      remove: (id: string) => void;
+    };
   }
 }
 
-/** Cloudflare's bot check. Mostly invisible; shows a tick box only when it is unsure. */
-function TurnstileBox({ siteKey, onToken }: { siteKey: string; onToken: (token: string) => void }) {
+type BotCheck = "waiting" | "done" | "failed" | "blocked";
+
+/**
+ * Cloudflare's bot check. Mostly invisible; shows a tick box only when it is unsure. Its token works once, so
+ * the form bumps `resetKey` after every refused try and the check runs again. When it can't run (an ad
+ * blocker, a privacy browser, a bad connection) the person is told why the button is waiting, and can retry.
+ */
+function TurnstileBox({ siteKey, onToken, resetKey }: { siteKey: string; onToken: (token: string) => void; resetKey: number }) {
   const box = useRef<HTMLDivElement>(null);
+  const widget = useRef<string | undefined>(undefined);
+  const [state, setState] = useState<BotCheck>("waiting");
   useEffect(() => {
-    let widget: string | undefined;
+    let cancelled = false;
     const render = () => {
-      if (box.current && window.turnstile && !widget) widget = window.turnstile.render(box.current, { sitekey: siteKey, callback: onToken, "expired-callback": () => onToken("") });
+      if (cancelled || !box.current || !window.turnstile || widget.current) return;
+      widget.current = window.turnstile.render(box.current, {
+        sitekey: siteKey,
+        "refresh-expired": "auto",
+        callback: (t) => {
+          setState("done");
+          onToken(t);
+        },
+        "expired-callback": () => {
+          setState("waiting");
+          onToken("");
+        },
+        "timeout-callback": () => {
+          setState("failed");
+          onToken("");
+        },
+        "error-callback": () => {
+          setState("failed");
+          onToken("");
+          return true; // handled here, so Cloudflare doesn't also throw
+        },
+      });
     };
+    // If Cloudflare's script never arrives (blocked, offline), say so instead of leaving the button grey.
+    const notLoaded = setTimeout(() => {
+      if (!window.turnstile) setState("blocked");
+    }, 10_000);
     if (window.turnstile) {
       render();
     } else {
@@ -237,12 +277,47 @@ function TurnstileBox({ siteKey, onToken }: { siteKey: string; onToken: (token: 
         document.head.appendChild(script);
       }
       script.addEventListener("load", render);
+      script.addEventListener("error", () => setState("blocked"));
     }
     return () => {
-      if (widget && window.turnstile) window.turnstile.remove(widget);
+      cancelled = true;
+      clearTimeout(notLoaded);
+      if (widget.current && window.turnstile) window.turnstile.remove(widget.current);
+      widget.current = undefined;
     };
   }, [siteKey, onToken]);
-  return <div ref={box} />;
+  useEffect(() => {
+    if (resetKey === 0 || !widget.current || !window.turnstile) return;
+    onToken("");
+    setState("waiting");
+    window.turnstile.reset(widget.current);
+  }, [resetKey, onToken]);
+  const retry = () => {
+    if (widget.current && window.turnstile) {
+      setState("waiting");
+      window.turnstile.reset(widget.current);
+    } else {
+      window.location.reload();
+    }
+  };
+  return (
+    <div className="field">
+      <div ref={box} />
+      <div aria-live="polite">
+        {state === "waiting" ? <span className="note" style={{ fontSize: 13 }}>Running a quick security check…</span> : null}
+        {state === "failed" || state === "blocked" ? (
+          <span className="form-error" style={{ marginTop: 0 }}>
+            {state === "blocked"
+              ? "The security check couldn\u2019t load. An ad blocker or a privacy setting may be stopping it: allow challenges.cloudflare.com, or use Continue with Google above."
+              : "The security check didn\u2019t finish."}{" "}
+            <button type="button" className="btn-text" style={{ minHeight: 0, padding: 0 }} onClick={retry}>
+              Try again
+            </button>
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 export function SignupForm({ next, google = false, turnstileSiteKey = "" }: { next: string; google?: boolean; turnstileSiteKey?: string }) {
@@ -258,6 +333,7 @@ export function SignupForm({ next, google = false, turnstileSiteKey = "" }: { ne
   const [marketing, setMarketing] = useState(false);
   const [website, setWebsite] = useState("");
   const [token, setToken] = useState("");
+  const [checkRound, setCheckRound] = useState(0);
   const [openedAt] = useState(() => Date.now());
   const send = useAction<Record<string, unknown>, { ok: boolean; intent: "BUY" | "SELL" | "BOTH" }>("/api/auth/signup");
   const fullName = `${firstName} ${lastName}`.trim();
@@ -297,6 +373,8 @@ export function SignupForm({ next, google = false, turnstileSiteKey = "" }: { ne
             })
             .then((r) => {
               if (r.ok) window.location.assign(r.data.intent === "SELL" ? "/vendors/join" : next);
+              // The bot-check token was used (or refused): run the check again for the next try.
+              else if (turnstileSiteKey) setCheckRound((n) => n + 1);
             });
         }}
       >
@@ -375,7 +453,7 @@ export function SignupForm({ next, google = false, turnstileSiteKey = "" }: { ne
           <input type="checkbox" checked={marketing} onChange={(e) => setMarketing(e.target.checked)} />
           <span>Send me ProcureAI news and tips. You can stop these at any time. Order and security emails always come through.</span>
         </label>
-        {turnstileSiteKey ? <TurnstileBox siteKey={turnstileSiteKey} onToken={setToken} /> : null}
+        {turnstileSiteKey ? <TurnstileBox siteKey={turnstileSiteKey} onToken={setToken} resetKey={checkRound} /> : null}
         <button type="submit" className="btn" disabled={send.pending || !ready}>
           {send.pending ? <Spinner label="Creating your account" /> : "Create account"}
         </button>
