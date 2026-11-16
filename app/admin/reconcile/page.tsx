@@ -19,7 +19,7 @@ export default async function ReconcilePage() {
   if (!(await pageIsAdmin())) return <AdminLogin />;
   const r = await buildReconcileView();
   return (
-    <main className="page">
+    <main id="main" className="page">
       <header className="header">
         <div className="header-in">
           <Logo />

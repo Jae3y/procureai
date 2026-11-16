@@ -20,6 +20,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en-NG" className={`${bricolage.variable} ${inter.variable} ${jetbrains.variable}`}>
       <body>
+        <a href="#main" className="skip-link">
+          Skip to content
+        </a>
         {children}
         {process.env.KORA_OFFLINE_DOUBLE === "1" ? (
           <div role="note" className="offline-banner">

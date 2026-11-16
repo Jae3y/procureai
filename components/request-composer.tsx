@@ -37,7 +37,7 @@ export function RequestComposer({ mode, testMode, initialText, initials }: { mod
     : [];
 
   return (
-    <main className="page">
+    <main id="main" className="page">
       <Header current="Request" reached={0} initials={initials} />
       <section className="request" aria-labelledby="new-purchase">
         <h1 className="sr-only">Start a purchase</h1>

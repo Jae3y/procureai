@@ -3,7 +3,7 @@
  * reviewed them; LEGAL_REVIEWED switches off the draft notice once that has happened.
  */
 export const LEGAL_REVIEWED = false;
-export const LEGAL_UPDATED = "7 November 2026";
+export const LEGAL_UPDATED = "16 November 2026";
 export const SUPPORT_EMAIL = "hello@procureai.com.ng";
 
 /** The registered company behind ProcureAI, as it appears on the CAC register. No address is published. */
@@ -89,7 +89,7 @@ export const PRIVACY: LegalSection[] = [
     paragraphs: [
       "Our payment processor, Kora (Korapay), to verify businesses and move money.",
       "Our AI providers, Google (Gemini) and, as a backup, Groq, receive the text of purchase requests and vendor replies so they can read them. They never receive bank details or passwords. While we use Google's free AI tier, Google may use that text to improve its products.",
-      "Vercel hosts the website, Neon stores the database, and Resend sends our emails.",
+      "Vercel hosts the website, Neon stores the database, and Resend sends our emails. Cloudflare runs the security check on the sign-up form and sees your device's network address while it does. Sentry receives technical reports when something on the site breaks: what failed and where, never your password, bank details or messages.",
       "A buyer sees the business details of vendors who quote; a vendor sees the request and, once chosen, the buyer's messages. The shareable record shows what was bought and the payment trail, not bank account numbers.",
     ],
   },

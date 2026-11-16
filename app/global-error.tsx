@@ -1,7 +1,20 @@
 "use client";
 
+import { useEffect } from "react";
+
+/** Tells ProcureAI's server a page crashed (forwarded to Sentry when it's switched on). Never throws. */
+function reportCrash(error: Error & { digest?: string }): void {
+  void fetch("/api/client-error", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: error.message.slice(0, 500) || "Unknown error", name: error.name, stack: (error.stack ?? "").slice(0, 4000), ...(error.digest ? { digest: error.digest } : {}), path: window.location.pathname }),
+    keepalive: true,
+  }).catch(() => undefined);
+}
+
 /** Last resort when the root layout itself fails: plain HTML, no dependencies, still calm and recoverable. */
-export default function GlobalError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useEffect(() => reportCrash(error), [error]);
   return (
     <html lang="en">
       <body style={{ margin: 0, background: "#f5f2ea", color: "#14130f", fontFamily: "system-ui, sans-serif" }}>

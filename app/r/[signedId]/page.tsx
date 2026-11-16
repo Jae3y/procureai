@@ -15,7 +15,7 @@ export default async function RecordPage({ params }: { params: Promise<{ signedI
   const trailColor = r.complete ? "var(--green)" : "var(--pending)";
 
   return (
-    <main className="page">
+    <main id="main" className="page">
       <header className="header">
         <div className="header-in">
           <Logo />

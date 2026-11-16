@@ -38,7 +38,7 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
   const currentRequest = v.requests.find((r) => r.status !== "CANCELLED");
 
   return (
-    <main className="page">
+    <main id="main" className="page">
       <header className="header">
         <div className="header-in">
           <Logo />
@@ -410,7 +410,7 @@ export function AdminLogin() {
   const [token, setToken] = useState("");
   const login = useAction<{ token: string }>("/api/admin/session");
   return (
-    <main className="page">
+    <main id="main" className="page">
       <header className="header">
         <div className="header-in">
           <Logo />

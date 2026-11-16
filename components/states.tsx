@@ -4,7 +4,7 @@ import { Logo } from "./ui";
 /** Full-page empty / error states in the handoff's language. */
 export function PageMessage({ title, body, action }: { title: string; body: string; action?: { href: string; label: string } }) {
   return (
-    <main className="page">
+    <main id="main" className="page">
       <header className="header">
         <div className="header-in">
           <Logo />

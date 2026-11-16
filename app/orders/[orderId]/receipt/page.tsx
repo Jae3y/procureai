@@ -21,7 +21,7 @@ export default async function ReceiptPage({ params }: { params: Promise<{ orderI
   const order = await db().order.findUniqueOrThrow({ where: { id: orderId }, include: { request: { include: { buyer: true } }, vendor: true } });
   const r = await buildRecordView(orderId);
   return (
-    <main className="page receipt">
+    <main id="main" className="page receipt">
       <section className="account-narrow">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16 }}>
           <Logo />

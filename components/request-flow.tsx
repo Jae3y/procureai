@@ -31,7 +31,7 @@ export function RequestFlow({ initial, initials }: { initial: RequestView; initi
   useEffect(() => setViewing(null), [auto]);
 
   return (
-    <main className="page">
+    <main id="main" className="page">
       <Header current={step} reached={STEP_INDEX[auto] ?? 0} onStep={(s) => setViewing(s)} refLabel={v.orderRef} initials={initials} />
       {connection === "reconnecting" ? (
         <p className="sr-only" role="status">

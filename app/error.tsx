@@ -2,6 +2,16 @@
 
 import { useEffect } from "react";
 
+/** Tells ProcureAI's server a page crashed (forwarded to Sentry when it's switched on). Never throws. */
+function reportCrash(error: Error & { digest?: string }): void {
+  void fetch("/api/client-error", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: error.message.slice(0, 500) || "Unknown error", name: error.name, stack: (error.stack ?? "").slice(0, 4000), ...(error.digest ? { digest: error.digest } : {}), path: window.location.pathname }),
+    keepalive: true,
+  }).catch(() => undefined);
+}
+
 /**
  * Anything that throws while rendering a page lands here instead of a blank screen. Nothing the
  * buyer did is lost: money moves only through confirmed steps on the server, so re-checking is safe.
@@ -9,9 +19,10 @@ import { useEffect } from "react";
 export default function PageError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error("page error", error.digest ?? error.message);
+    reportCrash(error);
   }, [error]);
   return (
-    <main className="page">
+    <main id="main" className="page">
       <section className="request" role="alert" aria-live="polite">
         <div className="eyebrow">ProcureAI</div>
         <h1 className="headline" style={{ maxWidth: "16ch" }}>

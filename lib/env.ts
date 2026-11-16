@@ -57,6 +57,8 @@ const EnvSchema = z
     TURNSTILE_SITE_KEY: z.string().default(""),
     TURNSTILE_SECRET_KEY: z.string().default(""),
     GOOGLE_CLIENT_SECRET: z.string().default(""),
+    /** Sentry error reports (free plan is enough). Off until set; looks like https://<key>@o123.ingest.sentry.io/456. */
+    SENTRY_DSN: z.string().default(""),
     /** After the vendor marks an order delivered, the buyer has this long to report a problem before Stage 2 releases by itself. */
     DELIVERY_GRACE_HOURS: z.coerce.number().int().min(1).max(720).default(72),
   })

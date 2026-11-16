@@ -1,4 +1,5 @@
 import { alertOwner } from "@/lib/notify/alerts";
+import { reportError } from "@/lib/notify/sentry";
 import { runAfterResponse } from "./after";
 import { z } from "zod";
 import { DomainError } from "@/lib/domain/errors";
@@ -125,6 +126,7 @@ export function route<I = undefined, P extends Record<string, string> = Record<s
         }
         log.error({ err, route: opts.name }, "unhandled route error");
         const cid = currentCorrelationId();
+        runAfterResponse("sentry-report", () => reportError(err, { where: `route:${opts.name}`, correlationId: cid }));
         runAfterResponse("owner-alert", () =>
           alertOwner(`route:${opts.name}`, "Something broke on the site", [
             `An unexpected error happened in "${opts.name}". The person saw "Something went wrong on our side."`,

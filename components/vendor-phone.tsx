@@ -14,7 +14,7 @@ export function VendorPhone({ token, initial }: { token: string; initial: Vendor
 
   if (o?.vendor.screen === "paid") return <Paid v={v} token={token} />;
   return (
-    <main className="phone">
+    <main id="main" className="phone">
       <div className="phone-logo">
         <span className="logo-mark" aria-hidden="true" style={{ display: "flex", alignItems: "center" }}>
           <span className="d" />
@@ -398,7 +398,7 @@ function OrderScreen({ token, v }: { token: string; v: VendorView }) {
 function Paid({ v, token }: { v: VendorView; token: string }) {
   const o = v.order!;
   return (
-    <main className="phone phone-paid" style={{ justifyContent: "center" }}>
+    <main id="main" className="phone phone-paid" style={{ justifyContent: "center" }}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }} role="status">
         <div style={{ font: "600 clamp(120px,40vw,168px)/0.82 var(--font-display)", letterSpacing: "-0.07em", marginLeft: -6 }}>Paid</div>
         <div className="mono" style={{ marginTop: 36, font: "500 40px/1 var(--font-mono)", letterSpacing: "-0.05em" }}>

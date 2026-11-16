@@ -3,6 +3,7 @@ import { env } from "@/lib/env";
 import { json } from "@/lib/http/route";
 import { isAdmin } from "@/lib/http/session";
 import { alertOwner } from "@/lib/notify/alerts";
+import { reportError } from "@/lib/notify/sentry";
 import { tick } from "@/lib/worker/tick";
 
 export const runtime = "nodejs";
@@ -22,6 +23,7 @@ export async function GET(req: Request): Promise<Response> {
     const r = await tick();
     return json({ ok: true, ...r });
   } catch (err) {
+    await reportError(err, { where: "cron-tick" });
     await alertOwner("cron-tick", "The background job failed", [
       "The job that checks payments, sends payouts and sends emails failed this run. It runs again shortly.",
       `Error: ${err instanceof Error ? err.message.slice(0, 200) : "unknown"}`,

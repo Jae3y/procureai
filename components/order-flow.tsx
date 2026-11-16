@@ -25,7 +25,7 @@ export function OrderFlow({ initial, initials }: { initial: OrderView; initials:
   const reached = v.screen === "pay" ? 3 : v.track.complete ? 5 : 4;
 
   return (
-    <main className="page">
+    <main id="main" className="page">
       <Header
         current={step}
         reached={reached}

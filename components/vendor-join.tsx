@@ -41,7 +41,7 @@ export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<
   );
 
   return (
-    <main className="phone">
+    <main id="main" className="phone">
       <div className="phone-logo">
         <span className="logo-mark" aria-hidden="true" style={{ display: "flex", alignItems: "center" }}>
           <span className="d" />

@@ -5,7 +5,7 @@ import { Logo } from "./ui";
 /** The frame for account, vendor and legal pages: logo, a few links, and the footer with the legal pages. */
 export function SiteShell({ signedIn, children }: { signedIn: boolean; children: React.ReactNode }) {
   return (
-    <main className="page">
+    <main id="main" className="page">
       <header className="header">
         <div className="header-in">
           <Logo />

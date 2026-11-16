@@ -314,12 +314,21 @@ export function HomePage({ signedIn = false }: { signedIn?: boolean }) {
                 flexWrap: "wrap",
               }}
             >
-              <input
+              <textarea
+                className="hero-input"
+                rows={1}
                 aria-label="What do you need? Say what, how many, your budget and by when"
                 value={text}
                 onChange={(e) => {
                   setText(e.target.value);
                   setParsed(null);
+                }}
+                onKeyDown={(e) => {
+                  // One sentence, so Enter sends it (as the old one-line box did); Shift+Enter still adds a line.
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    e.currentTarget.form?.requestSubmit();
+                  }
                 }}
                 placeholder={getExample(placeholderIdx).full}
                 style={{
@@ -332,6 +341,7 @@ export function HomePage({ signedIn = false }: { signedIn?: boolean }) {
                   letterSpacing: "-0.035em",
                   color: "var(--ink)",
                   padding: 0,
+                  resize: "none",
                 }}
               />
               <button type="submit" className="btn btn-lg">

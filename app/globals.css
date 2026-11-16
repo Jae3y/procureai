@@ -576,3 +576,13 @@ textarea.thread-input { min-height: 64px; font-size: 16px; }
 .hero-ask:focus-within { box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
 /* Footer links on the homepage: at least 24px to tap. */
 .home-foot a { display: inline-block; padding: 4px 0; min-height: 24px; }
+
+/* Keyboard and screen-reader users jump past the header. Hidden until it has focus (the first Tab on any page). */
+.skip-link { position: absolute; left: 16px; top: -100px; z-index: 1000; padding: 12px 18px; border-radius: 8px; background: var(--ink); color: var(--paper); font: 600 15px/1 var(--font-body); text-decoration: none; }
+.skip-link:focus { top: 12px; }
+main:focus { outline: none; }
+
+/* The homepage's ask box wraps instead of cutting the example off on a phone: it grows with its text
+   (field-sizing where the browser has it), and on small screens it starts tall enough for the example. */
+.hero-input { display: block; field-sizing: content; min-height: 1.1em; overflow: hidden; }
+@media (max-width: 600px) { .hero-input { min-height: 3.3em; } }
