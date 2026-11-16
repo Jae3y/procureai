@@ -220,6 +220,28 @@ describe("vendor accounts", () => {
     expect((await db().vendorContact.findUniqueOrThrow({ where: { id: String(r.body.id) } })).city).toBe("Port Harcourt");
   });
 
+  it("a refused password leaves nothing behind, so the vendor can try again with a better one", async () => {
+    const b = new Browser();
+    const weak = await b.call(registerPost, "/api/vendors/register", {}, { ...PROFILE, password: "owerriprints2026" });
+    expect(weak.body.error?.code).toBe("weak_password");
+    expect(await db().vendorContact.count({ where: { registeredAt: { not: null } } })).toBe(0);
+    expect((await b.call(registerPost, "/api/vendors/register", {}, { ...PROFILE, password: PASSWORD })).status).toBe(201);
+  });
+
+  it("a stored Idempotency-Key answer is never replayed to someone else", async () => {
+    const owner = new Browser();
+    const key = { "idempotency-key": "same-key-for-both-callers" };
+    const first = await owner.call(registerPost, "/api/vendors/register", {}, { ...PROFILE, password: PASSWORD }, key);
+    expect(first.status).toBe(201);
+    // The same person repeating the request (same cookies as the first time: none) gets the stored answer...
+    const again = await new Browser().call(registerPost, "/api/vendors/register", {}, { ...PROFILE, password: PASSWORD }, key);
+    expect(again.body.id).toBe(first.body.id);
+    // ...but a different signed-in person with the same key and body runs the request for themselves.
+    const { b: other } = await signedIn();
+    const theirs = await other.call(registerPost, "/api/vendors/register", {}, { ...PROFILE, password: PASSWORD }, key);
+    expect(theirs.body.error?.code).toBe("already_registered");
+  });
+
   it("a registered vendor hears about a matching real request", async () => {
     const vendor = new Browser();
     await vendor.call(registerPost, "/api/vendors/register", {}, { ...PROFILE, password: PASSWORD });

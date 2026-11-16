@@ -23,9 +23,19 @@ describe("/sample", () => {
     expect(await location()).toContain(`/r/${pinned.id}.`);
   });
 
-  it("falls back to the newest completed order when nothing valid is pinned", async () => {
+  it("falls back to the newest completed demo order when nothing valid is pinned", async () => {
     await setSetting("sampleOrderId", "does-not-exist");
     const newest = await completeOrder();
+    await db().request.update({ where: { id: newest.requestId }, data: { isDemo: true } });
     expect(await location()).toContain(`/r/${newest.id}.`);
+  });
+
+  it("never picks a real customer's record by itself: it names the buyer and the vendors", async () => {
+    await setSetting("sampleOrderId", "does-not-exist");
+    const real = await completeOrder();
+    await db().request.update({ where: { id: real.requestId }, data: { isDemo: false } });
+    const where = await location();
+    expect(where).not.toContain(real.id);
+    expect(where).toMatch(/\/buy$/);
   });
 });

@@ -13,6 +13,13 @@ export const dynamic = "force-dynamic";
  * GET /api/health — DB, Kora reachability + balance, outbox depth. 503 only when the DB is down.
  * Anyone sees up/down per dependency; the balance, outbox and error details are for the admin only.
  */
+/**
+ * Anyone can call this, and each Kora probe is a signed call to the payment provider. A visitor (or a
+ * script in a loop) gets the last answer for a minute; the admin always gets a fresh one.
+ */
+const PUBLIC_KORA_PROBE_MS = 60_000;
+let lastKoraProbe: { at: number; ok: boolean } | null = null;
+
 export async function GET(req: Request): Promise<Response> {
   const started = performance.now();
   const out: Record<string, unknown> = {};
@@ -32,27 +39,34 @@ export async function GET(req: Request): Promise<Response> {
     out.db = { ok: false, error: err instanceof Error ? err.message.slice(0, 200) : String(err) };
   }
 
-  try {
-    const e = env();
-    const t = performance.now();
-    const b = await kora().getBalances();
-    out.kora = {
-      ok: true,
-      mode: e.koraMode,
-      latencyMs: Math.round(performance.now() - t),
-      available: b.data.NGN ? formatNaira(b.data.NGN.available_balance) : null,
-      pending: b.data.NGN ? formatNaira(b.data.NGN.pending_balance) : null,
-      simulateIdentity: e.SIMULATE_IDENTITY,
-    };
-    out.ai = { enabled: Boolean(e.AI_API_KEY), model: e.AI_MODEL };
-  } catch (err) {
-    if (err instanceof EnvError) out.kora = { ok: false, error: "environment not configured", problems: err.problems };
-    else if (isKoraError(err)) out.kora = { ok: false, error: err.userMessage, kind: err.kind };
-    else throw err;
+  const admin = adminCaller(req);
+  const remembered = !admin && lastKoraProbe && Date.now() - lastKoraProbe.at < PUBLIC_KORA_PROBE_MS ? lastKoraProbe : null;
+  if (remembered) {
+    out.kora = { ok: remembered.ok };
+  } else {
+    try {
+      const e = env();
+      const t = performance.now();
+      const b = await kora().getBalances();
+      out.kora = {
+        ok: true,
+        mode: e.koraMode,
+        latencyMs: Math.round(performance.now() - t),
+        available: b.data.NGN ? formatNaira(b.data.NGN.available_balance) : null,
+        pending: b.data.NGN ? formatNaira(b.data.NGN.pending_balance) : null,
+        simulateIdentity: e.SIMULATE_IDENTITY,
+      };
+      out.ai = { enabled: Boolean(e.AI_API_KEY), model: e.AI_MODEL };
+    } catch (err) {
+      if (err instanceof EnvError) out.kora = { ok: false, error: "environment not configured", problems: err.problems };
+      else if (isKoraError(err)) out.kora = { ok: false, error: err.userMessage, kind: err.kind };
+      else throw err;
+    }
+    lastKoraProbe = { at: Date.now(), ok: Boolean((out.kora as { ok?: boolean }).ok) };
   }
 
   out.latencyMs = Math.round(performance.now() - started);
-  const body = adminCaller(req)
+  const body = admin
     ? { status: ok ? "ok" : "down", ...out }
     : { status: ok ? "ok" : "down", db: { ok: (out.db as { ok: boolean }).ok }, kora: { ok: Boolean((out.kora as { ok?: boolean } | undefined)?.ok) } };
   return json(body, ok ? 200 : 503);

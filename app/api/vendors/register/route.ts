@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/auth/password";
+import { assertAcceptablePassword } from "@/lib/auth/password-policy";
 import { db } from "@/lib/db";
 import { normalizeEmail, signUp } from "@/lib/domain/accounts";
 import { DomainError } from "@/lib/domain/errors";
@@ -37,6 +38,9 @@ export const POST = route<z.output<typeof Body>>(
       if (taken) throw new DomainError("email_taken", "There's already an account with this email. Sign in, then register your business.", 409);
     }
     const { password, ...profile } = input;
+    // Checked before the profile is saved: a refused password used to leave the business registered with no
+    // account, so trying again with a better password answered "this phone number is already registered".
+    if (!signedIn && password) await assertAcceptablePassword(password, { email: normalizeEmail(input.email), name: input.businessName });
     const created = await registerVendor(profile);
     const account = signedIn ?? (password ? await signUp({ name: created.businessName, email: input.email, password }) : null);
     if (!account) return { status: 201, body: created };

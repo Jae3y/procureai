@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST as approvePost } from "@/app/api/requests/[id]/approve/route";
 import { db } from "@/lib/db";
-import { changePassword, requestDeletion, requireCurrentPassword, signInWithGoogle, signUp } from "@/lib/domain/accounts";
+import { changePassword, logIn, requestDeletion, requireCurrentPassword, signInWithGoogle, signUp } from "@/lib/domain/accounts";
 import { createRequest } from "@/lib/domain/requests";
 import { resetEnvCache } from "@/lib/env";
-import { accountSessionCookie } from "@/lib/http/session";
+import { accountForCookie, accountSessionCookie } from "@/lib/http/session";
 import { renderEmail } from "@/lib/notify/email-template";
 import { useKoraDouble } from "../helpers/kora";
 
@@ -35,6 +35,26 @@ describe("Continue with Google", () => {
     const viaGoogle = await signInWithGoogle(GOOGLE);
     expect(viaGoogle.id).toBe(existing.id);
     expect(viaGoogle.googleSub).toBe("google-sub-1");
+  });
+
+  it("an account nobody confirmed loses its password and sessions when Google proves who owns the email", async () => {
+    // Someone opens an account with another person's email and waits for them to arrive through Google.
+    const squatter = await signUp({ name: "Not Ada", email: "ada@example.com", password: "a long unusual passphrase" });
+    const staleCookie = accountSessionCookie(squatter).split(";")[0]?.split("=")[1] ?? "";
+    const owner = await signInWithGoogle(GOOGLE);
+    expect(owner.id).toBe(squatter.id);
+    expect(owner.passwordHash).toBeNull();
+    expect(owner.emailVerifiedAt).not.toBeNull();
+    await expect(logIn({ email: "ada@example.com", password: "a long unusual passphrase" })).rejects.toMatchObject({ code: "bad_login" });
+    expect(await accountForCookie(decodeURIComponent(staleCookie))).toBeNull();
+  });
+
+  it("a confirmed account keeps its password when Google is linked", async () => {
+    const existing = await signUp({ name: "Ada Obi", email: "ada@example.com", password: "a long unusual passphrase" });
+    await db().account.update({ where: { id: existing.id }, data: { emailVerifiedAt: new Date() } });
+    const linked = await signInWithGoogle(GOOGLE);
+    expect(linked.passwordHash).toMatch(/^scrypt\$/);
+    expect(linked.sessionVersion).toBe(existing.sessionVersion);
   });
 
   it("refuses a second, different Google account for an email that's already linked", async () => {

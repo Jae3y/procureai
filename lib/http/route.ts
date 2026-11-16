@@ -7,7 +7,8 @@ import { isKoraError } from "@/lib/kora/errors";
 import { currentCorrelationId, log, withLogContext } from "@/lib/log";
 import { errorReply, jsonText, withIdempotency } from "./idempotency";
 import { rateLimit } from "./rate-limit";
-import { clientIp } from "./session";
+import { sha256Hex } from "@/lib/crypto";
+import { ADMIN_COOKIE, BUYER_COOKIE, accountCookieName, clientIp, readCookie } from "./session";
 
 /**
  * Every API route goes through here: Zod-validated input, typed error → status mapping (no raw Kora
@@ -50,6 +51,12 @@ function rejectCrossSite(req: Request): void {
   if (host && originHost !== host) throw new DomainError("cross_site", "This request came from another site.", 403);
 }
 
+/** Who is asking, as far as the session cookies and the Authorization header say. Never stored or logged in the clear. */
+function callerFingerprint(req: Request): string {
+  const sessions = [accountCookieName(), BUYER_COOKIE, ADMIN_COOKIE].map((name) => readCookie(req, name) ?? "");
+  return sha256Hex([...sessions, req.headers.get("authorization") ?? ""].join("\n")).slice(0, 16);
+}
+
 export function route<I = undefined, P extends Record<string, string> = Record<string, string>>(
   opts: RouteOptions<I, P>,
   handler: Handler<I, P>,
@@ -90,7 +97,9 @@ export function route<I = undefined, P extends Record<string, string> = Record<s
         const key = req.headers.get("idempotency-key");
         if (opts.idempotent && key) {
           let cookies: string[] = [];
-          const result = await withIdempotency(`${opts.name}:${JSON.stringify(params)}`, key, raw, async () => {
+          // The stored reply is replayed without running the handler (and its permission checks) again, so
+          // the key is bound to who is asking: someone else repeating it starts a request of their own.
+          const result = await withIdempotency(`${opts.name}:${JSON.stringify(params)}:${callerFingerprint(req)}`, key, raw, async () => {
             const r = await run();
             cookies = r.cookies;
             return { status: r.status, body: r.body };

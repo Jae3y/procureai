@@ -121,7 +121,34 @@ export async function signInWithGoogle(profile: { sub: string; email: string; na
     if (byEmail.googleSub && byEmail.googleSub !== profile.sub) {
       throw new DomainError("google_mismatch", "This email is already linked to a different Google account.", 409);
     }
-    return db().account.update({ where: { id: byEmail.id }, data: { googleSub: profile.sub, emailVerifiedAt: byEmail.emailVerifiedAt ?? new Date() } });
+    if (!byEmail.emailVerifiedAt) {
+      // Nobody ever proved they own this email, so whoever opened the account may not be the person Google
+      // just vouched for. Everything they set (password, authenticator, open sessions) is dropped, or they
+      // could keep signing in to what is now someone else's account.
+      log.warn({ accountId: byEmail.id }, "google sign-in claimed an unconfirmed account; its password and sessions were dropped");
+      await notify(db(), {
+        accountId: byEmail.id,
+        kind: "security.google-claim",
+        title: "Your account now signs in with Google",
+        body: "This email had never been confirmed, so for your safety the old password was removed and every other device was signed out. You can set a new password on this page.",
+        href: "/account",
+      });
+      return db().account.update({
+        where: { id: byEmail.id },
+        data: {
+          googleSub: profile.sub,
+          emailVerifiedAt: new Date(),
+          passwordHash: null,
+          sessionVersion: { increment: 1 },
+          totpSecretCipher: null,
+          totpPendingCipher: null,
+          totpEnabledAt: null,
+          totpLastStep: null,
+          recoveryCodeHashes: [],
+        },
+      });
+    }
+    return db().account.update({ where: { id: byEmail.id }, data: { googleSub: profile.sub } });
   }
   const contact = await db().vendorContact.findFirst({ where: { email, isDemo: false, registeredAt: { not: null }, account: null } });
   try {
