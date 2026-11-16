@@ -59,15 +59,15 @@ export async function chatJson<S extends z.ZodType>(opts: ChatOpts<S>): Promise<
 
 /**
  * Free tiers allow a handful of requests at once: eight vendor replies parsed together got mostly
- * 429/503 from Gemini. Keep at most MAX_IN_FLIGHT calls per provider running; the rest wait their turn.
+ * 429/503 from Gemini. Keep at most AI_MAX_IN_FLIGHT calls per provider running (2 by default, for the free
+ * tiers); the rest wait their turn. On a paid tier, raise AI_MAX_IN_FLIGHT so replies are read in parallel.
  */
-const MAX_IN_FLIGHT = 2;
 const lanes = new Map<string, { active: number; queue: Array<() => void> }>();
 
 async function withLane<T>(key: string, run: () => Promise<T>): Promise<T> {
   const lane = lanes.get(key) ?? { active: 0, queue: [] };
   lanes.set(key, lane);
-  if (lane.active >= MAX_IN_FLIGHT) await new Promise<void>((resolve) => lane.queue.push(resolve));
+  if (lane.active >= env().AI_MAX_IN_FLIGHT) await new Promise<void>((resolve) => lane.queue.push(resolve));
   lane.active += 1;
   try {
     return await run();

@@ -1,4 +1,5 @@
 import { notifyDelivered } from "@/lib/notify/notifications";
+import { removePhoto, storePhoto } from "@/lib/storage/photos";
 import { db, transaction } from "@/lib/db";
 import { env } from "@/lib/env";
 import type { EvidenceKind, MessageSender } from "@/lib/generated/prisma/client";
@@ -29,7 +30,8 @@ export function graceMs(): number {
 /** Vendor: "I delivered" with proof. Starts the buyer's window to report a problem. Once per order. */
 export async function markDelivered(orderId: string, vendorId: string, input: EvidenceInput): Promise<{ autoReleaseAt: Date }> {
   const note = cleanNote(input.note);
-  const photo = decodePhoto(input.photo);
+  const photo = await storePhoto("evidence", decodePhoto(input.photo));
+  let saved = false;
   return transaction(async (tx) => {
     const order = await lockOrder(tx, orderId);
     if (order.vendorId !== vendorId) throw new DomainError("forbidden", "This isn't your order.", 403);
@@ -41,14 +43,17 @@ export async function markDelivered(orderId: string, vendorId: string, input: Ev
     const now = new Date();
     const autoReleaseAt = new Date(now.getTime() + graceMs());
     await tx.order.update({ where: { id: orderId }, data: { deliveredAt: now, autoReleaseAt } });
-    await tx.orderEvidence.create({ data: { orderId, party: "VENDOR", kind: "DELIVERY", note, photo: photo?.bytes ?? null, photoType: photo?.type ?? null } });
+    await tx.orderEvidence.create({ data: { orderId, party: "VENDOR", kind: "DELIVERY", note, ...photo } });
+    saved = true;
     await orderEvent(tx, orderId, {
       kind: "info",
       title: "Vendor marked it delivered",
-      detail: `${photo ? "With a photo. " : ""}Stage 2 releases automatically after ${env().DELIVERY_GRACE_HOURS} hours unless the buyer reports a problem.`,
+      detail: `${photo.photoType ? "With a photo. " : ""}Stage 2 releases automatically after ${env().DELIVERY_GRACE_HOURS} hours unless the buyer reports a problem.`,
     });
     await notifyDelivered(tx, order, env().DELIVERY_GRACE_HOURS);
     return { autoReleaseAt };
+  }).finally(async () => {
+    if (!saved) await removePhoto(photo.photoUrl);
   });
 }
 
@@ -93,14 +98,18 @@ export async function releaseDueDeliveries(now = new Date(), onlyOrderId?: strin
 /** Buyer or vendor adds their side of a dispute (note + optional photo). */
 export async function addDisputeEvidence(orderId: string, party: MessageSender, input: EvidenceInput): Promise<void> {
   const note = cleanNote(input.note);
-  const photo = decodePhoto(input.photo);
+  const photo = await storePhoto("evidence", decodePhoto(input.photo));
+  let saved = false;
   await transaction(async (tx) => {
     const order = await lockOrder(tx, orderId);
     if (order.status !== "DISPUTED") throw new DomainError("not_disputed", "This order isn't in a dispute.", 409);
     const count = await tx.orderEvidence.count({ where: { orderId, kind: "DISPUTE", party } });
     if (count >= 5) throw new DomainError("evidence_limit", "You've already added 5 pieces of evidence. ProcureAI will be in touch.", 409);
-    await tx.orderEvidence.create({ data: { orderId, party, kind: "DISPUTE", note, photo: photo?.bytes ?? null, photoType: photo?.type ?? null } });
-    await orderEvent(tx, orderId, { kind: "info", title: party === "BUYER" ? "Buyer added evidence" : "Vendor added evidence", detail: photo ? "A note and a photo." : "A note." });
+    await tx.orderEvidence.create({ data: { orderId, party, kind: "DISPUTE", note, ...photo } });
+    saved = true;
+    await orderEvent(tx, orderId, { kind: "info", title: party === "BUYER" ? "Buyer added evidence" : "Vendor added evidence", detail: photo.photoType ? "A note and a photo." : "A note." });
+  }).finally(async () => {
+    if (!saved) await removePhoto(photo.photoUrl);
   });
 }
 

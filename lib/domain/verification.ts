@@ -28,6 +28,44 @@ export type VerifyOutcome = {
 
 const NOT_FOUND = "Company registration could not be verified.";
 
+/**
+ * A company's CAC record changes rarely, and each lookup costs money. A FOUND result from the same provider is
+ * reused for this long; the bank account is still checked on every purchase, because that decides where money
+ * goes. "Not found" is never reused (a company registered yesterday must not be stuck with an old answer), and
+ * a reused result is never reused again, so no record is older than this.
+ */
+export const CAC_REUSE_DAYS = 30;
+
+type ReusedCac = { cac: Extract<CacOutcome, { found: true }>; cacReference: string; fromId: string; checkedAt: Date };
+
+async function recentCac(rcNumber: string, provider: string, simulated: boolean, now = new Date()): Promise<ReusedCac | null> {
+  const since = new Date(now.getTime() - CAC_REUSE_DAYS * 24 * 60 * 60 * 1000);
+  const rows = await db().vendorVerification.findMany({
+    where: { rcNumber, provider, simulated, checkedAt: { gte: since }, registeredName: { not: null }, cacReference: { not: null } },
+    orderBy: { checkedAt: "desc" },
+    take: 10,
+  });
+  for (const r of rows) {
+    const raw = r.rawCac as Record<string, unknown> | null;
+    if (!raw || "reusedFrom" in raw || !r.registeredName || !r.cacReference) continue;
+    const people = Array.isArray(r.directors) ? (r.directors as Array<{ name?: unknown; designation?: unknown; status?: unknown }>) : [];
+    return {
+      cac: {
+        found: true,
+        registeredName: r.registeredName,
+        companyStatus: r.companyStatus,
+        keyPersonnel: people
+          .filter((p) => typeof p.name === "string")
+          .map((p) => ({ name: String(p.name), ...(typeof p.designation === "string" ? { designation: p.designation } : {}), ...(typeof p.status === "string" ? { status: p.status } : {}) })),
+      },
+      cacReference: r.cacReference,
+      fromId: r.id,
+      checkedAt: r.checkedAt,
+    };
+  }
+  return null;
+}
+
 function definitiveRefusal(e: ProviderError): boolean {
   // A 4xx that is not about our access: Kora looked and said no.
   return e.outcomeKnown && e.kind !== "auth" && e.kind !== "access";
@@ -121,7 +159,20 @@ export async function verifyVendors(requestId: string): Promise<VerifyOutcome[]>
       let cac: CacOutcome;
       let rawCac: unknown;
       let cacReference: string | null = null;
-      try {
+      const reused = await recentCac(rc, k.id, k.identitySimulated);
+      if (reused) {
+        cac = reused.cac;
+        cacReference = reused.cacReference;
+        rawCac = { reusedFrom: reused.fromId, checkedAt: reused.checkedAt.toISOString(), reason: `found within the last ${CAC_REUSE_DAYS} days` };
+        const days = Math.max(0, Math.floor((Date.now() - reused.checkedAt.getTime()) / 86_400_000));
+        await requestEvent(requestId, {
+          kind: "kora",
+          title: "identity.cac",
+          detail: `${v.label} · ${reused.cac.registeredName} · ${(reused.cac.companyStatus ?? "unknown").toLowerCase()} · CAC record checked ${days === 0 ? "today" : `${days} day${days === 1 ? "" : "s"} ago`}`,
+          koraReference: reused.cacReference,
+          signature,
+        });
+      } else try {
         const r = await k.verifyBusiness({ rcNumber: rc, consent });
         cac = { found: true, registeredName: r.data.name, companyStatus: r.data.companyStatus, keyPersonnel: r.data.keyPersonnel };
         rawCac = r.raw;

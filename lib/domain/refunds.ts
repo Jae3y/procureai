@@ -1,4 +1,5 @@
 import { db, transaction } from "@/lib/db";
+import { removePhoto, storePhoto } from "@/lib/storage/photos";
 import { isProviderError, providerFor } from "@/lib/payments";
 import { formatNaira, type Kobo } from "@/lib/money";
 import { DomainError, NotFoundError, UnknownReferenceError } from "./errors";
@@ -16,7 +17,8 @@ import { orderEvent } from "./timeline";
 
 export async function disputeOrder(orderId: string, reason: string, cause: Cause, photo?: EvidenceInput["photo"]): Promise<void> {
   const note = cleanNote(reason);
-  const image = decodePhoto(photo);
+  const image = await storePhoto("evidence", decodePhoto(photo));
+  let saved = false;
   await transaction(async (tx) => {
     const order = await lockOrder(tx, orderId);
     if (order.status !== "HELD" && order.status !== "STAGE_1_PAID") {
@@ -28,7 +30,10 @@ export async function disputeOrder(orderId: string, reason: string, cause: Cause
     }
     await transition(tx, order, "DISPUTED", { ...cause, note: reason.slice(0, 200) });
     await orderEvent(tx, orderId, { kind: "error", title: "Disputed", detail: `${reason.slice(0, 200)} Payouts are frozen.` });
-    await tx.orderEvidence.create({ data: { orderId, party: "BUYER", kind: "DISPUTE", note, photo: image?.bytes ?? null, photoType: image?.type ?? null } });
+    await tx.orderEvidence.create({ data: { orderId, party: "BUYER", kind: "DISPUTE", note, ...image } });
+    saved = true;
+  }).finally(async () => {
+    if (!saved) await removePhoto(image.photoUrl);
   });
 }
 

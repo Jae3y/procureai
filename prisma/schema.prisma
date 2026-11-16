@@ -619,6 +619,8 @@ model OrderEvidence {
   note      String
   photo     Bytes?
   photoType String?
+  /// Private Vercel Blob address when photos are kept in file storage (then `photo` is null).
+  photoUrl  String?
   createdAt DateTime      @default(now())
 
   @@index([orderId, id])
@@ -686,6 +688,8 @@ model Listing {
   minOrder         Int             @default(1)
   photo            Bytes?
   photoType        String?
+  /// Private Vercel Blob address when photos are kept in file storage (then `photo` is null).
+  photoUrl         String?
   status           ListingStatus   @default(ACTIVE)
   /// Set when ProcureAI takes a listing down. The seller can't show it again; they see the reason.
   removedByAdminAt DateTime?

@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { photoBody } from "@/lib/storage/photos";
 import { DomainError } from "@/lib/domain/errors";
 import { orderIdForVendorToken } from "@/lib/domain/messages";
 import { errorReply } from "@/lib/http/idempotency";
@@ -22,10 +23,11 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string; eid
       await requireBuyerOfOrder(req, id);
     }
     if (!/^\d{1,18}$/.test(eid)) throw new DomainError("not_found", "Photo was not found.", 404);
-    const ev = await db().orderEvidence.findFirst({ where: { id: BigInt(eid), orderId: id }, select: { photo: true, photoType: true } });
-    if (!ev?.photo || !ev.photoType) throw new DomainError("not_found", "Photo was not found.", 404);
-    return new Response(Buffer.from(ev.photo), {
-      headers: { "Content-Type": ev.photoType, "Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff" },
+    const ev = await db().orderEvidence.findFirst({ where: { id: BigInt(eid), orderId: id }, select: { photo: true, photoType: true, photoUrl: true } });
+    const p = ev ? await photoBody(ev) : null;
+    if (!p) throw new DomainError("not_found", "Photo was not found.", 404);
+    return new Response(p.body, {
+      headers: { "Content-Type": p.type, "Cache-Control": "private, max-age=3600", "X-Content-Type-Options": "nosniff" },
     });
   } catch (err) {
     const r = errorReply(err);

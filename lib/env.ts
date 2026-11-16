@@ -30,6 +30,8 @@ const EnvSchema = z
     AI_BACKUP_API_KEY: z.string().default(""),
     AI_BACKUP_BASE_URL: z.url().default("https://api.groq.com/openai/v1"),
     AI_BACKUP_MODEL: z.string().min(1).default("openai/gpt-oss-120b"),
+    /** AI calls running at once per provider. 2 suits the free tiers; a paid tier can take 8 or more. */
+    AI_MAX_IN_FLIGHT: z.coerce.number().int().min(1).max(32).default(2),
     APP_BASE_URL: z.url(),
     RECORD_SIGNING_SECRET: z.string().min(32, "use at least 32 random characters"),
     ADMIN_TOKEN: z.string().default(""),
@@ -57,6 +59,8 @@ const EnvSchema = z
     TURNSTILE_SITE_KEY: z.string().default(""),
     TURNSTILE_SECRET_KEY: z.string().default(""),
     GOOGLE_CLIENT_SECRET: z.string().default(""),
+    /** Vercel Blob (private file storage for photos). Set automatically when a Blob store is connected to the project. */
+    BLOB_READ_WRITE_TOKEN: z.string().default(""),
     /** Sentry error reports (free plan is enough). Off until set; looks like https://<key>@o123.ingest.sentry.io/456. */
     SENTRY_DSN: z.string().default(""),
     /** After the vendor marks an order delivered, the buyer has this long to report a problem before Stage 2 releases by itself. */

@@ -1,4 +1,5 @@
 import { lagosDate } from "@/lib/ai/dates";
+import { removePhoto, storePhoto } from "@/lib/storage/photos";
 import { db } from "@/lib/db";
 import type { Account, Listing, ListingStatus, Request } from "@/lib/generated/prisma/client";
 import type { Kobo } from "@/lib/money";
@@ -56,7 +57,7 @@ export async function createListing(account: Account, input: ListingInput): Prom
   const contact = await sellerOf(account);
   const live = await db().listing.count({ where: { contactId: contact.id, status: { not: "REMOVED" } } });
   if (live >= MAX_LISTINGS_PER_SELLER) throw new DomainError("too_many_listings", `You can have up to ${MAX_LISTINGS_PER_SELLER} products listed. Remove one to add another.`, 409);
-  const photo = decodePhoto(input.photo);
+  const photo = await storePhoto("listings", decodePhoto(input.photo));
   return db().listing.create({
     data: {
       contactId: contact.id,
@@ -66,8 +67,7 @@ export async function createListing(account: Account, input: ListingInput): Prom
       priceKobo: input.priceKobo,
       unit: input.unit.trim(),
       minOrder: input.minOrder,
-      photo: photo?.bytes ?? null,
-      photoType: photo?.type ?? null,
+      ...photo,
     },
   });
 }
@@ -80,9 +80,10 @@ async function ownListing(account: Account, listingId: string): Promise<Listing>
 }
 
 export async function updateListing(account: Account, listingId: string, input: ListingInput): Promise<Listing> {
-  await ownListing(account, listingId);
-  const photo = decodePhoto(input.photo);
-  return db().listing.update({
+  const before = await ownListing(account, listingId);
+  const decoded = decodePhoto(input.photo);
+  const photo = decoded ? await storePhoto("listings", decoded) : null;
+  const updated = await db().listing.update({
     where: { id: listingId },
     data: {
       title: input.title.trim(),
@@ -91,20 +92,23 @@ export async function updateListing(account: Account, listingId: string, input: 
       priceKobo: input.priceKobo,
       unit: input.unit.trim(),
       minOrder: input.minOrder,
-      ...(photo ? { photo: photo.bytes, photoType: photo.type } : input.removePhoto ? { photo: null, photoType: null } : {}),
+      ...(photo ? photo : input.removePhoto ? { photo: null, photoType: null, photoUrl: null } : {}),
     },
   });
+  if (photo || input.removePhoto) await removePhoto(before.photoUrl);
+  return updated;
 }
 
 export async function setListingStatus(account: Account, listingId: string, status: ListingStatus): Promise<void> {
-  await ownListing(account, listingId);
+  const listing = await ownListing(account, listingId);
   if (status === "ACTIVE") {
     // A listing paused because several people reported it stays paused until ProcureAI has looked at it.
     const open = await db().listingReport.count({ where: { listingId, resolvedAt: null } });
     if (open >= AUTO_PAUSE_AFTER_REPORTS) throw new DomainError("under_review", "This product is being reviewed after reports from buyers. We'll tell you as soon as we've looked at it.", 409);
   }
   // Removed listings stay in the database: purchases that started from them still point at them.
-  await db().listing.update({ where: { id: listingId }, data: { status, ...(status === "REMOVED" ? { photo: null, photoType: null } : {}) } });
+  await db().listing.update({ where: { id: listingId }, data: { status, ...(status === "REMOVED" ? { photo: null, photoType: null, photoUrl: null } : {}) } });
+  if (status === "REMOVED") await removePhoto(listing.photoUrl);
 }
 
 /** How a seller has been verified on past purchases. Nothing until their first check; every seller is checked before money moves. */
