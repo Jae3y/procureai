@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { buyerPaysKobo, sellerGetsKobo } from "@/lib/domain/fees";
 import { NotFoundError } from "@/lib/domain/errors";
 import { revealHandoverCode } from "@/lib/domain/handover";
 import { bankLabel } from "@/lib/domain/payin";
@@ -34,6 +35,8 @@ export type OrderView = {
   stage2Amount: string;
   /** "30%" or "10%": this order's first-payout share, fixed at approval. */
   stage1Share: string;
+  /** ProcureAI's fees on this order, or null while fees are off. */
+  fees: { buyerFee: string; sellerFee: string; buyerPays: string; sellerGets: string } | null;
   screen: "pay" | "track";
   pay: {
     state: "opening" | "open" | "short" | "paid" | "expired";
@@ -150,7 +153,7 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
     }),
   ]);
   const e = env();
-  const { stage1, stage2 } = splitStages(order.amountKobo, order.stage1Bp);
+  const { stage1, stage2 } = splitStages(sellerGetsKobo(order), order.stage1Bp);
   const held = order.ledger
     .filter((l) => l.account === "HELD")
     .reduce((a, l) => a + (l.direction === "CREDIT" ? l.amountKobo : -l.amountKobo), 0n);
@@ -194,14 +197,14 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
     {
       key: "paid",
       label: "Paid",
-      amount: formatNaira(reachedHeld ? order.amountAcceptedKobo : order.amountKobo),
+      amount: formatNaira(reachedHeld ? order.amountAcceptedKobo : buyerPaysKobo(order)),
       stamp: firstPaid ? `REF · ${firstPaid.reference}${successPayIns.length > 1 ? ` +${successPayIns.length - 1}` : ""}` : null,
       state: reachedHeld ? "done" : "pending",
     },
     {
       key: "held",
       label: "Held",
-      amount: formatNaira(reachedHeld ? held : order.amountKobo),
+      amount: formatNaira(reachedHeld ? held : buyerPaysKobo(order)),
       stamp: firstPaid?.accountNumber ? `KVA · ${spacedAccount(firstPaid.accountNumber)}` : null,
       state: reachedHeld ? (complete || order.status === "REFUNDED" ? "done" : "held") : "pending",
     },
@@ -300,6 +303,10 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
     stage1Amount: formatNaira(stage1),
     stage2Amount: formatNaira(stage2),
     stage1Share: stage1Percent(order.stage1Bp),
+    fees:
+      order.buyerFeeKobo > 0n || order.sellerFeeKobo > 0n
+        ? { buyerFee: formatNaira(order.buyerFeeKobo), sellerFee: formatNaira(order.sellerFeeKobo), buyerPays: formatNaira(buyerPaysKobo(order)), sellerGets: formatNaira(sellerGetsKobo(order)) }
+        : null,
     screen: ["CREATED", "AWAITING_PAYMENT", "UNDERPAID"].includes(order.status) ? "pay" : "track",
     pay: {
       state: payState,

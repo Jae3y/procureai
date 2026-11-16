@@ -1,4 +1,5 @@
 import { db, transaction, type Tx } from "@/lib/db";
+import { buyerPaysKobo } from "./fees";
 import { env } from "@/lib/env";
 import type { Order, PayIn, PayInStatus } from "@/lib/generated/prisma/client";
 import { isProviderError, payments, providerFor, type ChargeSnapshot } from "@/lib/payments";
@@ -281,7 +282,8 @@ export async function applyChargeSnapshot(reference: string, snap: ChargeSnapsho
 }
 
 async function afterCredit(tx: Tx, order: Order, cause: Cause, accountFullyPaid: boolean): Promise<ApplyResult> {
-  if (order.amountAcceptedKobo >= order.amountKobo) {
+  const dueKobo = buyerPaysKobo(order);
+  if (order.amountAcceptedKobo >= dueKobo) {
     if (order.status === "AWAITING_PAYMENT" || order.status === "UNDERPAID") {
       const held = await transition(tx, order, "HELD", cause);
       await issueHandoverCode(tx, held);
@@ -289,13 +291,13 @@ async function afterCredit(tx: Tx, order: Order, cause: Cause, accountFullyPaid:
     }
     return { changed: true, followUp: null, orderId: order.id };
   }
-  const shortfallKobo = order.amountKobo - order.amountAcceptedKobo;
+  const shortfallKobo = dueKobo - order.amountAcceptedKobo;
   if (accountFullyPaid && order.status === "AWAITING_PAYMENT") {
     // A planned instalment, not an underpayment: this account received everything it asked for.
     await orderEvent(tx, order.id, {
       kind: "info",
       title: "Transfer received",
-      detail: `${formatNaira(order.amountAcceptedKobo)} of ${formatNaira(order.amountKobo)} received. Each account takes up to ₦1,000,000, so the next account is for ${formatNaira(shortfallKobo)}.`,
+      detail: `${formatNaira(order.amountAcceptedKobo)} of ${formatNaira(dueKobo)} received. Each account takes up to ₦1,000,000, so the next account is for ${formatNaira(shortfallKobo)}.`,
       amountKobo: shortfallKobo,
     });
     return { changed: true, followUp: { kind: "NEXT_INSTALMENT", remainingKobo: shortfallKobo }, orderId: order.id };
@@ -305,7 +307,7 @@ async function afterCredit(tx: Tx, order: Order, cause: Cause, accountFullyPaid:
     await orderEvent(tx, order.id, {
       kind: "info",
       title: "Transfer received",
-      detail: `${formatNaira(order.amountAcceptedKobo)} of ${formatNaira(order.amountKobo)} received. Each account takes up to ₦1,000,000, so the next account is for ${formatNaira(shortfallKobo)}.`,
+      detail: `${formatNaira(order.amountAcceptedKobo)} of ${formatNaira(dueKobo)} received. Each account takes up to ₦1,000,000, so the next account is for ${formatNaira(shortfallKobo)}.`,
       amountKobo: shortfallKobo,
     });
     return { changed: true, followUp: { kind: "TOP_UP", shortfallKobo }, orderId: order.id };

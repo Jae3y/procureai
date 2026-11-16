@@ -59,6 +59,11 @@ const EnvSchema = z
     TURNSTILE_SITE_KEY: z.string().default(""),
     TURNSTILE_SECRET_KEY: z.string().default(""),
     GOOGLE_CLIENT_SECRET: z.string().default(""),
+    /**
+     * ProcureAI's fees (buyer protection fee + 2% seller fee). OFF until the payment provider's written rate card,
+     * the updated terms and the lawyer's review are in. Applies to new real purchases only; demos stay free.
+     */
+    FEES_ENABLED: bool.default(false),
     /** Vercel Blob (private file storage for photos). Set automatically when a Blob store is connected to the project. */
     BLOB_READ_WRITE_TOKEN: z.string().default(""),
     /** Sentry error reports (free plan is enough). Off until set; looks like https://<key>@o123.ingest.sentry.io/456. */

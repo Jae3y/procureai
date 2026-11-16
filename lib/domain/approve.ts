@@ -1,4 +1,7 @@
 import { db, transaction } from "@/lib/db";
+import { isPlus } from "./ai-allowance";
+import { buyerPaysKobo, feesForOrder } from "./fees";
+import { env } from "@/lib/env";
 import type { Order } from "@/lib/generated/prisma/client";
 import { formatNaira, type Kobo, splitStages } from "@/lib/money";
 import { payments } from "@/lib/payments";
@@ -76,12 +79,16 @@ export async function approve(requestId: string, quoteId: string | null, cause: 
         409,
       );
     }
-    assertPayableInStages(totalKobo, stage1Bp);
+    const buyerAccount = await db().account.findUnique({ where: { buyerId: request.buyerId }, select: { plusUntil: true } });
+    const seller = quote.vendor.contactId ? await db().vendorContact.findUnique({ where: { id: quote.vendor.contactId }, select: { foundingNumber: true, registeredAt: true } }) : null;
+    const fees = feesForOrder({ enabled: env().FEES_ENABLED, isDemo: request.isDemo, amountKobo: totalKobo, buyerIsPlus: buyerAccount ? isPlus(buyerAccount) : false, seller });
+    // The stages pay out what the vendor receives, so that is what must clear the provider's minimum.
+    assertPayableInStages(totalKobo - fees.sellerFeeKobo, stage1Bp);
     order = await transaction(async (tx) => {
       const existing = await tx.order.findUnique({ where: { requestId } });
       if (existing) return existing;
       const created = await tx.order.create({
-        data: { requestId, quoteId: quote.id, vendorId: quote.vendorId, verificationId: verification.id, amountKobo: totalKobo, stage1Bp },
+        data: { requestId, quoteId: quote.id, vendorId: quote.vendorId, verificationId: verification.id, amountKobo: totalKobo, stage1Bp, ...fees },
       });
       await tx.request.update({ where: { id: requestId }, data: { status: "APPROVED" } });
       await tx.orderEvent.create({
@@ -94,7 +101,7 @@ export async function approve(requestId: string, quoteId: string | null, cause: 
 
   if (order.status === "CREATED") {
     const open = await db().payIn.findFirst({ where: { orderId: order.id, status: "PROCESSING" } });
-    if (!open) await openPayIn(order.id, order.amountKobo, "initial", cause);
+    if (!open) await openPayIn(order.id, buyerPaysKobo(order), "initial", cause);
     order = await db().order.findUniqueOrThrow({ where: { id: order.id } });
   }
   return order;

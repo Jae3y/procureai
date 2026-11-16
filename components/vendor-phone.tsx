@@ -269,7 +269,13 @@ function OrderScreen({ token, v }: { token: string; v: VendorView }) {
   const progress = s.stage2.state === "paid" ? "100%" : stage1Paid ? o.stage1Share : "0%";
 
   if (s.screen === "waiting") {
-    return <Note title="You were chosen." body={`Waiting for ${v.buyerName}'s payment. ProcureAI holds it, then sends you ${o.stage1Amount}.`} detail={`Order ${o.ref}`} />;
+    return (
+      <Note
+        title="You were chosen."
+        body={`Waiting for ${v.buyerName}'s payment. ProcureAI holds it, then sends you ${o.stage1Amount}.${o.fees && o.fees.sellerFee !== "₦0" ? ` ProcureAI's 2% seller fee (${o.fees.sellerFee}) comes off your quote of ${o.amount}, so you receive ${o.fees.sellerGets} in all.` : ""}`}
+        detail={`Order ${o.ref}`}
+      />
+    );
   }
   if (s.screen === "disputed") {
     const refunded = o.status === "REFUNDED";

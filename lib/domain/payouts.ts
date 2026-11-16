@@ -1,4 +1,5 @@
 import { db, transaction, type Tx } from "@/lib/db";
+import { sellerGetsKobo } from "./fees";
 import type { Payout, PayoutRoute, PayoutStage } from "@/lib/generated/prisma/client";
 import { isProviderError, payments, providerFor, type PaymentProvider, type ProviderError } from "@/lib/payments";
 import { log } from "@/lib/log";
@@ -71,6 +72,28 @@ async function bigOrderCheck(order: { id: string; amountKobo: Kobo; payoutApprov
   return null;
 }
 
+/**
+ * When an order completes, ProcureAI keeps exactly the fees fixed at approval (buyer protection fee + seller fee):
+ * that much moves from HELD to FEE in the ledger. Anything else still held (a buyer's overpayment) stays held for
+ * a refund. With fees off nothing moves and nothing is written.
+ */
+async function bookFees(tx: Tx, order: { id: string; buyerFeeKobo: Kobo; sellerFeeKobo: Kobo }): Promise<void> {
+  const due = order.buyerFeeKobo + order.sellerFeeKobo;
+  if (due <= 0n) return;
+  const rows = await tx.ledgerEntry.findMany({ where: { orderId: order.id, account: "HELD" }, select: { direction: true, amountKobo: true } });
+  const held = rows.reduce((a, r) => a + (r.direction === "CREDIT" ? r.amountKobo : -r.amountKobo), 0n);
+  const fee = held < due ? held : due;
+  if (fee <= 0n) return;
+  await tx.ledgerEntry.createMany({
+    data: [
+      { orderId: order.id, account: "HELD", direction: "DEBIT", amountKobo: fee, koraReference: `FEE-${order.id}`, sourceType: "FEE", sourceId: order.id },
+      { orderId: order.id, account: "FEE", direction: "CREDIT", amountKobo: fee, koraReference: `FEE-${order.id}`, sourceType: "FEE", sourceId: order.id },
+    ],
+    skipDuplicates: true,
+  });
+  await orderEvent(tx, order.id, { kind: "info", title: "ProcureAI fees", detail: "The buyer protection fee and the seller fee, kept when the order completed.", amountKobo: fee });
+}
+
 function stageAmount(totalKobo: Kobo, stage: PayoutStage, stage1Bp: number): Kobo {
   const { stage1, stage2 } = splitStages(totalKobo, stage1Bp);
   return stage === "STAGE_1" ? stage1 : stage2;
@@ -135,7 +158,7 @@ export async function dispatchStage(orderId: string, stage: PayoutStage, cause: 
     const waiting = await bigOrderCheck(pre, now);
     if (waiting) return waiting;
   }
-  const amountKobo = stageAmount(pre.amountKobo, stage, pre.stage1Bp);
+  const amountKobo = stageAmount(sellerGetsKobo(pre), stage, pre.stage1Bp);
   const provider = payments();
   const parts = splitIntoParts(amountKobo, provider.limits.maxPayoutKobo);
   const blocked = (await checkVendorEmail(orderId, stage, pre.vendor.email)) ?? (await checkBalance(provider, orderId, stage, amountKobo));
@@ -191,9 +214,9 @@ export async function approveLargePayout(orderId: string, cause: Cause): Promise
 }
 
 /** True when every part of Stage 1 has landed with the vendor (one part is not enough). */
-export async function stage1IsPaid(tx: Tx, orderId: string, order: { amountKobo: Kobo; stage1Bp: number }): Promise<boolean> {
+export async function stage1IsPaid(tx: Tx, orderId: string, order: { amountKobo: Kobo; sellerFeeKobo: Kobo; stage1Bp: number }): Promise<boolean> {
   const rows = await tx.payout.findMany({ where: { orderId, stage: "STAGE_1" }, select: { stage: true, status: true, amountKobo: true } });
-  return stageIsPaid(rows, "STAGE_1", splitStages(order.amountKobo, order.stage1Bp).stage1);
+  return stageIsPaid(rows, "STAGE_1", splitStages(sellerGetsKobo(order), order.stage1Bp).stage1);
 }
 
 /** Sends every part of a stage. All are attempted; the answer reports the most important outcome (failed, then unknown, then sent). */
@@ -368,8 +391,9 @@ export async function applyPayoutOutcome(reference: string, outcome: PayoutOutco
       if (payout.stage === "STAGE_2" && order.status === "RELEASED") {
         // The order is complete only when every part of the last stage has landed, not when one has.
         const stage2Parts = await tx.payout.findMany({ where: { orderId: order.id, stage: "STAGE_2" }, select: { stage: true, status: true, amountKobo: true } });
-        if (stageIsPaid(stage2Parts, "STAGE_2", stageAmount(order.amountKobo, "STAGE_2", order.stage1Bp))) {
+        if (stageIsPaid(stage2Parts, "STAGE_2", stageAmount(sellerGetsKobo(order), "STAGE_2", order.stage1Bp))) {
           order = await transition(tx, order, "COMPLETE", { ...cause, note: reference });
+          await bookFees(tx, order);
         }
       }
       return { changed: true };

@@ -118,6 +118,7 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
           <div style={{ marginTop: 72, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 32, flexWrap: "wrap", width: "100%" }} className="rise">
             <p className="body-lg" style={{ margin: 0, maxWidth: "48ch" }}>
               Held for you. {v.vendorName} receives {v.stage1Amount} now, and the rest when your delivery code is entered.
+              {v.fees ? ` Your payment includes ProcureAI's ${v.fees.buyerFee} buyer protection fee, returned with your money if you're refunded.` : ""}
               {p.overpaid ? ` You paid ${p.overpaid} more than the order; that stays held for a refund.` : ""}
             </p>
             <button type="button" className="btn" onClick={onTrack}>
@@ -218,7 +219,7 @@ function Pay({ v, onTrack }: { v: OrderView; onTrack: () => void }) {
       </p>
       {p.instalment ? (
         <p className="split-note">
-          <strong>Transfer {p.instalment.part} of {p.instalment.of}.</strong> Each one-time account takes up to ₦1,000,000, so {v.amount} is paid in {p.instalment.of} transfers.
+          <strong>Transfer {p.instalment.part} of {p.instalment.of}.</strong> Each one-time account takes up to ₦1,000,000, so {v.fees?.buyerPays ?? v.amount} is paid in {p.instalment.of} transfers.
           {p.instalment.receivedSoFar ? ` Received so far: ${p.instalment.receivedSoFar}.` : ""}
           {p.instalment.part < p.instalment.of ? " The next account appears here as soon as this payment is confirmed." : ""}
         </p>

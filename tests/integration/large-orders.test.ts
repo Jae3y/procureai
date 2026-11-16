@@ -45,9 +45,9 @@ describe("a NGN 100,000,000 order: each stage is paid in several transfers", () 
 
     // Two of three parts landed: the stage is NOT paid, so the vendor can't be told "delivered" yet.
     for (const p of s1.slice(0, 2)) await reconcilePayout(p.reference, poller);
-    expect(await db().$transaction((tx) => stage1IsPaid(tx as never, orderId, { amountKobo: HUNDRED_MILLION, stage1Bp: 3000 }))).toBe(false);
+    expect(await db().$transaction((tx) => stage1IsPaid(tx as never, orderId, { amountKobo: HUNDRED_MILLION, sellerFeeKobo: 0n, stage1Bp: 3000 }))).toBe(false);
     await reconcilePayout((s1[2] as { reference: string }).reference, poller);
-    expect(await db().$transaction((tx) => stage1IsPaid(tx as never, orderId, { amountKobo: HUNDRED_MILLION, stage1Bp: 3000 }))).toBe(true);
+    expect(await db().$transaction((tx) => stage1IsPaid(tx as never, orderId, { amountKobo: HUNDRED_MILLION, sellerFeeKobo: 0n, stage1Bp: 3000 }))).toBe(true);
 
     // Stage 2
     await moveOrder(orderId, ["CODE_VERIFIED"]);
@@ -96,7 +96,7 @@ describe("a NGN 100,000,000 order: each stage is paid in several transfers", () 
     expect((await db().order.findUniqueOrThrow({ where: { id: orderId } })).status).toBe("STAGE_1_PAID");
 
     await reconcilePayout((retried as { reference: string }).reference, poller);
-    expect(await db().$transaction((tx) => stage1IsPaid(tx as never, orderId, { amountKobo: HUNDRED_MILLION, stage1Bp: 3000 }))).toBe(true);
+    expect(await db().$transaction((tx) => stage1IsPaid(tx as never, orderId, { amountKobo: HUNDRED_MILLION, sellerFeeKobo: 0n, stage1Bp: 3000 }))).toBe(true);
     const paid = (await payoutsOf(orderId, "STAGE_1")).filter((p) => p.status === "SUCCESS").reduce((a, p) => a + p.amountKobo, 0n);
     expect(paid).toBe(30_000_000n * NAIRA);
     await expectMoneyInvariants(orderId);

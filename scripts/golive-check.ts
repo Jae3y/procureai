@@ -20,6 +20,7 @@ const checks: Check[] = [
   { item: "Cron secret", ok: (e.CRON_SECRET ?? "").length >= 16, fix: "Set CRON_SECRET and send it from the 10-minute cron job." },
   { item: "Email sending", ok: Boolean(e.RESEND_API_KEY), fix: "Create a Resend account, verify procureai.com.ng, set RESEND_API_KEY." },
   { item: "Webhook on the custom domain", ok: (e.KORA_WEBHOOK_URL ?? "").startsWith("https://procureai.com.ng/"), fix: "Point KORA_WEBHOOK_URL and the Kora dashboard webhook at https://procureai.com.ng/api/webhooks/kora." },
+  { item: "Fees switched on", ok: e.FEES_ENABLED === "true", fix: "After the provider's written rate card, updated terms and the lawyer's review: set FEES_ENABLED=true (new real purchases only)." },
   { item: "Error reports (Sentry)", ok: /^https:\/\/[^@\s]+@[^/\s]+\/\d+$/.test(e.SENTRY_DSN ?? ""), fix: "Create a free Sentry project (platform: Next.js), copy its DSN and set SENTRY_DSN." },
   { item: "AI key", ok: Boolean(e.AI_API_KEY), fix: "Set AI_API_KEY (the rules parser works without it, but reads replies less well)." },
   { item: "Legal pages reviewed", ok: LEGAL_REVIEWED, fix: "Have a lawyer review /terms, /privacy and /refunds, then set LEGAL_REVIEWED in lib/legal.ts." },

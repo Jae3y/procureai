@@ -111,7 +111,8 @@ export async function buildRecordView(orderId: string): Promise<RecordView> {
     money.push({ label: `Refunded to buyer · ${lagosDay(r.resolvedAt ?? r.createdAt)}`, amount: formatNaira(r.amountKobo), ref: r.reference, tone: "ink" });
   }
 
-  const { held, unaccounted } = moneySummary(order);
+  const { held, fees, unaccounted } = moneySummary(order);
+  if (fees > 0n) money.push({ label: "ProcureAI fees", amount: formatNaira(fees), ref: `FEE-${order.id}`, tone: "ink" });
   const excess = order.amountAcceptedKobo > order.amountKobo ? order.amountAcceptedKobo - order.amountKobo : 0n;
   if (held > 0n && order.status !== "COMPLETE") {
     money.push({ label: "Still held", amount: formatNaira(held), ref: "", tone: "ink" });

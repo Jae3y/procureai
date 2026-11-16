@@ -435,6 +435,22 @@ function Decision({ v }: { v: RequestView }) {
                 {rec.chosenTotal}
               </span>
             </div>
+            {rec.fees ? (
+              <dl className="fee-lines" aria-label="What you pay">
+                <div>
+                  <dt>Quote</dt>
+                  <dd className="mono">{rec.chosenTotal}</dd>
+                </div>
+                <div>
+                  <dt>ProcureAI buyer protection{rec.fees.plus ? " (Plus rate)" : ""}</dt>
+                  <dd className="mono">{rec.fees.buyerFee}</dd>
+                </div>
+                <div className="fee-total">
+                  <dt>You pay</dt>
+                  <dd className="mono">{rec.fees.youPay}</dd>
+                </div>
+              </dl>
+            ) : null}
             <button type="button" className="btn btn-lg" style={{ marginTop: 32 }} disabled={approve.pending} onClick={() => void onApprove()}>
               {approve.pending ? <Spinner label="Opening your account" /> : `Approve ${rec.chosenLabel}`}
             </button>
@@ -450,7 +466,7 @@ function Decision({ v }: { v: RequestView }) {
             </div>
             {rec.split ? (
               <div className="split-note" role="note">
-                <strong>Paid in {rec.split.transfers} transfers.</strong> Each one-time account takes up to ₦1,000,000, so {rec.chosenTotal} goes in as{" "}
+                <strong>Paid in {rec.split.transfers} transfers.</strong> Each one-time account takes up to ₦1,000,000, so {rec.fees?.youPay ?? rec.chosenTotal} goes in as{" "}
                 {rec.split.parts.join(" + ")}. Each payment is confirmed before the next account opens.
               </div>
             ) : null}

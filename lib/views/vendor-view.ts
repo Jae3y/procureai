@@ -22,7 +22,7 @@ export type VendorView = {
   /** Set when the picker shows Kora's payout bank list because its verification list came back empty. */
   banksNote: string | null;
   order:
-    | (Pick<OrderView, "ref" | "status" | "stage1Amount" | "stage2Amount" | "stage1Share" | "amount" | "vendor" | "events" | "lastEventId"> & {
+    | (Pick<OrderView, "ref" | "status" | "stage1Amount" | "stage2Amount" | "stage1Share" | "amount" | "fees" | "vendor" | "events" | "lastEventId"> & {
         id: string;
         heldAmount: string;
         recordPath: string | null;
@@ -78,6 +78,7 @@ export async function buildVendorView(token: string): Promise<VendorView> {
       stage1Amount: v.stage1Amount,
       stage2Amount: v.stage2Amount,
       stage1Share: v.stage1Share,
+      fees: v.fees,
       vendor: v.vendor,
       events: v.events.filter((e) => e.name.startsWith("transfer.")),
       lastEventId: v.lastEventId,

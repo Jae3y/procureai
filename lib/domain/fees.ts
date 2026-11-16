@@ -67,3 +67,36 @@ export function foundingFeeHolidayEnds(registeredAt: Date): Date {
 export function plusSavingOnOrder(orderKobo: Kobo): Kobo {
   return buyerProtectionFee(orderKobo) - buyerProtectionFee(orderKobo, { plus: true });
 }
+
+/** What the buyer pays for an order: the vendor's quote plus the buyer protection fee. */
+export function buyerPaysKobo(order: { amountKobo: Kobo; buyerFeeKobo: Kobo }): Kobo {
+  return order.amountKobo + order.buyerFeeKobo;
+}
+
+/** What the vendor receives across both stages: the quote less the seller fee. */
+export function sellerGetsKobo(order: { amountKobo: Kobo; sellerFeeKobo: Kobo }): Kobo {
+  return order.amountKobo - order.sellerFeeKobo;
+}
+
+export type OrderFees = { buyerFeeKobo: Kobo; sellerFeeKobo: Kobo };
+
+/**
+ * The fees for a new order, worked out once at approval and stored on the order. Off (both zero) while
+ * FEES_ENABLED is false and for demo purchases. Plus members get the lower first band; a founding seller pays
+ * no seller fee for their first months.
+ */
+export function feesForOrder(input: {
+  enabled: boolean;
+  isDemo: boolean;
+  amountKobo: Kobo;
+  buyerIsPlus: boolean;
+  seller: { foundingNumber: number | null; registeredAt: Date | null } | null;
+  now?: Date;
+}): OrderFees {
+  if (!input.enabled || input.isDemo) return { buyerFeeKobo: 0n, sellerFeeKobo: 0n };
+  const foundingUntil = input.seller?.foundingNumber != null && input.seller.registeredAt ? foundingFeeHolidayEnds(input.seller.registeredAt) : null;
+  return {
+    buyerFeeKobo: buyerProtectionFee(input.amountKobo, { plus: input.buyerIsPlus }),
+    sellerFeeKobo: sellerFee(input.amountKobo, { foundingUntil, ...(input.now ? { now: input.now } : {}) }),
+  };
+}

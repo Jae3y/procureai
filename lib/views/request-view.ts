@@ -1,4 +1,6 @@
 import { payments } from "@/lib/payments";
+import { isPlus } from "@/lib/domain/ai-allowance";
+import { feesForOrder } from "@/lib/domain/fees";
 import { FLAG_COPY, type QuoteFlag } from "@/lib/ai/fallback";
 import { inviteTokenFor } from "@/lib/crypto";
 import { directoryFilter } from "@/lib/domain/requests";
@@ -85,6 +87,8 @@ export type RequestView = {
     model: string | null;
     /** Kora's one-time accounts take up to ₦1,000,000 each; a larger total is paid in parts. */
     split: { transfers: number; parts: string[] } | null;
+    /** ProcureAI's protection fee and what the buyer pays in all, shown before approval. Null while fees are off. */
+    fees: { buyerFee: string; youPay: string; plus: boolean } | null;
   } | null;
   events: KoraRow[];
   lastEventId: string;
@@ -209,6 +213,13 @@ export async function buildRequestView(requestId: string, opts: { includeInvites
   const checkedAt = verifiedRows.length ? lagosTime(new Date(Math.max(...verifiedRows.map((v) => v.checkedAt.getTime())))) : null;
   const lastCheckError = events.filter((e) => e.kind === "error" && e.title.startsWith("Couldn't check"));
   const chosenVendor = chosenQuote ? request.vendors.find((v) => v.quote?.id === chosenQuote.id) : undefined;
+  const buyerAccount = await db().account.findUnique({ where: { buyerId: request.buyerId }, select: { plusUntil: true } });
+  const buyerIsPlus = buyerAccount ? isPlus(buyerAccount) : false;
+  const chosenFees =
+    chosenQuote?.totalKobo != null
+      ? feesForOrder({ enabled: env().FEES_ENABLED, isDemo: request.isDemo, amountKobo: chosenQuote.totalKobo, buyerIsPlus, seller: chosenVendor?.contact ?? null })
+      : null;
+  const chosenPays = chosenQuote?.totalKobo != null ? chosenQuote.totalKobo + (chosenFees?.buyerFeeKobo ?? 0n) : null;
   const invitedEvent = events.find((e) => e.title.startsWith("Asked "));
   const base = env().APP_BASE_URL.replace(/\/+$/, "");
 
@@ -243,8 +254,9 @@ export async function buildRequestView(requestId: string, opts: { includeInvites
           reasoning: splitSentences(rec.reasoning),
           parsedBy: rec.parsedBy,
           model: rec.model,
+          fees: chosenFees && chosenFees.buyerFeeKobo > 0n && chosenPays !== null ? { buyerFee: formatNaira(chosenFees.buyerFeeKobo), youPay: formatNaira(chosenPays), plus: buyerIsPlus } : null,
           split: (() => {
-            const total = chosenQuote?.totalKobo;
+            const total = chosenPays;
             const cap = payments().limits.maxChargeKobo;
             if (total == null || total <= cap) return null;
             const parts: string[] = [];
