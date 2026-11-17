@@ -3,20 +3,23 @@
  * reviewed them; LEGAL_REVIEWED switches off the draft notice once that has happened.
  */
 export const LEGAL_REVIEWED = false;
-export const LEGAL_UPDATED = "16 November 2026";
+export const LEGAL_UPDATED = "17 November 2026";
 export const SUPPORT_EMAIL = "hello@procureai.com.ng";
 
-/** The registered company behind ProcureAI, as it appears on the CAC register. No address is published. */
-export const COMPANY_NAME = "PROCUREAI TECHNOLOGIES";
-export const COMPANY_RC = "99763666";
-export const COMPANY_LINE = `${COMPANY_NAME} (RC ${COMPANY_RC})`;
+/**
+ * The registered business behind ProcureAI, exactly as on its CAC certificate: a business name (sole proprietorship),
+ * so it has a BN number, not an RC number. No address is published.
+ */
+export const COMPANY_NAME = "PROCURE-AI TECHNOLOGIES";
+export const COMPANY_BN = "9976366";
+export const COMPANY_LINE = `${COMPANY_NAME} (BN ${COMPANY_BN})`;
 
 export type LegalSection = { heading: string; paragraphs: string[] };
 
 export const TERMS: LegalSection[] = [
   {
     heading: "Who we are",
-    paragraphs: [`ProcureAI is run by ${COMPANY_LINE}, a company registered in Nigeria with the Corporate Affairs Commission.`],
+    paragraphs: [`ProcureAI is run by ${COMPANY_LINE}, a business name registered in Nigeria with the Corporate Affairs Commission.`],
   },
   {
     heading: "What ProcureAI is",

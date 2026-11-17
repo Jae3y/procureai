@@ -87,7 +87,7 @@ describe("email", () => {
     expect(html).toContain("A &amp; B");
     expect(html).not.toContain("<script>");
     expect(text).toContain("Open: https://procureai.com.ng/x?a=1&b=2");
-    expect(text).toContain("PROCUREAI TECHNOLOGIES (RC 99763666)");
+    expect(text).toContain("PROCURE-AI TECHNOLOGIES (BN 9976366)");
   });
 
   it("once email works, a real purchase can't be paid for until the email is confirmed", async () => {
