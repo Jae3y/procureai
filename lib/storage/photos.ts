@@ -1,5 +1,6 @@
 import { del, get, put } from "@vercel/blob";
 import { randomBytes } from "node:crypto";
+import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 
@@ -49,4 +50,46 @@ export async function removePhoto(url: string | null): Promise<void> {
   } catch (err) {
     log.warn({ err: String(err) }, "could not delete a stored photo");
   }
+}
+
+/**
+ * Moves photos saved before file storage was switched on out of Postgres, a few per background pass, so no single
+ * run takes long. Each row is only changed if it still holds the same photo (a listing edited meanwhile is left for
+ * the next pass, and the file just uploaded is deleted). A listing keeps its updatedAt, so the marketplace order
+ * doesn't change. Safe to run any number of times.
+ */
+export async function moveDbPhotosToStorage(limit = 20): Promise<{ moved: number; skipped: number }> {
+  if (!blobEnabled()) return { moved: 0, skipped: 0 };
+  let moved = 0;
+  let skipped = 0;
+  const listings = await db().listing.findMany({ where: { photo: { not: null }, photoUrl: null }, select: { id: true }, take: limit });
+  for (const { id } of listings) {
+    const row = await db().listing.findUnique({ where: { id }, select: { photo: true, photoType: true, updatedAt: true } });
+    if (!row?.photo || !row.photoType) continue;
+    const stored = await storePhoto("listings", { bytes: new Uint8Array(row.photo), type: row.photoType });
+    const { count } = await db().listing.updateMany({
+      where: { id, photoUrl: null, updatedAt: row.updatedAt },
+      data: { photo: null, photoUrl: stored.photoUrl, updatedAt: row.updatedAt },
+    });
+    if (count === 1) moved += 1;
+    else {
+      skipped += 1;
+      await removePhoto(stored.photoUrl);
+    }
+  }
+  const room = Math.max(0, limit - listings.length);
+  const evidence = room > 0 ? await db().orderEvidence.findMany({ where: { photo: { not: null }, photoUrl: null }, select: { id: true }, take: room }) : [];
+  for (const { id } of evidence) {
+    const row = await db().orderEvidence.findUnique({ where: { id }, select: { photo: true, photoType: true } });
+    if (!row?.photo || !row.photoType) continue;
+    const stored = await storePhoto("evidence", { bytes: new Uint8Array(row.photo), type: row.photoType });
+    const { count } = await db().orderEvidence.updateMany({ where: { id, photoUrl: null }, data: { photo: null, photoUrl: stored.photoUrl } });
+    if (count === 1) moved += 1;
+    else {
+      skipped += 1;
+      await removePhoto(stored.photoUrl);
+    }
+  }
+  if (moved || skipped) log.info({ moved, skipped }, "moved stored photos out of the database");
+  return { moved, skipped };
 }

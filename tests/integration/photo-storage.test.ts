@@ -5,6 +5,7 @@ import { signUp } from "@/lib/domain/accounts";
 import { createListing, setListingStatus, updateListing } from "@/lib/domain/listings";
 import { registerVendor } from "@/lib/domain/vendor-profiles";
 import { resetEnvCache } from "@/lib/env";
+import { moveDbPhotosToStorage } from "@/lib/storage/photos";
 
 /** Vercel Blob stands in as an in-memory store, so the test checks our side: what goes where, and what is cleaned up. */
 const store = new Map<string, { bytes: Buffer; contentType: string; access: string }>();
@@ -83,5 +84,26 @@ describe("photos in file storage", () => {
     expect(row.photo).not.toBeNull();
     expect(row.photoUrl).toBeNull();
     expect(store.size).toBe(0);
+  });
+
+  it("moves photos saved before storage was on, without reordering the marketplace, and still serves them", async () => {
+    process.env.BLOB_READ_WRITE_TOKEN = "";
+    resetEnvCache();
+    const s = await seller();
+    const listing = await createListing(s, { ...shirt, photo: { type: "image/png", base64: PNG } });
+    const before = await db().listing.findUniqueOrThrow({ where: { id: listing.id } });
+    expect(before.photo).not.toBeNull();
+
+    process.env.BLOB_READ_WRITE_TOKEN = "vercel_blob_rw_test_only";
+    resetEnvCache();
+    expect(await moveDbPhotosToStorage()).toEqual({ moved: 1, skipped: 0 });
+    const after = await db().listing.findUniqueOrThrow({ where: { id: listing.id } });
+    expect(after.photo).toBeNull();
+    expect(after.photoUrl).toMatch(/\/listings\//);
+    expect(after.updatedAt.getTime()).toBe(before.updatedAt.getTime());
+    expect(await moveDbPhotosToStorage()).toEqual({ moved: 0, skipped: 0 }); // nothing left: safe to run again
+
+    const res = await listingPhoto(new Request(`http://localhost:3000/api/market/listings/${listing.id}/photo`), { params: Promise.resolve({ id: listing.id }) });
+    expect(Buffer.from(await res.arrayBuffer()).equals(Buffer.from(PNG, "base64"))).toBe(true);
   });
 });
