@@ -6,7 +6,7 @@ import { env } from "@/lib/env";
  * RECORD_SIGNING_SECRET, so a record-URL signature can never be replayed as a session or a code hash.
  */
 
-type Purpose = "record-url" | "buyer-session" | "account-session" | "login-ticket" | "oauth-state" | "totp-cipher" | "handover-hash" | "handover-cipher" | "admin-session" | "invite-token" | "unsubscribe";
+type Purpose = "record-url" | "buyer-session" | "account-session" | "login-ticket" | "oauth-state" | "totp-cipher" | "handover-hash" | "handover-cipher" | "admin-session" | "invite-token" | "unsubscribe" | "reporter";
 
 const keyCache = new Map<Purpose, Buffer>();
 
@@ -55,6 +55,11 @@ export function randomToken(bytes = 32): string {
  */
 export function inviteTokenFor(requestId: string, label: string): string {
   return mac("invite-token", `${requestId}:${label}`).slice(0, 32);
+}
+
+/** Who reported a listing, when they aren't signed in: a keyed hash of their network address, never the address. */
+export function reporterKeyForIp(ip: string): string {
+  return `ip:${mac("reporter", ip).slice(0, 22)}`;
 }
 
 // ── Signed, unguessable record URLs ────────────────────────────────────────

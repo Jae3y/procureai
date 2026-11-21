@@ -740,10 +740,13 @@ model ListingReport {
   note       String    @default("")
   /// The signed-in account that reported it, if any. Reports from visitors are allowed (rate-limited).
   accountId  String?
+  /// Who reported it, for counting: "account:<id>", or "ip:<keyed hash>" for a visitor (the address itself is never stored).
+  reporterKey String?
   createdAt  DateTime  @default(now())
   resolvedAt DateTime?
   resolution String?
 
   @@index([resolvedAt, createdAt])
   @@index([listingId])
+  @@index([listingId, reporterKey])
 }

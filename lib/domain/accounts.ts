@@ -430,7 +430,9 @@ export async function exportAccountData(account: Account) {
  * the legally required period, so this can't simply erase rows; the admin console lists the request.
  */
 export async function requestDeletion(account: Account): Promise<void> {
-  await db().account.update({ where: { id: account.id }, data: { deletionRequestedAt: new Date() } });
+  // Asking again changes nothing, and doesn't email the owner again.
+  const { count } = await db().account.updateMany({ where: { id: account.id, deletionRequestedAt: null }, data: { deletionRequestedAt: new Date() } });
+  if (count === 0) return;
   await notifyOps(db(), { kind: "ops.deletion", title: "An account asked to be deleted", body: `${account.email} asked for their account to be deleted. Review it in the admin console.`, href: "/admin" });
   log.warn({ accountId: account.id }, "account deletion requested");
 }

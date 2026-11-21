@@ -100,14 +100,21 @@ export function directoryFilter(isDemo: boolean) {
 export async function inviteVendors(requestId: string, opts: { pinnedContactId?: string; onlyPinned?: boolean } = {}): Promise<Invite[]> {
   const request = await db().request.findUnique({ where: { id: requestId }, include: { vendors: true } });
   if (!request) throw new NotFoundError("Request");
-  if (request.status !== "DRAFT") throw new DomainError("already_invited", "Vendors have already been asked for this request.", 409);
+  const already = () => new DomainError("already_invited", "Vendors have already been asked for this request.", 409);
+  if (request.status !== "DRAFT") throw already();
+  // Claimed before anyone is asked: of two requests arriving together, only one gets past this line.
+  const claimed = await db().request.updateMany({ where: { id: requestId, status: "DRAFT" }, data: { status: "COLLECTING" } });
+  if (claimed.count === 0) throw already();
   await seedDemoDirectory();
   const directory = await db().vendorContact.findMany({ where: directoryFilter(request.isDemo), orderBy: { createdAt: "asc" }, include: { account: { select: { id: true } } } });
   const pinned = opts.pinnedContactId ? directory.find((c) => c.id === opts.pinnedContactId) : undefined;
   if (opts.pinnedContactId && !pinned) throw new DomainError("seller_unavailable", "This seller isn't taking requests right now.", 409);
   const others = opts.onlyPinned ? [] : shortlist(directory.filter((c) => c.id !== pinned?.id), request.item, pinned ? MAX_SHORTLIST - 1 : MAX_SHORTLIST);
   const contacts = pinned ? [pinned, ...others] : others;
-  if (contacts.length === 0 && request.isDemo) throw new DomainError("no_vendors", "There are no vendors in the directory to ask yet.", 409);
+  if (contacts.length === 0 && request.isDemo) {
+    await db().request.update({ where: { id: requestId }, data: { status: "DRAFT" } }); // nothing was asked: let them try again
+    throw new DomainError("no_vendors", "There are no vendors in the directory to ask yet.", 409);
+  }
 
   const expires = new Date(request.deadline.getTime() + 14 * 86_400_000);
   const invites: Invite[] = [];
@@ -129,7 +136,6 @@ export async function inviteVendors(requestId: string, opts: { pinnedContactId?:
       await notify(db(), { accountId: c.account.id, kind: "invite", title: "A buyer needs what you sell", body: `${request.quantity.toLocaleString("en-NG")} × ${request.item}, by ${request.deadline.toISOString().slice(0, 10)}. Reply with your price.`, href: `/v/${token}` });
     }
   }
-  await db().request.update({ where: { id: requestId }, data: { status: "COLLECTING" } });
   await requestEvent(requestId, { kind: "info", title: `Asked ${contacts.length} vendors`, detail: `Searched ${directory.length} in the directory and matched ${contacts.length} to "${request.item}"${contacts.length ? `: ${contacts.map((c) => c.businessName).join(", ")}` : ""}` });
   return invites;
 }

@@ -17,7 +17,7 @@ export default function globalSetup(): void {
           KORA_WEBHOOK_URL: "https://offline.procureai.invalid/api/webhooks/kora",
           DEMO_MODE: "true",
           SIMULATE_IDENTITY: "false",
-          APP_BASE_URL: "http://localhost:3000",
+          APP_BASE_URL: `http://localhost:${process.env.E2E_PORT ?? 3200}`,
         }
       : process.env,
   });

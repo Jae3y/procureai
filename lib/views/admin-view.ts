@@ -35,6 +35,8 @@ export type AdminView = {
     deliveryWaiting: boolean;
     /** Per-order reconciliation: everything Kora accepted is paid out, refunded or held. */
     money: { paidIn: string; paidOut: string; refunded: string; held: string; unaccounted: string; balanced: boolean };
+    /** A completed order still holding money the buyer paid on top: the admin can return it. */
+    overpaidHeld: string | null;
   }>;
   /** For the presenter: the newest order at each point of the story. */
   stageLinks: Array<{ stage: string; ref: string; path: string } | { stage: string; ref: null; path: null }>;
@@ -120,6 +122,10 @@ export async function buildAdminView(): Promise<AdminView> {
           unaccounted: formatNaira(m.unaccounted),
           balanced: m.unaccounted === 0n,
         };
+      })(),
+      overpaidHeld: (() => {
+        const held = moneySummary(o).held;
+        return o.status === "COMPLETE" && held > 0n ? formatNaira(held) : null;
       })(),
     })),
     stageLinks: STAGES.map(({ stage, statuses }) => {

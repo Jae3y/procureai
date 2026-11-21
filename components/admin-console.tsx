@@ -295,6 +295,16 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
                         <button type="button" className="btn-text" disabled={demo.pending} onClick={() => void act({ action: "skip-wait", orderId: o.id })}>
                           Skip the wait (demo)
                         </button>
+                      ) : o.status === "COMPLETE" && o.overpaidHeld ? (
+                        <ReturnOverpayment
+                          orderId={o.id}
+                          orderRef={o.ref}
+                          amount={o.overpaidHeld}
+                          onDone={(text, bad) => {
+                            setMsg({ text, bad });
+                            void refresh();
+                          }}
+                        />
                       ) : o.status === "COMPLETE" ? (
                         o.isSample ? (
                           <span className="pill green">Sample record</span>
@@ -383,6 +393,21 @@ export function AdminConsole({ initial }: { initial: AdminView }) {
         </div>
       ) : null}
     </main>
+  );
+}
+
+/** A completed order still holds money the buyer paid on top: return it to them (POST /api/orders/:id/refund). */
+function ReturnOverpayment({ orderId, orderRef, amount, onDone }: { orderId: string; orderRef: string; amount: string; onDone: (text: string, bad: boolean) => void }) {
+  const refund = useAction<{ purpose: "overpayment" }, { message: string }>(`/api/orders/${orderId}/refund`);
+  return (
+    <button
+      type="button"
+      className="btn-2"
+      disabled={refund.pending}
+      onClick={() => void refund.run({ purpose: "overpayment" }).then((r) => onDone(r.ok ? `${orderRef}: ${r.data.message}` : `${orderRef} not refunded: ${r.error.message}`, !r.ok))}
+    >
+      {refund.pending ? <Spinner label="Working" /> : `Return ${amount} to the buyer`}
+    </button>
   );
 }
 

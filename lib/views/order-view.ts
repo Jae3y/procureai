@@ -323,7 +323,7 @@ export async function buildOrderView(orderId: string, audience: Audience): Promi
         reachedHeld && firstPaid
           ? { amount: formatNaira(order.amountAcceptedKobo), reference: firstPaid.reference, time: lagosTime(successPayIns.at(-1)?.creditedAt ?? firstPaid.createdAt) }
           : null,
-      overpaid: order.amountAcceptedKobo > order.amountKobo ? formatNaira(order.amountAcceptedKobo - order.amountKobo) : null,
+      overpaid: order.amountAcceptedKobo > buyerPaysKobo(order) ? formatNaira(order.amountAcceptedKobo - buyerPaysKobo(order)) : null,
       instalment: (() => {
         const remaining = order.amountKobo > order.amountAcceptedKobo ? order.amountKobo - order.amountAcceptedKobo : 0n;
         const of = successPayIns.length + (remaining > 0n ? instalmentsFor(remaining) : 0);

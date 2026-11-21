@@ -1,4 +1,4 @@
-import { db, transaction } from "@/lib/db";
+import { db, transaction, type Tx } from "@/lib/db";
 import { notify, notifyOps } from "@/lib/notify/notifications";
 import { DomainError, NotFoundError } from "./errors";
 
@@ -23,16 +23,24 @@ export const REASON_WORDS: Record<ReportReason, string> = {
 /** After this many open reports a listing is paused automatically until the owner looks at it. */
 export const AUTO_PAUSE_AFTER_REPORTS = 3;
 
-export async function reportListing(listingId: string, input: { reason: ReportReason; note: string; accountId: string | null }): Promise<void> {
+/**
+ * How many DIFFERENT people have open reports on a listing. One person reporting from several tabs, or a visitor
+ * reporting again and again, counts once, so nobody can pause a competitor's listing on their own. Reports made
+ * before reporters were recorded count one each.
+ */
+export async function openReporterCount(tx: Tx, listingId: string): Promise<number> {
+  const rows = await tx.listingReport.findMany({ where: { listingId, resolvedAt: null }, select: { id: true, reporterKey: true } });
+  return new Set(rows.map((r) => r.reporterKey ?? `legacy:${r.id}`)).size;
+}
+
+export async function reportListing(listingId: string, input: { reason: ReportReason; note: string; accountId: string | null; reporterKey: string }): Promise<void> {
   const listing = await db().listing.findUnique({ where: { id: listingId }, include: { contact: { select: { businessName: true } } } });
   if (!listing || listing.status === "REMOVED") throw new NotFoundError("Listing");
-  if (input.accountId) {
-    const already = await db().listingReport.findFirst({ where: { listingId, accountId: input.accountId, resolvedAt: null } });
-    if (already) return; // one open report per person per listing; reporting twice changes nothing
-  }
+  const already = await db().listingReport.findFirst({ where: { listingId, reporterKey: input.reporterKey, resolvedAt: null } });
+  if (already) return; // one open report per person per listing; reporting twice changes nothing
   await transaction(async (tx) => {
-    await tx.listingReport.create({ data: { listingId, reason: input.reason, note: input.note.trim().slice(0, 500), accountId: input.accountId } });
-    const open = await tx.listingReport.count({ where: { listingId, resolvedAt: null } });
+    await tx.listingReport.create({ data: { listingId, reason: input.reason, note: input.note.trim().slice(0, 500), accountId: input.accountId, reporterKey: input.reporterKey } });
+    const open = await openReporterCount(tx, listingId);
     if (open >= AUTO_PAUSE_AFTER_REPORTS && listing.status === "ACTIVE") {
       await tx.listing.update({ where: { id: listingId }, data: { status: "PAUSED", moderationNote: "Paused while ProcureAI reviews reports about it." } });
     }

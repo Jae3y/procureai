@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { reporterKeyForIp } from "@/lib/crypto";
 import { REPORT_REASONS, reportListing } from "@/lib/domain/moderation";
 import { route } from "@/lib/http/route";
 import { accountFrom } from "@/lib/http/session";
@@ -11,9 +12,9 @@ const Body = z.object({ reason: z.enum(REPORT_REASONS, { error: "Choose a reason
 /** POST /api/market/listings/:id/report — anyone can report a listing; the owner reviews it. */
 export const POST = route<z.output<typeof Body>, { id: string }>(
   { name: "market.report", input: Body, limits: ({ ip }) => [{ key: `listing-report:${ip}`, limit: 5, windowSeconds: 3600 }] },
-  async ({ input, params, req }) => {
+  async ({ input, params, req, ip }) => {
     const account = await accountFrom(req);
-    await reportListing(params.id, { reason: input.reason, note: input.note, accountId: account?.id ?? null });
+    await reportListing(params.id, { reason: input.reason, note: input.note, accountId: account?.id ?? null, reporterKey: account ? `account:${account.id}` : reporterKeyForIp(ip) });
     return { status: 201, body: { ok: true } };
   },
 );

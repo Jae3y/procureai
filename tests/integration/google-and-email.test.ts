@@ -111,5 +111,8 @@ describe("email", () => {
     await requestDeletion(someone);
     const alert = await db().notification.findFirstOrThrow({ where: { accountId: owner.id, kind: "ops.deletion" } });
     expect(alert.body).toContain("tunde@example.com");
+    // Asking again doesn't alert the owner again.
+    await requestDeletion(someone);
+    expect(await db().notification.count({ where: { accountId: owner.id, kind: "ops.deletion" } })).toBe(1);
   });
 });

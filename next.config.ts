@@ -1,21 +1,10 @@
 import type { NextConfig } from "next";
 
-const isDev = process.env.NODE_ENV !== "production";
-
-/** Next's own bootstrap scripts are inline, hence 'unsafe-inline'; nothing loads from another origin. */
-const CSP = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com${isDev ? " 'unsafe-eval'" : ""}`,
-  "frame-src https://challenges.cloudflare.com",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "font-src 'self' data:",
-  `connect-src 'self'${isDev ? " ws:" : ""}`,
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-].join("; ");
+/**
+ * Pages get their Content-Security-Policy, with a per-request nonce, from proxy.ts. Everything else (API answers,
+ * images, files) gets this one: nothing may be framed, run or loaded from it as a page.
+ */
+const NON_PAGE_CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'";
 
 const config: NextConfig = {
   reactStrictMode: true,
@@ -60,11 +49,12 @@ const config: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Frame-Options", value: "DENY" },
-          { key: "Content-Security-Policy", value: CSP },
           { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
-          { key: "Permissions-Policy", value: "geolocation=(), microphone=(), payment=()" },
+          { key: "Permissions-Policy", value: "geolocation=(), microphone=(), camera=(), usb=(), payment=()" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
         ],
       },
+      { source: "/api/:path*", headers: [{ key: "Content-Security-Policy", value: NON_PAGE_CSP }] },
     ];
   },
 };

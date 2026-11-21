@@ -1,4 +1,5 @@
 import { notifyDelivered } from "@/lib/notify/notifications";
+import { sellerGetsKobo } from "./fees";
 import { removePhoto, storePhoto } from "@/lib/storage/photos";
 import { db, transaction } from "@/lib/db";
 import { env } from "@/lib/env";
@@ -151,7 +152,7 @@ export async function resolveDispute(
         : stage2.kind === "blocked"
           ? `waiting: ${stage2.message}`
           : "already on its way";
-  return { ruling, stage2: stage2.kind, message: `Ruled for the vendor: Stage 2 (${formatNaira(splitStages(order.amountKobo, order.stage1Bp).stage2)}) ${what}.` };
+  return { ruling, stage2: stage2.kind, message: `Ruled for the vendor: Stage 2 (${formatNaira(splitStages(sellerGetsKobo(order), order.stage1Bp).stage2)}) ${what}.` };
 }
 
 /** Demo only: end the buyer's window now and run the release, so a pitch doesn't wait 72 hours. */

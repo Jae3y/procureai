@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
 import { db } from "@/lib/db";
 import { submitQuote } from "@/lib/domain/vendors";
+import { inviteVendors } from "@/lib/domain/requests";
 import { revealHandoverCode, submitHandoverCode } from "@/lib/domain/handover";
 import { openPayIn, reconcileCharge } from "@/lib/domain/payin";
 import { dispatchStage, reconcilePayout, retryPayout } from "@/lib/domain/payouts";
@@ -144,5 +145,18 @@ describe("two quotes racing for the same invite", () => {
     // The saved bank account is the winner's, never the loser's.
     const winner = results.findIndex((r) => r.status === "fulfilled");
     expect((await db().vendor.findUniqueOrThrow({ where: { id: vendor.id } })).accountNumber).toBe(winner === 0 ? "1111111111" : "2222222222");
+  });
+});
+
+describe("two invites for the same request at once", () => {
+  it("asks the vendors once; the other gets a clean 'already asked'", async () => {
+    const request = await makeRequest();
+    await db().request.update({ where: { id: request.id }, data: { status: "DRAFT", isDemo: true } });
+    const results = await Promise.allSettled([inviteVendors(request.id), inviteVendors(request.id)]);
+    const ok = results.filter((r): r is PromiseFulfilledResult<Awaited<ReturnType<typeof inviteVendors>>> => r.status === "fulfilled");
+    const refused = results.filter((r): r is PromiseRejectedResult => r.status === "rejected");
+    expect(ok).toHaveLength(1);
+    expect(refused[0]?.reason).toMatchObject({ code: "already_invited", status: 409 });
+    expect(await db().vendor.count({ where: { requestId: request.id } })).toBe(ok[0]?.value.length);
   });
 });

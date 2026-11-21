@@ -6,7 +6,10 @@ import { isProviderError, payments } from "@/lib/payments";
 import { log } from "@/lib/log";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Sell on ProcureAI" };
+export const metadata: Metadata = {
+  title: "Sell on ProcureAI",
+  description: "Register once and get buyers' requests. Reply in your own words; when you're chosen and the buyer has paid, the first part goes straight to your account to start the job. Listing is free.",
+};
 
 /** /vendors/join — a vendor registers once; from then on a quote is just the reply in their own words. */
 export default async function VendorJoinPage() {

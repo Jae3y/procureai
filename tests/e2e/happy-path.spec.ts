@@ -55,5 +55,5 @@ test("buyer and vendor complete a purchase; every naira is accounted for", async
   await page.getByRole("link", { name: "Open record" }).click();
   await expect(page.getByText("Left unaccounted")).toBeVisible();
   await expect(page.locator(".money-total")).toContainText("₦0");
-  await expect(page.getByText(/COMPLETE · ALL REFERENCES (SIGNED BY|CONFIRMED WITH) KORA/)).toBeVisible();
+  await expect(page.getByText(/COMPLETE · EVERY REFERENCE (SIGNED AND VERIFIED|CONFIRMED)/)).toBeVisible();
 });

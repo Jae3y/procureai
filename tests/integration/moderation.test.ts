@@ -46,7 +46,7 @@ describe("marketplace moderation", () => {
 
   it("enough reports pause a listing until it's reviewed; the seller can't un-pause it; keeping it restores it", async () => {
     const { seller, listing } = await sellerWithListing();
-    for (let i = 0; i < AUTO_PAUSE_AFTER_REPORTS; i++) await reportListing(listing.id, { reason: "misleading", note: `report ${i}`, accountId: null });
+    for (let i = 0; i < AUTO_PAUSE_AFTER_REPORTS; i++) await reportListing(listing.id, { reason: "misleading", note: `report ${i}`, accountId: null, reporterKey: `ip:visitor-${i}` });
     expect((await db().listing.findUniqueOrThrow({ where: { id: listing.id } })).status).toBe("PAUSED");
     await expect(setListingStatus(seller, listing.id, "ACTIVE")).rejects.toMatchObject({ code: "under_review" });
     await restoreListing(listing.id);
@@ -57,9 +57,16 @@ describe("marketplace moderation", () => {
   it("one person reporting twice counts once", async () => {
     const { listing } = await sellerWithListing();
     const reporter = await signUp({ name: "Tolu Adebayo", email: `reporter${n}@example.com`, password: PASSWORD });
-    await reportListing(listing.id, { reason: "scam", note: "", accountId: reporter.id });
-    await reportListing(listing.id, { reason: "scam", note: "", accountId: reporter.id });
+    await reportListing(listing.id, { reason: "scam", note: "", accountId: reporter.id, reporterKey: `account:${reporter.id}` });
+    await reportListing(listing.id, { reason: "scam", note: "", accountId: reporter.id, reporterKey: `account:${reporter.id}` });
     expect(await db().listingReport.count({ where: { listingId: listing.id } })).toBe(1);
+  });
+
+  it("one visitor can't pause a listing alone, however many times they report it", async () => {
+    const { listing } = await sellerWithListing();
+    for (let i = 0; i < AUTO_PAUSE_AFTER_REPORTS + 2; i++) await reportListing(listing.id, { reason: "scam", note: `try ${i}`, accountId: null, reporterKey: "ip:same-visitor" });
+    expect(await db().listingReport.count({ where: { listingId: listing.id } })).toBe(1);
+    expect((await db().listing.findUniqueOrThrow({ where: { id: listing.id } })).status).toBe("ACTIVE");
   });
 
   it("only the admin can take a listing down (with an admin password set, as in production)", async () => {
