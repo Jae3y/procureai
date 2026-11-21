@@ -83,7 +83,12 @@ button, input, textarea, select { font-family: inherit; color: inherit; }
 .header-ref { font: 500 13px/1 var(--font-mono); color: var(--muted); }
 .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: var(--paper); display: grid; place-items: center; font: 600 12px/1 var(--font-body); }
 @media (max-width: 1100px) { .header-ref { display: none; } }
-@media (max-width: 760px) { .step-label { display: none; } }
+@media (max-width: 760px) {
+  .step-label { display: none; }
+  /* With the labels hidden, the dot alone would be a 9px tap target. */
+  .step-btn { min-width: 24px; justify-content: center; }
+  .step-line { margin: 0 2px; }
+}
 
 /* ── buttons ── */
 .btn { border: 0; background: var(--ink); color: var(--paper); font: 500 17px/1 var(--font-body); padding: 20px 32px; min-height: 56px; border-radius: 999px; cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 12px; text-decoration: none; transition: background 200ms; }
@@ -467,6 +472,13 @@ textarea.thread-input { min-height: 64px; font-size: 16px; }
 .account-list a, .account-narrow .note a, .account-wide .note a, .site-foot a { color: var(--ink); }
 .legal section { margin-top: 32px; }
 .legal p { font: 400 17px/1.6 var(--font-body); }
+.order-help { max-width: var(--max); margin: -96px auto 0; padding: 0 var(--gutter) 64px; font-size: 15px; }
+.legal .faq { border-top: 1px solid var(--hairline); }
+.legal h2 + .faq { margin-top: 12px; }
+.legal .faq:last-of-type { border-bottom: 1px solid var(--hairline); }
+.legal .faq > summary { cursor: pointer; padding: 16px 0; min-height: 44px; font: 600 17px/1.35 var(--font-body); list-style-position: inside; }
+.legal .faq > summary:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.legal .faq > p { margin: 0 0 18px; }
 .legal-draft { border: 1px solid var(--hairline); border-radius: 12px; padding: 14px 16px; font: 500 15px/1.5 var(--font-body); background: var(--surface); }
 .site-foot { max-width: var(--max); margin: 0 auto; padding: 40px var(--gutter); border-top: 1px solid var(--hairline); display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; font: 400 14px/1.5 var(--font-body); color: var(--muted); }
 .site-foot a { color: var(--muted); display: inline-block; padding: 4px 0; min-height: 24px; }

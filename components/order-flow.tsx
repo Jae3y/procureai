@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { SUPPORT_EMAIL } from "@/lib/legal";
 import type { OrderView } from "@/lib/views/order-view";
 import { useAction, useCountdown, useElapsed, useLive } from "./hooks";
 import { EvidenceForm, EvidenceList } from "./evidence";
@@ -56,6 +57,10 @@ export function OrderFlow({ initial, initials }: { initial: OrderView; initials:
       ) : (
         <Tracker v={v} connection={connection} />
       )}
+      <p className="note order-help">
+        Need help with this order? Read the <a href="/help">help page</a>, or write to{" "}
+        <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Order ${v.ref}`)}`}>{SUPPORT_EMAIL}</a> and mention {v.ref}.
+      </p>
     </main>
   );
 }

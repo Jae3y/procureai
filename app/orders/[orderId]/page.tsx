@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { OrderFlow } from "@/components/order-flow";
 import { PageMessage } from "@/components/states";
 import { db } from "@/lib/db";
@@ -5,6 +6,7 @@ import { initialsOf, pageCanSeeOrder, pageIsAdmin } from "@/lib/http/page-auth";
 import { buildOrderView } from "@/lib/views/order-view";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Your order · ProcureAI", robots: { index: false, follow: false } };
 
 export default async function OrderPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = await params;

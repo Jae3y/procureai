@@ -74,7 +74,7 @@ function SubmittedRequest({ v }: { v: RequestView }) {
               : v.directoryCount === 0 && !v.isDemo
                 ? "No registered vendor sells this yet. Continue, and you can add vendors you know."
                 : `ProcureAI searched ${v.directoryTotal} vendors and will ask the ${v.directoryCount} that match this order.`}
-            <span className="parsed-by">read by {v.specParsedBy === "AI" ? "AI" : "rules"}</span>
+            <span className="parsed-by">{v.specParsedBy === "AI" ? "read by AI · check the details" : "read automatically · check the details"}</span>
           </span>
           <Link className="btn-text" href={`/buy?text=${encodeURIComponent(v.rawText)}`}>
             Edit
@@ -471,7 +471,7 @@ function Decision({ v }: { v: RequestView }) {
               </div>
             ) : null}
             <div className="parsed-by" style={{ marginLeft: 0, marginTop: 16, display: "block" }}>
-              {rec.parsedBy === "AI" ? `Ranked by AI (${rec.model ?? "model"}); every vendor verified.` : "Ranked by ProcureAI’s rules; every vendor verified."}
+              {rec.parsedBy === "AI" ? "Ranked by AI" : "Ranked by ProcureAI’s rules"}; every vendor was checked, and only vendors that passed can be chosen.
             </div>
             <div aria-live="polite">{approve.error ? <p className="form-error">{approve.error.message}</p> : null}</div>
           </>

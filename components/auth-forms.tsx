@@ -339,7 +339,19 @@ export function SignupForm({ next, google = false, turnstileSiteKey = "" }: { ne
   const fullName = `${firstName} ${lastName}`.trim();
   const pw = passwordState(password, fullName, email);
   const typo = emailSuggestion(email.trim());
-  const ready = Boolean(firstName.trim() && lastName.trim() && email.trim() && phone.trim() && intent && pw.longEnough && agreed && (!turnstileSiteKey || token));
+  // What still stands between this person and the button, in the order the fields appear, so a greyed-out
+  // button never leaves them guessing.
+  const missing = [
+    !firstName.trim() || !lastName.trim() ? "your first and last name" : null,
+    !email.trim() ? "your email" : null,
+    !phone.trim() ? "your phone number" : null,
+    !intent ? "whether you'll buy, sell or both" : null,
+    !pw.longEnough ? "a password of at least 10 characters" : null,
+    !agreed ? "agreeing to the terms" : null,
+    turnstileSiteKey && !token ? "the quick check that you're a person" : null,
+  ].filter((m): m is string => m !== null);
+  const ready = missing.length === 0;
+  const started = Boolean(firstName || lastName || email || phone || password || intent);
   return (
     <FormShell title="Create your account" intro="Ask real vendors, keep every purchase in one place, and get told when something needs you.">
       {google ? (
@@ -454,9 +466,12 @@ export function SignupForm({ next, google = false, turnstileSiteKey = "" }: { ne
           <span>Send me ProcureAI news and tips. You can stop these at any time. Order and security emails always come through.</span>
         </label>
         {turnstileSiteKey ? <TurnstileBox siteKey={turnstileSiteKey} onToken={setToken} resetKey={checkRound} /> : null}
-        <button type="submit" className="btn" disabled={send.pending || !ready}>
+        <button type="submit" className="btn" disabled={send.pending || !ready} aria-describedby="signup-missing">
           {send.pending ? <Spinner label="Creating your account" /> : "Create account"}
         </button>
+        <p id="signup-missing" className="note" style={{ fontSize: 14, margin: 0 }} aria-live="polite">
+          {started && !ready ? `Still needed: ${missing.join(", ")}.` : ""}
+        </p>
         <div aria-live="polite">{send.error && !hasIssues(send.error) ? <p className="form-error">{send.error.message}</p> : null}</div>
       </form>
       <p className="note" style={{ marginTop: 24 }}>

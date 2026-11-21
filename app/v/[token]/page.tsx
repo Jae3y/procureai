@@ -1,9 +1,11 @@
+import type { Metadata } from "next";
 import { PageMessage } from "@/components/states";
 import { VendorPhone } from "@/components/vendor-phone";
 import { DomainError } from "@/lib/domain/errors";
 import { buildVendorView } from "@/lib/views/vendor-view";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Quote request · ProcureAI", description: "A buyer on ProcureAI has asked you for a quote. Open the link to reply.", robots: { index: false, follow: false } };
 
 export default async function VendorPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;

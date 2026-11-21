@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { RequestFlow } from "@/components/request-flow";
 import { PageMessage } from "@/components/states";
@@ -6,6 +7,7 @@ import { initialsOf, pageCanSeeRequest, pageIsAdmin } from "@/lib/http/page-auth
 import { buildRequestView } from "@/lib/views/request-view";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Your request · ProcureAI", robots: { index: false, follow: false } };
 
 export default async function RequestPage({ params }: { params: Promise<{ requestId: string }> }) {
   const { requestId } = await params;

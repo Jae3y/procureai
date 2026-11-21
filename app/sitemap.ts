@@ -12,6 +12,7 @@ const STATIC: MetadataRoute.Sitemap = [
   { url: `${BASE}/market`, changeFrequency: "daily", priority: 0.9 },
   { url: `${BASE}/vendors/join`, changeFrequency: "monthly", priority: 0.8 },
   { url: `${BASE}/signup`, changeFrequency: "monthly", priority: 0.6 },
+  { url: `${BASE}/help`, changeFrequency: "monthly", priority: 0.5 },
   { url: `${BASE}/terms`, changeFrequency: "monthly", priority: 0.3 },
   { url: `${BASE}/privacy`, changeFrequency: "monthly", priority: 0.3 },
   { url: `${BASE}/refunds`, changeFrequency: "monthly", priority: 0.3 },

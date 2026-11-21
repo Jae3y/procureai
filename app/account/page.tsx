@@ -22,7 +22,7 @@ export default async function AccountPage() {
           <SignOutButton />
         </div>
         <ConfirmEmailBanner v={v} />
-        {env().koraMode === "test" ? <p className="note">Kora test mode: purchases run end to end, but no real money moves yet.</p> : null}
+        {env().koraMode === "test" ? <p className="note">Test mode: purchases run end to end, but no real money moves yet.</p> : null}
         <p className="note">
           {v.isVendor ? <Link href="/vendor">Open your vendor dashboard</Link> : <>Do you sell? <Link href="/vendors/join">Register your business</Link> to receive buyers&apos; requests.</>}
         </p>

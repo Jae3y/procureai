@@ -32,6 +32,7 @@ export function SiteShell({ signedIn, children }: { signedIn: boolean; children:
       <footer className="site-foot">
         <span>ProcureAI · {COMPANY_LINE}</span>
         <span style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+          <Link href="/help">Help</Link>
           <Link href="/terms">Terms</Link>
           <Link href="/privacy">Privacy</Link>
           <Link href="/refunds">Refunds and disputes</Link>

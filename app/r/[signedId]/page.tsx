@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { RecordActions } from "@/components/record-actions";
 import { PageMessage } from "@/components/states";
 import { Logo } from "@/components/ui";
@@ -5,6 +6,7 @@ import { verifyRecordId } from "@/lib/crypto";
 import { buildRecordView } from "@/lib/views/record-view";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Purchase record · ProcureAI", description: "A ProcureAI purchase record: the vendor, the checks, each payment and the delivery.", robots: { index: false, follow: false } };
 
 /** 06 · Record — the shareable purchase record. Public behind a signed id. */
 export default async function RecordPage({ params }: { params: Promise<{ signedId: string }> }) {
@@ -39,9 +41,9 @@ export default async function RecordPage({ params }: { params: Promise<{ signedI
                 </span>
                 <span style={{ font: "700 17px/1 var(--font-display)", letterSpacing: "-0.03em" }}>ProcureAI</span>
               </div>
-              <h2 id="record-title" style={{ margin: "28px 0 0", font: "600 clamp(36px,3.6vw,60px)/0.95 var(--font-display)", letterSpacing: "-0.045em" }}>
+              <h1 id="record-title" style={{ margin: "28px 0 0", font: "600 clamp(36px,3.6vw,60px)/0.95 var(--font-display)", letterSpacing: "-0.045em" }}>
                 {r.title}
-              </h2>
+              </h1>
             </div>
             <div className="doc-meta">
               {r.ref}

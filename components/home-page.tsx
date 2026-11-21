@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
+import type { ExampleRequest } from "@/lib/examples";
 import { AchievementsBanner } from "./achievements-banner";
 import { COMPANY_LINE } from "@/lib/legal";
 import { Logo } from "./ui";
@@ -31,11 +32,6 @@ interface ParsedRequest {
   date: string | null;
 }
 
-const EXAMPLES = [
-  { short: "300 T-shirts for an event", full: "300 branded T-shirts, under ₦1.5m, delivered by 23 October" },
-  { short: "120 lab coats for a class", full: "120 lab coats, under ₦1.1m, delivered by 30 October" },
-  { short: "40 cartons for a shop", full: "40 cartons of noodles, under ₦600k, delivered by 12 October" },
-];
 
 const PEOPLE = [
   {
@@ -97,9 +93,6 @@ const PROCUREAI_WAY = [
   "Money held until delivery, and one record to share",
 ];
 
-const defaultExample = EXAMPLES[0]!;
-const getExample = (idx: number) => EXAMPLES[idx] ?? defaultExample;
-
 function formatNaira(n: number): string {
   return "₦" + Math.round(n).toLocaleString("en-NG");
 }
@@ -130,8 +123,9 @@ function parseText(t: string): ParsedRequest {
 /** Landing tagline: edit here. */
 const TAGLINE = ["Buy like you checked everyone.", "Because we did."];
 
-export function HomePage({ signedIn = false }: { signedIn?: boolean }) {
+export function HomePage({ signedIn = false, examples }: { signedIn?: boolean; examples: ExampleRequest[] }) {
   const router = useRouter();
+  const getExample = (idx: number): ExampleRequest => examples[idx] ?? examples[0] ?? { short: "", full: "" };
   const [mode, setMode] = useState<"buy" | "sell">("buy");
   const [text, setText] = useState("");
   const [parsed, setParsed] = useState<ParsedRequest | null>(null);
@@ -155,7 +149,7 @@ export function HomePage({ signedIn = false }: { signedIn?: boolean }) {
 
   useEffect(() => {
     const iv = setInterval(() => {
-      setPlaceholderIdx((prev) => (prev + 1) % EXAMPLES.length);
+      setPlaceholderIdx((prev) => (prev + 1) % examples.length);
     }, 3600);
     const tm = setTimeout(() => setDrawn(true), 400);
     return () => {
@@ -405,7 +399,7 @@ export function HomePage({ signedIn = false }: { signedIn?: boolean }) {
                 <span className="note" style={{ marginRight: 6 }}>
                   Try
                 </span>
-                {EXAMPLES.map((e, idx) => (
+                {examples.map((e, idx) => (
                   <button
                     key={e.short}
                     type="button"
@@ -742,6 +736,9 @@ export function HomePage({ signedIn = false }: { signedIn?: boolean }) {
             </Link>
             <Link href="/sample" style={{ color: "var(--muted)" }}>
               See a completed record
+            </Link>
+            <Link href="/help" style={{ color: "var(--muted)" }}>
+              Help
             </Link>
             <Link href="/terms" style={{ color: "var(--muted)" }}>
               Terms

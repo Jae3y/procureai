@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { AdminLogin } from "@/components/admin-console";
 import { Logo } from "@/components/ui";
@@ -5,6 +6,7 @@ import { pageIsAdmin } from "@/lib/http/page-auth";
 import { buildReconcileView } from "@/lib/views/reconcile-view";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Reconcile · ProcureAI", robots: { index: false, follow: false } };
 
 const STATUS_COPY = {
   matched: { text: "✓ Matched", cls: "green" },

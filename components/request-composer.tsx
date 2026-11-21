@@ -9,7 +9,7 @@ import { Header, Spinner } from "./ui";
 type Draft = { item: string | null; quantity: string | null; budget: string | null; deadline: string | null };
 
 /** 01 · Request — the buyer's one sentence. Missing parts show as "Not given", like the homepage parser. */
-export function RequestComposer({ mode, testMode, initialText, initials }: { mode: "demo" | "real"; testMode: boolean; initialText: string; initials?: string }) {
+export function RequestComposer({ mode, testMode, initialText, placeholder, initials }: { mode: "demo" | "real"; testMode: boolean; initialText: string; placeholder: string; initials?: string }) {
   const router = useRouter();
   const [text, setText] = useState(initialText);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -51,7 +51,7 @@ export function RequestComposer({ mode, testMode, initialText, initials }: { mod
             rows={3}
             spellCheck={false}
             value={text}
-            placeholder="300 branded T-shirts, under ₦1.5m, delivered by 23 October"
+            placeholder={placeholder}
             onChange={(e) => {
               setText(e.target.value);
               setDraft(null);

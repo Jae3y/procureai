@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { RequestComposer } from "@/components/request-composer";
 import { env } from "@/lib/env";
+import { exampleRequests } from "@/lib/examples";
 import { initialsOf, pageAccount } from "@/lib/http/page-auth";
 
 export const dynamic = "force-dynamic";
@@ -13,5 +14,5 @@ export default async function NewRequestPage({ searchParams }: { searchParams: P
   const initialText = typeof text === "string" ? text.slice(0, 500) : "";
   const account = await pageAccount();
   if (!account && !env().DEMO_MODE) redirect(`/login?next=${encodeURIComponent(`/buy${initialText ? `?text=${encodeURIComponent(initialText)}` : ""}`)}`);
-  return <RequestComposer mode={account ? "real" : "demo"} testMode={env().koraMode === "test"} initialText={initialText} initials={account ? initialsOf(account.name) : undefined} />;
+  return <RequestComposer mode={account ? "real" : "demo"} testMode={env().koraMode === "test"} initialText={initialText} placeholder={exampleRequests()[0]?.full ?? ""} initials={account ? initialsOf(account.name) : undefined} />;
 }
