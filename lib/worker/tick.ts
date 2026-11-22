@@ -1,6 +1,7 @@
 import { log } from "@/lib/log";
 import { runLifecycle } from "@/lib/notify/lifecycle";
 import { flushNotificationEmails } from "@/lib/notify/notifications";
+import { pruneHousekeeping } from "./housekeeping";
 import { processOutboxBatch } from "./outbox";
 import { pollOnce } from "./poller";
 import { moveDbPhotosToStorage } from "@/lib/storage/photos";
@@ -19,6 +20,7 @@ export type TickReport = {
   emails: Awaited<ReturnType<typeof flushNotificationEmails>>;
   lifecycle: Awaited<ReturnType<typeof runLifecycle>>;
   photos: Awaited<ReturnType<typeof moveDbPhotosToStorage>>;
+  housekeeping: Awaited<ReturnType<typeof pruneHousekeeping>>;
 };
 
 export function tick(): Promise<TickReport> {
@@ -38,10 +40,14 @@ export function tick(): Promise<TickReport> {
         log.error({ err }, "moving photos to file storage failed; next pass retries");
         return { moved: 0, skipped: 0 };
       });
+      const housekeeping = await pruneHousekeeping().catch((err: unknown) => {
+        log.error({ err }, "housekeeping cleanup failed; next pass retries");
+        return { rateLimits: 0, idempotencyKeys: 0, accountTokens: 0 };
+      });
       if (outbox.processed || outbox.retried || outbox.parked || poll.charges || poll.payouts || poll.refunds || poll.healed || poll.errors || emails.sent || emails.failed) {
         log.info({ outbox, poll, emails }, "tick");
       }
-      return { outbox, poll, emails, lifecycle, photos };
+      return { outbox, poll, emails, lifecycle, photos, housekeeping };
     } finally {
       running = null;
     }
