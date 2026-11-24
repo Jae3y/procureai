@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Inter, JetBrains_Mono } from "next/font/google";
+import { headers } from "next/headers";
+import { GoogleAnalytics } from "@/components/google-analytics";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({ subsets: ["latin"], weight: ["400", "600", "700", "800"], variable: "--font-bricolage", display: "swap" });
@@ -16,7 +18,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#F6F3EC" };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html lang="en-NG" className={`${bricolage.variable} ${inter.variable} ${jetbrains.variable}`}>
       <body>
@@ -29,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             OFFLINE · KORA TEST DOUBLE — not connected to Kora. Add your sk_test_ key and run npm run dev.
           </div>
         ) : null}
+        <GoogleAnalytics nonce={nonce} />
       </body>
     </html>
   );
