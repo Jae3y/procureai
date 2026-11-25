@@ -69,6 +69,11 @@ const EnvSchema = z
     /** Sentry error reports (free plan is enough). Off until set; looks like https://<key>@o123.ingest.sentry.io/456. */
     SENTRY_DSN: z.string().default(""),
     /** After the vendor marks an order delivered, the buyer has this long to report a problem before Stage 2 releases by itself. */
+    /**
+     * Bearer token for GET /api/internal/growth-stats (daily aggregate counts for the owner's local Growth Engine).
+     * Unset = the endpoint answers 404, as if it didn't exist.
+     */
+    GROWTH_STATS_TOKEN: z.string().min(32, "use at least 32 random characters").optional(),
     DELIVERY_GRACE_HOURS: z.coerce.number().int().min(1).max(720).default(72),
   })
   .superRefine((env, ctx) => {

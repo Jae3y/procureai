@@ -1,8 +1,10 @@
 import { z } from "zod";
+import { attributionFrom, signupEventCookie } from "@/lib/attribution";
 import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/auth/password";
 import { assertAcceptablePassword } from "@/lib/auth/password-policy";
 import { verifyTurnstile } from "@/lib/auth/turnstile";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import { normalizeEmail, signUp } from "@/lib/domain/accounts";
 import { DomainError } from "@/lib/domain/errors";
 import { normalizeNigerianPhone } from "@/lib/domain/vendor-profiles";
@@ -38,7 +40,7 @@ const Body = z.object({
 /** POST /api/auth/signup — opens an account and signs in. */
 export const POST = route<z.output<typeof Body>>(
   { name: "auth.signup", input: Body, limits: ({ ip }) => [{ key: `signup:${ip}`, limit: 10, windowSeconds: 3600 }] },
-  async ({ input, ip }) => {
+  async ({ input, ip, req }) => {
     const age = Date.now() - input.openedAt;
     if (age < MIN_FILL_MS || age > MAX_FILL_MS) {
       throw new DomainError("too_fast", "That was quick. Check your details and press the button again.", 400);
@@ -68,7 +70,8 @@ export const POST = route<z.output<typeof Body>>(
       ...(input.organisation ? { organisation: input.organisation } : {}),
       ...(input.heardFrom ? { heardFrom: input.heardFrom } : {}),
       marketingOptIn: input.marketingOptIn,
+      attribution: attributionFrom(req),
     });
-    return { status: 201, body: { ok: true, intent: input.intent }, cookies: [accountSessionCookie(account)] };
+    return { status: 201, body: { ok: true, intent: input.intent }, cookies: [accountSessionCookie(account), signupEventCookie("email", env().APP_BASE_URL.startsWith("https://"))] };
   },
 );

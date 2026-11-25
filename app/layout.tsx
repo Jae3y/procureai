@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Inter, JetBrains_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { GoogleAnalytics } from "@/components/google-analytics";
+import { SignUpEvent } from "@/components/sign-up-event";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({ subsets: ["latin"], weight: ["400", "600", "700", "800"], variable: "--font-bricolage", display: "swap" });
@@ -33,6 +34,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </div>
         ) : null}
         <GoogleAnalytics nonce={nonce} />
+        <SignUpEvent />
       </body>
     </html>
   );

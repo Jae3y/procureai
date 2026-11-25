@@ -1,3 +1,4 @@
+import { attributionFrom, signupEventCookie } from "@/lib/attribution";
 import { exchangeGoogleCode, GoogleSignInError, googleEnabled, verifyGoogleIdToken } from "@/lib/auth/google";
 import { safeEqual } from "@/lib/crypto";
 import { completeLogin, signInWithGoogle } from "@/lib/domain/accounts";
@@ -30,13 +31,17 @@ export async function GET(req: Request): Promise<Response> {
     await rateLimit(`google-callback:${clientIp(req)}`, 30, 600);
     const idToken = await exchangeGoogleCode(code, saved.verifier);
     const profile = await verifyGoogleIdToken(idToken, { nonce: saved.nonce });
-    const account = await signInWithGoogle(profile);
+    const startedAt = Date.now();
+    const account = await signInWithGoogle(profile, attributionFrom(req));
+    // A brand-new account (not a returning or newly linked one): the next page fires GA's sign_up event once.
+    const isNew = account.signupMethod === "google" && account.createdAt.getTime() >= startedAt - 5_000; // 5s of clock slack between app and database
+    const signupFlag = isNew ? [signupEventCookie("google", env().APP_BASE_URL.startsWith("https://"))] : [];
     if (account.totpEnabledAt) {
       // Google proves who you are; two-step sign-in, once switched on, is still asked for.
-      return go(`/login?step=code&next=${encodeURIComponent(saved.next)}`, [clear, loginTicketCookie(account.id)]);
+      return go(`/login?step=code&next=${encodeURIComponent(saved.next)}`, [clear, loginTicketCookie(account.id), ...signupFlag]);
     }
     const signedIn = await completeLogin(account, { ip: clientIp(req), userAgent: req.headers.get("user-agent") });
-    return go(saved.next, [clear, accountSessionCookie(signedIn), clearLoginTicketCookie()]);
+    return go(saved.next, [clear, accountSessionCookie(signedIn), clearLoginTicketCookie(), ...signupFlag]);
   } catch (err) {
     if (err instanceof GoogleSignInError) {
       log.warn({ reason: err.reason }, "google sign-in refused");

@@ -1,7 +1,9 @@
 import { z } from "zod";
+import { attributionFrom, signupEventCookie } from "@/lib/attribution";
 import { PASSWORD_MAX, PASSWORD_MIN } from "@/lib/auth/password";
 import { assertAcceptablePassword } from "@/lib/auth/password-policy";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import { normalizeEmail, signUp } from "@/lib/domain/accounts";
 import { DomainError } from "@/lib/domain/errors";
 import { registerVendor } from "@/lib/domain/vendor-profiles";
@@ -42,9 +44,9 @@ export const POST = route<z.output<typeof Body>>(
     // account, so trying again with a better password answered "this phone number is already registered".
     if (!signedIn && password) await assertAcceptablePassword(password, { email: normalizeEmail(input.email), name: input.businessName });
     const created = await registerVendor(profile);
-    const account = signedIn ?? (password ? await signUp({ name: created.businessName, email: input.email, password }) : null);
+    const account = signedIn ?? (password ? await signUp({ name: created.businessName, email: input.email, password, signupMethod: "vendor", attribution: attributionFrom(req) }) : null);
     if (!account) return { status: 201, body: created };
     await db().account.update({ where: { id: account.id }, data: { vendorContactId: created.id } });
-    return { status: 201, body: created, cookies: signedIn ? [] : [accountSessionCookie(account)] };
+    return { status: 201, body: created, cookies: signedIn ? [] : [accountSessionCookie(account), signupEventCookie("email", env().APP_BASE_URL.startsWith("https://"))] };
   },
 );

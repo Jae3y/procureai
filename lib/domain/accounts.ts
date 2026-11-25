@@ -1,3 +1,4 @@
+import type { Attribution } from "@/lib/attribution";
 import { burnPasswordCheck, hashPassword, verifyPassword } from "@/lib/auth/password";
 import { assertAcceptablePassword } from "@/lib/auth/password-policy";
 import { newRecoveryCodes, newTotpSecret, normalizeRecoveryCode, otpauthUrl, verifyTotp } from "@/lib/auth/totp";
@@ -60,7 +61,17 @@ export async function resendVerifyEmail(account: Account): Promise<{ sent: boole
   return { sent: await sendVerifyEmail(account) };
 }
 
-export type SignUpProfile = { phone?: string; intent?: "BUY" | "SELL" | "BOTH"; organisation?: string; heardFrom?: string; marketingOptIn?: boolean };
+export type SignUpProfile = {
+  phone?: string;
+  intent?: "BUY" | "SELL" | "BOTH";
+  organisation?: string;
+  heardFrom?: string;
+  marketingOptIn?: boolean;
+  /** "vendor" when the account is opened by the vendor registration form. Defaults to "email". */
+  signupMethod?: "email" | "vendor";
+  /** First-touch attribution from the visitor's cookie (lib/attribution.ts). */
+  attribution?: Attribution;
+};
 
 /** `passwordChecked`: the caller already ran the password rules (saves a second breach lookup). */
 export async function signUp(input: { name: string; email: string; password: string; passwordChecked?: boolean } & SignUpProfile): Promise<Account> {
@@ -84,6 +95,8 @@ export async function signUp(input: { name: string; email: string; password: str
           organisation: input.organisation?.trim() || null,
           heardFrom: input.heardFrom ?? null,
           marketingConsentAt: input.marketingOptIn ? new Date() : null,
+          signupMethod: input.signupMethod ?? "email",
+          ...input.attribution,
         },
       });
     });
@@ -113,7 +126,7 @@ export async function logIn(input: { email: string; password: string }): Promise
  * would); otherwise a new account. A registered vendor profile with this email and no account yet is
  * linked too. Two-step sign-in, if on, is still asked for by the caller.
  */
-export async function signInWithGoogle(profile: { sub: string; email: string; name: string }): Promise<Account> {
+export async function signInWithGoogle(profile: { sub: string; email: string; name: string }, attribution?: Attribution): Promise<Account> {
   const bySub = await db().account.findUnique({ where: { googleSub: profile.sub } });
   if (bySub) return bySub;
   const email = normalizeEmail(profile.email);
@@ -164,6 +177,8 @@ export async function signInWithGoogle(profile: { sub: string; email: string; na
           emailVerifiedAt: new Date(),
           termsAcceptedAt: new Date(),
           termsVersion: LEGAL_UPDATED,
+          signupMethod: "google",
+          ...attribution,
           ...(contact ? { vendorContactId: contact.id } : {}),
         },
       });
@@ -291,7 +306,7 @@ export async function requestPasswordReset(rawEmail: string): Promise<void> {
     if (!contact) return;
     account = await transaction(async (tx) => {
       const buyer = await tx.buyer.create({ data: { name: contact.businessName, email } });
-      return tx.account.create({ data: { email, name: contact.businessName, buyerId: buyer.id, vendorContactId: contact.id } });
+      return tx.account.create({ data: { email, name: contact.businessName, buyerId: buyer.id, vendorContactId: contact.id, signupMethod: "vendor" } });
     });
   }
   const token = await issueToken(account.id, "RESET", RESET_TTL_MS);
