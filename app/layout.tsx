@@ -14,6 +14,8 @@ export const metadata: Metadata = {
   title: { default: "ProcureAI · Buy from vendors you don't know, safely", template: "%s" },
   openGraph: { type: "website", siteName: "ProcureAI", url: "https://procureai.com.ng", locale: "en_NG" },
   twitter: { card: "summary_large_image" },
+  // Google Search Console ownership check (public by design). A meta tag is not a script, so the CSP doesn't affect it.
+  verification: { google: "2D6vGRG-zcpkR7OoLnAIU-AZZK320KpZXh9HWZAeeK4" },
   description: "Buy from vendors you don't know yet without the gamble. ProcureAI checks every vendor, holds your money until delivery, and gets vendors paid before they start.",
 };
 
