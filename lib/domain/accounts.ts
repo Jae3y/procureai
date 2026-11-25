@@ -127,6 +127,46 @@ export async function logIn(input: { email: string; password: string }): Promise
  * linked too. Two-step sign-in, if on, is still asked for by the caller.
  */
 export async function signInWithGoogle(profile: { sub: string; email: string; name: string }, attribution?: Attribution): Promise<Account> {
+  return (await googleSignIn(profile, attribution)).account;
+}
+
+/** signInWithGoogle, also saying whether this call opened the account (`created`), for the one-time GA sign_up event. */
+export async function googleSignIn(profile: { sub: string; email: string; name: string }, attribution?: Attribution): Promise<{ account: Account; created: boolean }> {
+  const existing = await linkGoogleAccount(profile);
+  if (existing) return { account: existing, created: false };
+  const email = normalizeEmail(profile.email);
+  const contact = await db().vendorContact.findFirst({ where: { email, isDemo: false, registeredAt: { not: null }, account: null } });
+  try {
+    const account = await transaction(async (tx) => {
+      const buyer = await tx.buyer.create({ data: { name: profile.name, email } });
+      return tx.account.create({
+        data: {
+          email,
+          name: profile.name,
+          buyerId: buyer.id,
+          googleSub: profile.sub,
+          emailVerifiedAt: new Date(),
+          termsAcceptedAt: new Date(),
+          termsVersion: LEGAL_UPDATED,
+          signupMethod: "google",
+          ...attribution,
+          ...(contact ? { vendorContactId: contact.id } : {}),
+        },
+      });
+    });
+    return { account, created: true };
+  } catch (err) {
+    // Two tabs finishing Google sign-in at once: the second finds the account the first created.
+    if (isUniqueViolation(err)) {
+      const again = await db().account.findUnique({ where: { googleSub: profile.sub } });
+      if (again) return { account: again, created: false };
+    }
+    throw err;
+  }
+}
+
+/** The account this Google sign-in belongs to, if one exists already (linking it by email if needed); null for a new person. */
+async function linkGoogleAccount(profile: { sub: string; email: string; name: string }): Promise<Account | null> {
   const bySub = await db().account.findUnique({ where: { googleSub: profile.sub } });
   if (bySub) return bySub;
   const email = normalizeEmail(profile.email);
@@ -164,33 +204,7 @@ export async function signInWithGoogle(profile: { sub: string; email: string; na
     }
     return db().account.update({ where: { id: byEmail.id }, data: { googleSub: profile.sub } });
   }
-  const contact = await db().vendorContact.findFirst({ where: { email, isDemo: false, registeredAt: { not: null }, account: null } });
-  try {
-    return await transaction(async (tx) => {
-      const buyer = await tx.buyer.create({ data: { name: profile.name, email } });
-      return tx.account.create({
-        data: {
-          email,
-          name: profile.name,
-          buyerId: buyer.id,
-          googleSub: profile.sub,
-          emailVerifiedAt: new Date(),
-          termsAcceptedAt: new Date(),
-          termsVersion: LEGAL_UPDATED,
-          signupMethod: "google",
-          ...attribution,
-          ...(contact ? { vendorContactId: contact.id } : {}),
-        },
-      });
-    });
-  } catch (err) {
-    // Two tabs finishing Google sign-in at once: the second finds the account the first created.
-    if (isUniqueViolation(err)) {
-      const again = await db().account.findUnique({ where: { googleSub: profile.sub } });
-      if (again) return again;
-    }
-    throw err;
-  }
+  return null;
 }
 
 /** The person passed every step: record it and tell them, so a sign-in they didn't make is noticed. */

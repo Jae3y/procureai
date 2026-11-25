@@ -7,3 +7,6 @@ ALTER TABLE "Account" ADD COLUMN "referrerHost" TEXT;
 
 -- The growth stats count accounts per day.
 CREATE INDEX "Account_createdAt_idx" ON "Account"("createdAt");
+
+-- ...and each order's first HELD transition (when its pay-in succeeded), without scanning the whole audit table.
+CREATE INDEX "OrderTransition_toState_orderId_at_idx" ON "OrderTransition"("toState", "orderId", "at");

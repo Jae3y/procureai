@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { attributionFromLanding, cleanTag, decodeAttribution, encodeAttribution, referrerHostOf } from "@/lib/attribution";
 import { parseEnv } from "@/lib/env";
-import { lagosDayRange, parseDay, yesterdayInLagos } from "@/lib/growth-stats";
+import { lagosDayRange, parseDay, sourceKey, yesterdayInLagos } from "@/lib/growth-stats";
 
 describe("growth stats: Lagos calendar days", () => {
   it("accepts only real YYYY-MM-DD dates", () => {
@@ -21,6 +21,17 @@ describe("growth stats: Lagos calendar days", () => {
     // 23:30 UTC on the 25th is already 00:30 on the 26th in Lagos.
     expect(yesterdayInLagos(new Date("2026-11-25T23:30:00Z"))).toBe("2026-11-25");
     expect(yesterdayInLagos(new Date("2026-11-25T22:59:59Z"))).toBe("2026-11-24");
+  });
+});
+
+describe("growth stats: source keys", () => {
+  const k = (utmSource: string | null, heardFrom: string | null = null, referrerHost: string | null = null) => sourceKey({ utmSource, heardFrom, referrerHost });
+  it("shows short tags and buckets anything that could identify a person as other", () => {
+    expect(k("instagram")).toBe("instagram");
+    expect(k(null, "WHATSAPP")).toBe("whatsapp");
+    expect(k(null, null, "google.com")).toBe("google.com");
+    expect(k(null)).toBe("unknown");
+    for (const risky of ["08031234567", "ada.obi.234803123", "__proto__", "x".repeat(40), "1abc"]) expect(k(risky)).toBe("other");
   });
 });
 

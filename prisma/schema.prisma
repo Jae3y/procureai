@@ -592,6 +592,8 @@ model OrderTransition {
   at        DateTime    @default(now())
 
   @@index([orderId, seq])
+  /// The growth stats find each order's first HELD transition.
+  @@index([toState, orderId, at])
 }
 
 /// The order timeline streamed over SSE. `seq` is the SSE event id, so a reconnect backfills by

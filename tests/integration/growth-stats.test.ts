@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { GET } from "@/app/api/internal/growth-stats/route";
 import { POST as signupPost } from "@/app/api/auth/signup/route";
 import { db } from "@/lib/db";
-import { signInWithGoogle } from "@/lib/domain/accounts";
+import { googleSignIn, signInWithGoogle } from "@/lib/domain/accounts";
 import { resetEnvCache } from "@/lib/env";
 import { yesterdayInLagos } from "@/lib/growth-stats";
 import { fundOrder, makeOrderFixture } from "../helpers/factories";
@@ -94,7 +94,13 @@ describe("GET /api/internal/growth-stats: the numbers", () => {
     await account("2026-11-20T12:00:00Z", { googleSub: "g-legacy" }); // from before signupMethod: Google, no password, source unknown
     await account("2026-11-20T13:00:00Z", { signupMethod: "email", referrerHost: "google.com", passwordHash: "x" });
     const c = await account("2026-11-19T22:59:00Z", { signupMethod: "email", passwordHash: "x" }); // 23:59 Lagos on the 19th: out
-    await account("2026-11-20T09:00:00Z", { signupMethod: "vendor" }); // the vendor form: not a buyer sign-up
+    const vendorForm = await account("2026-11-20T09:00:00Z", { signupMethod: "vendor" }); // the vendor form: not a buyer sign-up
+    // A vendor-form account from before signupMethod was kept: vendor profile, no Google id, no buy/sell answer.
+    const legacyShop = await vendor("+234 803 000 0009", "2026-11-10T10:00:00Z");
+    await account("2026-11-20T09:30:00Z", { vendorContactId: legacyShop.id, passwordHash: "x" });
+    // Visitor-typed sources that could carry personal data, or would collide with object keys, are bucketed as "other".
+    await account("2026-11-20T14:00:00Z", { signupMethod: "email", utmSource: "08031234567", passwordHash: "x" });
+    await account("2026-11-20T14:30:00Z", { signupMethod: "email", utmSource: "__proto__", passwordHash: "x" });
     await vendor("+234 803 000 0001", "2026-11-20T10:00:00Z");
     await vendor("+234 803 000 0002", "2026-11-20T10:00:00Z", true);
     await vendor("+234 803 000 0003", "2026-11-19T22:30:00Z"); // the 19th in Lagos
@@ -105,6 +111,7 @@ describe("GET /api/internal/growth-stats: the numbers", () => {
     await request(b.buyerId, "2026-11-18T10:00:00Z");
     await request(b.buyerId, "2026-11-20T10:00:00Z");
     await request(c.buyerId, "2026-11-20T10:00:00Z", true);
+    await request(vendorForm.buyerId, "2026-11-20T10:00:00Z"); // a vendor account buying: not a buyer activation
 
     const r = await get("?date=2026-11-20");
     expect(r.status).toBe(200);
@@ -112,16 +119,16 @@ describe("GET /api/internal/growth-stats: the numbers", () => {
       product: "procureai",
       date: "2026-11-20",
       timezone: "Africa/Lagos",
-      signups: 4,
-      signups_by_method: { email: 2, google: 2 },
-      signups_by_source: { newsletter: 1, whatsapp: 1, unknown: 1, "google.com": 1 },
+      signups: 6,
+      signups_by_method: { email: 4, google: 2 },
+      signups_by_source: { newsletter: 1, whatsapp: 1, unknown: 1, "google.com": 1, other: 2 },
       vendor_signups: 1,
       activations: 1,
       purchases: 0,
       revenue_minor: 0,
       currency: "NGN",
       payments_mode: "test", // the test env runs a sk_test_ key with DEMO_MODE on
-      totals: { users: 5, activated_users: 2, paying_customers: 0, vendors: 2 },
+      totals: { users: 7, activated_users: 2, paying_customers: 0, vendors: 3 },
     });
     expect(typeof r.body.activation_definition).toBe("string");
     expect(new Date(r.body.generated_at as string).toString()).not.toBe("Invalid Date");
@@ -183,5 +190,11 @@ describe("sign-up keeps the first touch", () => {
     expect(a).toMatchObject({ signupMethod: "google", referrerHost: "x.com" });
     const again = await signInWithGoogle(profile, { utmSource: "later", utmMedium: null, utmCampaign: null, referrerHost: null });
     expect(again).toMatchObject({ id: a.id, utmSource: null, referrerHost: "x.com" });
+  });
+
+  it("only the call that opens a Google account reports it as created (the GA sign_up event fires once)", async () => {
+    const profile = { sub: "google-sub-created", email: "c@example.com", name: "Cee" };
+    expect((await googleSignIn(profile)).created).toBe(true);
+    expect((await googleSignIn(profile)).created).toBe(false);
   });
 });
