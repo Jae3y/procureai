@@ -135,6 +135,13 @@ model Account {
   organisation        String?
   /// Optional "how did you hear about us": WHATSAPP, INSTAGRAM, X, FACEBOOK, FRIEND, EVENT, SEARCH, OTHER.
   heardFrom           String?
+  /// How the account was opened: "email", "google" or "vendor" (the vendor registration form). Null on accounts from before this was kept.
+  signupMethod        String?
+  /// First-touch attribution from the pai_ft cookie at sign-up (utm_* from the landing URL, else the referring site's host). Aggregated only.
+  utmSource           String?
+  utmMedium           String?
+  utmCampaign         String?
+  referrerHost        String?
   /// Opted in to product news. NDPA: marketing needs a separate, unticked-by-default consent.
   marketingConsentAt  DateTime?
   /// Bumped on password change or reset: every older session cookie stops working.
@@ -166,6 +173,8 @@ model Account {
   createdAt           DateTime         @default(now())
   tokens              AccountToken[]
   notifications       Notification[]
+
+  @@index([createdAt])
 }
 
 /// Single-use emailed links. Only the sha256 of the token is stored.
@@ -583,6 +592,8 @@ model OrderTransition {
   at        DateTime    @default(now())
 
   @@index([orderId, seq])
+  /// The growth stats find each order's first HELD transition.
+  @@index([toState, orderId, at])
 }
 
 /// The order timeline streamed over SSE. `seq` is the SSE event id, so a reconnect backfills by

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAction } from "./hooks";
+import { fireSignUpEvent } from "./sign-up-event";
 import { Spinner } from "./ui";
 
 type Fields = {
@@ -83,6 +84,9 @@ export function VendorJoin({ banks, banksError, signedInEmail }: { banks: Array<
               if (r.ok) {
                 setFounding(r.data.foundingNumber);
                 setDone(r.data.businessName);
+                // Stays on this page, so the layout's listener wouldn't see the new account until the next one. Signed out with a
+                // password, this request opened an account, so the event goes even if a replayed reply carried no cookie.
+                fireSignUpEvent(!signedInEmail && password ? "email" : undefined);
               }
             });
           }}

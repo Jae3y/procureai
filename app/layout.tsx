@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Inter, JetBrains_Mono } from "next/font/google";
 import { headers } from "next/headers";
 import { GoogleAnalytics } from "@/components/google-analytics";
+import { SignUpEvent } from "@/components/sign-up-event";
 import "./globals.css";
 
 const bricolage = Bricolage_Grotesque({ subsets: ["latin"], weight: ["400", "600", "700", "800"], variable: "--font-bricolage", display: "swap" });
@@ -13,6 +14,8 @@ export const metadata: Metadata = {
   title: { default: "ProcureAI · Buy from vendors you don't know, safely", template: "%s" },
   openGraph: { type: "website", siteName: "ProcureAI", url: "https://procureai.com.ng", locale: "en_NG" },
   twitter: { card: "summary_large_image" },
+  // Google Search Console ownership check (public by design). A meta tag is not a script, so the CSP doesn't affect it.
+  verification: { google: "2D6vGRG-zcpkR7OoLnAIU-AZZK320KpZXh9HWZAeeK4" },
   description: "Buy from vendors you don't know yet without the gamble. ProcureAI checks every vendor, holds your money until delivery, and gets vendors paid before they start.",
 };
 
@@ -33,6 +36,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           </div>
         ) : null}
         <GoogleAnalytics nonce={nonce} />
+        <SignUpEvent />
       </body>
     </html>
   );

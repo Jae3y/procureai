@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { ATTRIBUTION_COOKIE, ATTRIBUTION_MAX_AGE, attributionFromLanding, encodeAttribution } from "@/lib/attribution";
 
 /**
  * A fresh nonce on every page request, so the Content-Security-Policy can allow exactly Next's own scripts and
@@ -31,7 +32,25 @@ export function proxy(request: NextRequest): NextResponse {
   requestHeaders.set("Content-Security-Policy", csp);
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("Content-Security-Policy", csp);
+  rememberFirstTouch(request, response);
   return response;
+}
+
+/**
+ * First touch wins: the cookie is written only when this browser has none yet and the landing names a source (utm_*
+ * tags, or another site's link). Sign-up copies it onto the account. First-party, 30 days, no third-party code.
+ */
+function rememberFirstTouch(request: NextRequest, response: NextResponse): void {
+  if (request.method !== "GET" || request.cookies.has(ATTRIBUTION_COOKIE)) return;
+  const touch = attributionFromLanding(request.nextUrl, request.headers.get("referer"), request.headers.get("x-forwarded-host") ?? request.headers.get("host"));
+  if (!touch) return;
+  response.cookies.set(ATTRIBUTION_COOKIE, encodeAttribution(touch), {
+    path: "/",
+    maxAge: ATTRIBUTION_MAX_AGE,
+    sameSite: "lax",
+    httpOnly: true,
+    secure: request.nextUrl.protocol === "https:",
+  });
 }
 
 export const config = {
